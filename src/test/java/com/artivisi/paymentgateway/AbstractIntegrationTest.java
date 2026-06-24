@@ -7,24 +7,29 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.util.Base64;
 
 /**
  * Boots the full app on a random port against a real PostgreSQL 18 container.
- * Datasource and the required secret key are injected here, so the production
+ *
+ * <p>The container is a JVM-wide singleton started once in a static initializer (NOT managed by
+ * {@code @Testcontainers}/{@code @Container}, which would stop it after the first test class and
+ * leave the cached Spring context pointing at a dead database). Ryuk reaps it on JVM exit.
+ *
+ * <p>Datasource and the required secret key are injected here, so the production
  * {@code application.yml} placeholders never resolve in tests.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@Testcontainers
 public abstract class AbstractIntegrationTest {
 
-    @Container
     static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>(DockerImageName.parse("postgres:18"));
+
+    static {
+        POSTGRES.start();
+    }
 
     @LocalServerPort
     protected int port;

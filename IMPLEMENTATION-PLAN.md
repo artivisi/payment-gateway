@@ -17,7 +17,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 | Phase | Title | Status |
 |---|---|---|
 | 0 | Scaffold | `[x]` |
-| 1 | Core (Charge + VA lifecycle, Consumer API, webhooks) | `[ ]` |
+| 1 | Core (Charge + VA lifecycle, Consumer API, webhooks) | `[~]` |
 | 2 | Adapters (bsi, cimb, maybank) | `[ ]` |
 | 3 | Reconciliation | `[ ]` |
 | 4 | Web admin UI | `[ ]` |
@@ -47,29 +47,30 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 **Goal:** full charge/VA lifecycle and consumer-facing API, independent of any real bank (adapter calls stubbed/in-memory).
 
 ### Domain & lifecycle
-- [ ] `Charge` aggregate: type (OPEN/CLOSED/INSTALLMENT), amount, cumulativePaid, status, expiry, consumerReference (per-consumer idempotency)
-- [ ] `VirtualAccount` as per-escrow instrument: charge + escrowAccount + consumer-supplied vaNumber + status
-- [ ] VA number validation: within escrow's company-id/prefix/digit space + availability; **no generation**
-- [ ] Charge create → fan out to N escrows (one vaNumber per escrow), reserve all
-- [ ] Inquiry resolution: effective amount = `amount − cumulativePaid`; NOT_FOUND for cancelled/expired/unknown
-- [ ] Payment application (per-charge lock + serialize):
-  - [ ] CLOSED → first full payment marks PAID, cancel siblings
-  - [ ] OPEN/INSTALLMENT → add to shared cumulative, reprice siblings, PAID + cancel when cumulative ≥ amount
-  - [ ] Idempotency: duplicate `(va, bankReference)` rejected
-  - [ ] Overpayment/double-settle → flagged discrepancy, fail loud (never silently accepted)
-- [ ] Expiry handling (scheduler marks charges/VAs expired; inquiry rejects expired)
+- [x] `Charge` aggregate: type (OPEN/CLOSED/INSTALLMENT), amount, cumulativePaid, status, expiry, consumerReference (per-consumer idempotency)
+- [x] `VirtualAccount` as per-escrow instrument: charge + escrowAccount + consumer-supplied vaNumber + status
+- [x] VA number validation (`NumberSpaceValidator`): prefix + digit length + numeric + availability; **no generation**
+- [x] Charge create → fan out to N escrows (one vaNumber per escrow), reserve all
+- [x] Inquiry resolution (`InquiryService`): effective amount = `amount − cumulativePaid`; NOT_FOUND for cancelled/expired/paid/unknown
+- [x] Payment application (`PaymentApplicationService`, per-charge pessimistic lock):
+  - [x] CLOSED → exact amount; first full payment marks PAID, cancels siblings
+  - [x] OPEN/INSTALLMENT → shared cumulative; INSTALLMENT PAID + cancel siblings when cumulative = amount; siblings repriced live via inquiry
+  - [x] Idempotency: replayed `(va, bankReference)` returns existing payment
+  - [x] Overpayment / wrong amount / paying cancelled sibling → `InvalidPaymentException`, fail loud
+- [~] Expiry handling: inquiry + payment reject expired charges. Scheduler to auto-mark expired = **deferred (Phase 1b)**.
 
 ### Consumer API
-- [ ] `POST /charges` (create charge + sibling VAs), `GET /charges/{id}`, cancel charge
-- [ ] Consumer auth (client id/secret)
-- [ ] Per-consumer idempotency on `consumerReference`
+- [x] `POST /charges` (create charge + sibling VAs), `GET /charges/{id}`, `POST /charges/{id}/cancel`
+- [x] Consumer auth (`X-Client-Id` / `X-Client-Secret`, constant-time compare)
+- [x] Per-consumer idempotency on `consumerReference` (201 create vs 200 idempotent hit)
 
-### Webhook framework
+### Webhook framework — **deferred to Phase 1b**
 - [ ] Forward one webhook per received payment (cumulative + remaining) to consumer webhook URL
 - [ ] Terminal "charge PAID" event
 - [ ] Signed webhooks; retry with backoff; delivery log
+- [ ] Request/response log-scrubbing filter (carried from Phase 0)
 
-**Exit:** create a charge across two stub escrows, simulate payment on one → siblings cancel, webhook fires, idempotent on replay. Covered by RestAssured + Testcontainers.
+**Exit:** ✅ create a charge across two escrows, apply payment on one → siblings cancel, idempotent on replay, shared cumulative across banks, fail-loud on overpayment. 27 tests green (RestAssured + Testcontainers, service-level + HTTP). Webhook delivery is the remaining exit criterion (Phase 1b).
 
 ---
 
