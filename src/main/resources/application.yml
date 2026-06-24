@@ -18,6 +18,11 @@ gateway:
   security:
     # Base64-encoded 32-byte (AES-256) key. Required; app fails to start if absent or wrong length.
     secret-key: ${GATEWAY_SECRET_KEY}
+  webhook:
+    max-attempts: 6
+    backoff-base-seconds: 30
+    poll-interval-ms: 5000
+    request-timeout-seconds: 10
 
 management:
   endpoints:

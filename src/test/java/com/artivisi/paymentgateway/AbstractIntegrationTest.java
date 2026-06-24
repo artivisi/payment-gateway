@@ -41,6 +41,8 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("gateway.security.secret-key",
                 () -> Base64.getEncoder().encodeToString(new byte[32]));
+        // Effectively disable the periodic webhook poller; tests drive dispatchDue() explicitly.
+        registry.add("gateway.webhook.poll-interval-ms", () -> "3600000");
     }
 
     @BeforeEach
