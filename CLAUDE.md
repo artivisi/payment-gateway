@@ -25,9 +25,10 @@ Spring Boot 4 · Java 25 · PostgreSQL 18 + Flyway · Spring WebClient · Thymel
 
 Other entities:
 
-- `VirtualAccount` — `escrowAccount` + consumer-supplied `vaNumber` + `type` (`OPEN` | `CLOSED` | `INSTALLMENT`) + amount + consumer + payer + status + expiry. Type is per-VA; one escrow hosts all three simultaneously.
-- `Payment` — one received transaction against a VA (one for closed; many for open/installment).
-- `Consumer` — a client application (registration, academic, …): client id/secret + webhook URL. Creates VAs, receives notifications.
+- `Charge` — the unit of money owed, created by a `Consumer`. Carries `payer`, `type` (`OPEN` | `CLOSED` | `INSTALLMENT`), `amount` (target), `cumulativePaid`, `status`, `expiry`, and `consumerReference` (the consumer's own bill id; unique per consumer — idempotency key). A charge is payable through **one or more** sibling `VirtualAccount`s across different escrows (pay-via-any-bank). Type and amount live here, not on the VA, because they describe one debt regardless of which bank rail settles it. One escrow hosts all three charge types simultaneously.
+- `VirtualAccount` — one bank payment instrument for a charge: `charge` + `escrowAccount` (selects the adapter) + consumer-supplied `vaNumber` (validated within the escrow's number space) + `status`. The effective amount answered on inquiry is `charge.amount − charge.cumulativePaid`. A single-bank charge is just a charge with one VA.
+- `Payment` — one received transaction, against a `VirtualAccount` (and its `charge`). One settles a CLOSED charge; many accumulate for OPEN/INSTALLMENT.
+- `Consumer` — a client application (registration, academic, …): client id/secret + webhook URL. Creates charges, receives notifications.
 - `ReconciliationRun`, `AuditEvent`.
 
 Settlement is per escrow account (the bank account sits on the escrow). Per-institution settlement = separate escrow accounts grouped by the `institution` tag. There is no first-class `Merchant`/`Institution`/`BankConnection` aggregate — those are grouping tags only.
@@ -56,9 +57,21 @@ Launch adapters (all `SELF_HOSTED`): `maybank` (SNAP/REST), `bsi` (proprietary R
 - `SELF_HOSTED` → validate space + local availability → reserve locally (gateway answers inquiries).
 - `BANK_HOSTED` → validate space → `createVa` at bank → reserve on success (bank is authoritative; gateway keeps a VA↔payment mirror for notification matching + reconciliation).
 
+## Charge lifecycle & pay-via-any-bank
+
+A `Charge` is payable through 1..N sibling `VirtualAccount`s, one per target escrow. The gateway owns the single-debt invariant across siblings so consumers never reimplement double-payment prevention or shared-balance accounting:
+
+- **CLOSED** — the first full payment marks the charge `PAID`; all sibling VAs are cancelled.
+- **OPEN / INSTALLMENT** — each payment adds to `cumulativePaid` (**shared across siblings** — a partial payment at one bank lowers the remaining due at every other); siblings are repriced so their next inquiry returns `amount − cumulativePaid`; when `cumulativePaid ≥ amount` the charge is `PAID` and the siblings cancelled.
+- Cancelling/repricing a sibling is a **local state change** for `SELF_HOSTED` escrows (the gateway answers inquiries) — no bank call, no cross-bank race in the common path. A cancelled VA's next inquiry returns `NOT_FOUND`.
+- Payment handling locks per charge and serializes. Residual race: two `SELF_HOSTED` banks settling a CLOSED charge near-simultaneously can both clear before either notification is processed — the second is flagged as an overpayment/duplicate discrepancy for out-of-band refund, **never silently accepted** (fail loud).
+- `BANK_HOSTED` siblings make a cancel race a bank-side payment in flight; resolved through reconciliation recovery (paid-not-notified / notified-not-settled). Defer until a bank-hosted deal lands.
+
+One webhook is emitted per received payment (carrying cumulative + remaining); the charge reaching `PAID` is a terminal event.
+
 ## VA number allocation
 
-Consumers compute the number; the gateway validates it (within the escrow's company-id / prefix / digit space, and available) and registers it. **The gateway does not generate numbers.**
+Consumers compute the number; the gateway validates it (within the escrow's company-id / prefix / digit space, and available) and registers it. A charge supplies **one `vaNumber` per target escrow**. **The gateway does not generate numbers.**
 
 ## Reconciliation
 
@@ -86,7 +99,7 @@ Public, Apache 2.0, generic product. No client names, credentials, endpoints, or
 ## Build sequence
 
 0. **Scaffold** — SB4/Java25, PostgreSQL+Flyway, escrow + consumer registry (runtime admin), fail-loud config.
-1. **Core** — VA lifecycle (create / validate / reserve / inquiry / cancel / expire) + the three VA types; Consumer API; webhook-forward framework.
+1. **Core** — `Charge` + sibling-VA lifecycle (create / validate / reserve / inquiry / cancel / expire), the three charge types, shared-cumulative accounting + first-paid-cancels-siblings; Consumer API; webhook-forward framework.
 2. **Adapters** — Maybank (SNAP/REST), BSI (REST/JSON), CIMB (SOAP/XML); all self-hosted (inquiry + payment notification).
 3. **Reconciliation** — settlement pull/import, matching, discrepancy handling + recovery, for all three banks.
 4. **Web admin UI** — escrow + consumer management, transaction list, reconciliation dashboard, audit log.
