@@ -7,6 +7,7 @@ import com.artivisi.paymentgateway.entity.Payment;
 import com.artivisi.paymentgateway.entity.PaymentStatus;
 import com.artivisi.paymentgateway.entity.VirtualAccount;
 import com.artivisi.paymentgateway.entity.VirtualAccountStatus;
+import com.artivisi.paymentgateway.entity.WebhookEventType;
 import com.artivisi.paymentgateway.exception.InvalidPaymentException;
 import com.artivisi.paymentgateway.exception.NotFoundException;
 import com.artivisi.paymentgateway.repository.ChargeRepository;
@@ -32,13 +33,16 @@ public class PaymentApplicationService {
     private final VirtualAccountRepository virtualAccountRepository;
     private final ChargeRepository chargeRepository;
     private final PaymentRepository paymentRepository;
+    private final WebhookService webhookService;
 
     public PaymentApplicationService(VirtualAccountRepository virtualAccountRepository,
                                      ChargeRepository chargeRepository,
-                                     PaymentRepository paymentRepository) {
+                                     PaymentRepository paymentRepository,
+                                     WebhookService webhookService) {
         this.virtualAccountRepository = virtualAccountRepository;
         this.chargeRepository = chargeRepository;
         this.paymentRepository = paymentRepository;
+        this.webhookService = webhookService;
     }
 
     @Transactional
@@ -88,7 +92,14 @@ public class PaymentApplicationService {
         payment.setBankReference(bankReference);
         payment.setTransactionTime(transactionTime);
         payment.setStatus(PaymentStatus.ACCEPTED);
-        return paymentRepository.save(payment);
+        Payment saved = paymentRepository.save(payment);
+
+        // Transactional outbox: enqueue notifications atomically with the payment.
+        webhookService.enqueue(charge, saved, WebhookEventType.PAYMENT_RECEIVED);
+        if (charge.getStatus() == ChargeStatus.PAID) {
+            webhookService.enqueue(charge, saved, WebhookEventType.CHARGE_PAID);
+        }
+        return saved;
     }
 
     private void applyClosed(Charge charge, VirtualAccount paidVa, BigDecimal amount) {
