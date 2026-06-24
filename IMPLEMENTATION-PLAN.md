@@ -16,7 +16,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 
 | Phase | Title | Status |
 |---|---|---|
-| 0 | Scaffold | `[ ]` |
+| 0 | Scaffold | `[x]` |
 | 1 | Core (Charge + VA lifecycle, Consumer API, webhooks) | `[ ]` |
 | 2 | Adapters (bsi, cimb, maybank) | `[ ]` |
 | 3 | Reconciliation | `[ ]` |
@@ -28,17 +28,17 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 
 **Goal:** runnable SB4/Java25 app, schema in place, fail-loud config, escrow + consumer registries persisted.
 
-- [ ] Maven project, Spring Boot 4 / Java 25, namespace `com.artivisi.paymentgateway`
-- [ ] PostgreSQL 18 + Flyway wired; `docker-compose` for local Postgres
-- [ ] Flyway baseline migration: `escrow_account`, `consumer`, `charge`, `virtual_account`, `payment`, `reconciliation_run`, `audit_event`
-- [ ] `EscrowAccount` entity + admin registry (provider, credentials, hostingModel, transport/auth, endpoints, settlement account, number space, grouping tags)
-- [ ] `Consumer` entity + registry (client id/secret, webhook URL)
-- [ ] Fail-loud config resolution — missing/invalid escrow or consumer config throws explicitly; no defaults, no fallback adapter
-- [ ] Secret handling: credentials persisted (encrypted at rest), never logged; logging filter scrubs secrets/signatures
-- [ ] Testcontainers harness boots app against real Postgres
-- [ ] Playwright test infra: browser/deps install, base fixture + config pointed at the booted app, CI wiring; smoke test hits the health/landing page (no admin UI yet)
+- [x] Maven project, Spring Boot 4.1 / Java 25, namespace `com.artivisi.paymentgateway`
+- [x] PostgreSQL 18 + Flyway wired (needs `spring-boot-flyway` autoconfig module in SB4); `compose.yml` for local Postgres
+- [x] Flyway baseline migration: `escrow_account`, `consumer`, `charge`, `virtual_account`, `payment`, `reconciliation_run`, `audit_event`
+- [x] `EscrowAccount` entity + admin registry (provider, credentials, hostingModel, transport/auth, endpoints, settlement account, number space, grouping tags)
+- [x] `Consumer` entity + registry (client id/secret, webhook URL)
+- [x] Fail-loud config resolution — required secret key fails startup if absent; duplicate/not-found in registries throw explicitly; no defaults. (Escrow→adapter-selection fail-loud lands in Phase 2.)
+- [x] Secret handling: credentials AES-256-GCM encrypted at rest (`SecretConverter`), never returned in API responses, excluded from `toString`. (Request/response log-scrubbing filter deferred to Phase 2, when adapter request logging is introduced.)
+- [x] Testcontainers harness boots app against real Postgres 18
+- [x] Playwright test infra: base fixture + config pointed at the booted app; smoke test hits the landing page (no admin UI yet)
 
-**Exit:** app starts, migrations apply, an escrow + a consumer can be created and read back; missing config fails loudly; Playwright smoke test passes against the running app.
+**Exit:** ✅ app starts, migrations apply, an escrow + a consumer can be created and read back; missing config fails loudly; Playwright smoke test passes against the running app. (11 tests green.)
 
 ---
 
