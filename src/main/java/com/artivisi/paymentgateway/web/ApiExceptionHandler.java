@@ -1,7 +1,10 @@
 package com.artivisi.paymentgateway.web;
 
 import com.artivisi.paymentgateway.exception.DuplicateException;
+import com.artivisi.paymentgateway.exception.InvalidPaymentException;
+import com.artivisi.paymentgateway.exception.InvalidRequestException;
 import com.artivisi.paymentgateway.exception.NotFoundException;
+import com.artivisi.paymentgateway.exception.UnauthorizedException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -21,6 +24,21 @@ public class ApiExceptionHandler {
     @ExceptionHandler(DuplicateException.class)
     public ProblemDetail handleDuplicate(DuplicateException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    @ExceptionHandler(UnauthorizedException.class)
+    public ProblemDetail handleUnauthorized(UnauthorizedException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidRequestException.class)
+    public ProblemDetail handleInvalidRequest(InvalidRequestException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
+    @ExceptionHandler(InvalidPaymentException.class)
+    public ProblemDetail handleInvalidPayment(InvalidPaymentException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
