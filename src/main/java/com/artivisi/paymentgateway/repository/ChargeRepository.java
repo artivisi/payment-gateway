@@ -1,11 +1,22 @@
 package com.artivisi.paymentgateway.repository;
 
 import com.artivisi.paymentgateway.entity.Charge;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
 
 public interface ChargeRepository extends JpaRepository<Charge, String> {
 
     Optional<Charge> findByConsumerIdAndConsumerReference(String consumerId, String consumerReference);
+
+    Optional<Charge> findByIdAndConsumerId(String id, String consumerId);
+
+    /** Pessimistic row lock so concurrent payments on the same charge are serialized. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select c from Charge c where c.id = :id")
+    Optional<Charge> lockById(@Param("id") String id);
 }
