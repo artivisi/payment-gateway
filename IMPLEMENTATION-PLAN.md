@@ -17,7 +17,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 | Phase | Title | Status |
 |---|---|---|
 | 0 | Scaffold | `[x]` |
-| 1 | Core (Charge + VA lifecycle, Consumer API, webhooks) | `[~]` |
+| 1 | Core (Charge + VA lifecycle, Consumer API, webhooks) | `[x]` |
 | 2 | Adapters (bsi, cimb, maybank) | `[ ]` |
 | 3 | Reconciliation | `[ ]` |
 | 4 | Web admin UI | `[ ]` |
@@ -64,13 +64,14 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 - [x] Consumer auth (`X-Client-Id` / `X-Client-Secret`, constant-time compare)
 - [x] Per-consumer idempotency on `consumerReference` (201 create vs 200 idempotent hit)
 
-### Webhook framework — **deferred to Phase 1b**
-- [ ] Forward one webhook per received payment (cumulative + remaining) to consumer webhook URL
-- [ ] Terminal "charge PAID" event
-- [ ] Signed webhooks; retry with backoff; delivery log
-- [ ] Request/response log-scrubbing filter (carried from Phase 0)
+### Webhook framework (Phase 1b)
+- [x] Transactional outbox: enqueue a delivery row in the payment's transaction (`WebhookService.enqueue`)
+- [x] One webhook per received payment (PAYMENT_RECEIVED, with cumulative + remaining) + terminal CHARGE_PAID event
+- [x] HMAC-SHA256 signed payloads (`X-Signature`, secret = consumer client secret); scheduled dispatcher (`WebhookDispatcher`) with exponential backoff + max-attempts → FAILED; delivery log (`webhook_delivery`)
+- [~] Expiry scheduler (auto-mark expired charges/VAs) — still **deferred**; inquiry/payment already reject expired
+- [ ] Request/response log-scrubbing filter — moves to **Phase 2** (introduced with adapter request logging)
 
-**Exit:** ✅ create a charge across two escrows, apply payment on one → siblings cancel, idempotent on replay, shared cumulative across banks, fail-loud on overpayment. 27 tests green (RestAssured + Testcontainers, service-level + HTTP). Webhook delivery is the remaining exit criterion (Phase 1b).
+**Exit:** ✅ charge across two escrows, payment → siblings cancel, idempotent replay, shared cumulative, fail-loud overpayment, **signed webhook delivered with retry/backoff**. 30 tests green (Testcontainers + RestAssured + JDK HttpServer receiver).
 
 ---
 
