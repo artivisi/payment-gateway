@@ -24,9 +24,9 @@ Selected per escrow account; both supported:
 - **Gateway-hosted (Model 1)** — the gateway holds the VA registry. The bank calls the gateway to resolve a VA number (returns payer name + bill, or not-found) and to notify payment. No VA registration at the bank.
 - **Bank-hosted (Model 2)** — the bank holds the VA registry. The gateway registers each VA at the bank on creation; the bank validates payments against its own records and notifies the gateway only on payment.
 
-## Virtual Account types
+## Charge types
 
-Set per VA:
+A **charge** is one bill — a single amount owed by one payer, collectible through one or more banks at once. The type is set per charge:
 
 - **Open** — persistent, free amount, accepts repeated payments.
 - **Closed** — fixed amount, single payment, closes on settlement.
