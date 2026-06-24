@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: paymentgateway
+      POSTGRES_USER: paymentgateway
+      POSTGRES_PASSWORD: paymentgateway
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-paymentgateway:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paymentgateway -d paymentgateway"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db-paymentgateway:
