@@ -18,7 +18,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 |---|---|---|
 | 0 | Scaffold | `[x]` |
 | 1 | Core (Charge + VA lifecycle, Consumer API, webhooks) | `[x]` |
-| 2 | Adapters (bsi, cimb, maybank) | `[ ]` |
+| 2 | Adapters (bsi, cimb, maybank) | `[~]` |
 | 3 | Reconciliation | `[ ]` |
 | 4 | Web admin UI | `[ ]` |
 
@@ -80,15 +80,16 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 **Goal:** `BankProvider` contract implemented for the three launch banks; all SELF_HOSTED (inquiry + payment notification). Suggested order **bsi → cimb → maybank** (simplest transport first; SNAP crypto last).
 
 ### Contract
-- [ ] `BankProvider` interface: `hostingModel()`, SELF_HOSTED `onInquiry`/`onPaymentNotification`, BANK_HOSTED `createVa`/`cancelVa`/`onPaymentNotification`, reconciliation `pullSettlement`/`importStatement`
-- [!] **Decision:** add a `reversal` op? `bsm-makara` (BSI) has time-limited payment reversal not in the current contract — resolve when starting `bsi`
+- [~] SELF_HOSTED adapters are inbound controllers (bank → gateway) that verify the bank's signature, resolve the escrow from the VA number (`EscrowResolver`), and call core `InquiryService` / `PaymentApplicationService`. A formal `BankProvider` Java interface will be extracted once `cimb` exists (factor real commonality, not guessed) — BANK_HOSTED `createVa`/`cancelVa` + reconciliation `pullSettlement`/`importStatement` land with their phases.
+- **Decision (resolved):** reversal **is** part of the SELF_HOSTED contract — BSI sends reversal messages, so the gateway must handle them. Implement inquiry + payment first, then reversal (revert cumulative, re-open charge + reactivate siblings settled by the reversed payment; fail loud on cancelled charges / out-of-window).
 
 ### `bsi` (proprietary REST/JSON) — port of bsm-makara
-- [ ] `POST` inquiry/payment endpoint, action-dispatched
-- [ ] SHA1 checksum verify (`nomorPembayaran + sharedKey + tanggalTransaksi`) — keep only because the bank mandates it; don't generalize
-- [ ] Map proprietary request/response (nomorPembayaran, idTransaksi, nilai, response codes 00/03/12/13/25/30/99) to core
-- [ ] Reversal flow (pending contract decision)
-- [ ] WireMock stub + functional test
+- [x] `POST /api/bank/bsi` endpoint, action-dispatched (inquiry | payment)
+- [x] Escrow resolution from VA number (`EscrowResolver`, by provider + number space)
+- [x] SHA1 checksum verify (`nomorPembayaran + sharedKey + tanggalTransaksi`, sharedKey = escrow secret) — kept only because the bank mandates it
+- [x] Map proprietary request/response to core (`InquiryService`/`PaymentApplicationService`); response codes 00/03/12/13/25
+- [~] Reversal flow — contract decision resolved; **implement next**
+- [x] Functional test (RestAssured; bank→gateway, so no WireMock needed for inbound). 6 tests green
 
 ### `cimb` (SOAP/XML) — port of cimb-ws
 - [ ] Spring-WS endpoint, namespace `http://CIMB3rdParty/BillPaymentWS`, ops `CIMB3rdParty_InquiryRq/Rs`, `_PaymentRq/Rs`
@@ -97,6 +98,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 - [ ] WireMock/SOAP stub + functional test
 
 ### `maybank` (SNAP/REST) — reference jasa-pelabuhan
+- **Build against SNAP 1.0.2** (Sept 2024, latest) via the ASPI dev portal (`apidevportal.aspi-indonesia.or.id`), not the 2023 BI PDF the PTB code used. Signature/header model is unchanged across 1.0.x — the PTB `SnapSignatureHelper` is a valid base. SNAP governance moved BI→ASPI (Sept 2023); compliance is now mandatory. Verify Maybank's current per-bank SNAP profile (sandbox URLs, partnerServiceId padding, bank-specific fields) against their portal. Exact 1.0.1→1.0.2 field diff is gated behind the ASPI portal (registration required).
 - [ ] OAuth `/access-token/b2b`, RSA SHA256withRSA token signature
 - [ ] HMAC-SHA512 transaction signature (`METHOD:path:token:lowerhex(sha256(body)):timestamp`); ±5min window
 - [ ] `snap_external_id` (daily idempotency) + `mitra_access_token` tables
