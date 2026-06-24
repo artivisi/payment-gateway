@@ -1,0 +1,208 @@
+{
+  "meta": {
+    "standard": "SNAP - Standar Nasional Open API Pembayaran",
+    "version": "1.0.2",
+    "released": "2024-09",
+    "governance": "Maintained by ASPI (since 2023-09); originated by Bank Indonesia",
+    "sourceDocuments": [
+      {
+        "title": "SNAP Standar Nasional Open API Pembayaran - Standar Teknis dan Keamanan",
+        "version": "1.0.2",
+        "releaseDate": "2024-09",
+        "publisher": "Bank Indonesia / ASPI",
+        "filename": "SNAP_StandarTeknisKeamanan.pdf",
+        "sizeBytes": 696461,
+        "sha256": "c60c330587e1c9d1f04d8ed82b8899f2e03e4f08b290420fda0ba6918f8f902a",
+        "sourceUrl": "https://apidevportal.aspi-indonesia.or.id/docs/standar-teknis-keamanan"
+      },
+      {
+        "title": "SNAP Standar Nasional Open API Pembayaran - Standar Data dan Spesifikasi Teknis",
+        "version": "1.0.2",
+        "releaseDate": "2024-09",
+        "publisher": "Bank Indonesia / ASPI",
+        "filename": "SNAP_StandarDataSpesifikasiTeknis.pdf",
+        "sizeBytes": 9254609,
+        "sha256": "5ba81809c5812fb756979ae5ca557f8485216e098df1d9f8637b69c5fd20eeda",
+        "sourceUrl": "https://apidevportal.aspi-indonesia.or.id/docs/standar-data-spesifikasi-teknis"
+      }
+    ],
+    "certificationDocuments": [
+      {
+        "title": "ASPI - Skenario Pengujian (functional testing scenarios)",
+        "filename": "ASPI - Skenario Pengujian.pdf",
+        "sizeBytes": 97066,
+        "sha256": "e64671b8c8448c1d03a30d9d3eef3ce571d7a5d933778c7baa97f0f28326ff3d",
+        "sourceUrl": "https://apidevportal.aspi-indonesia.or.id/pedoman/ASPI%20-%20Skenario%20Pengujian.pdf"
+      },
+      {
+        "title": "ASPI - Guideline Verifikasi",
+        "filename": "ASPI - Guideline Verifikasi.pdf",
+        "sizeBytes": 515106,
+        "sha256": "e9578e5d04bd53ae7c1f131511b9fcaa3702271ec7c61fae312440ad6b264a00",
+        "sourceUrl": "https://apidevportal.aspi-indonesia.or.id/pedoman/ASPI%20-%20Guideline%20Verifikasi.pdf"
+      },
+      {
+        "title": "ASPI - Pedoman Pengelolaan Developer Site",
+        "filename": "ASPI - Pedoman Pengelolaan Developer Site.pdf",
+        "sizeBytes": 2231417,
+        "sha256": "f112560f6c268c02414f4b046d02c06cb8711bc2431e181d9dae58c8a3a0df81",
+        "sourceUrl": "https://apidevportal.aspi-indonesia.or.id/pedoman/ASPI%20-%20Pedoman%20Pengelolaan%20Developer%20Site.pdf"
+      }
+    ],
+    "disclaimer": "Derived technical interpretation by the payment-gateway team, for implementation and traceability. NOT a copy or redistribution of the BI/ASPI documents. Obtain the authoritative PDFs from ASPI and verify the sha256 above. Consult the ASPI developer portal (apidevportal.aspi-indonesia.or.id) for exact text and per-bank profiles.",
+    "idScheme": "snap.<sec|data|meta>.<slug>  — referenced from code via @SnapSpec(\"<id>\")",
+    "versionHistory": [
+      { "version": "0.8.5", "date": "2021-08-13", "by": "ASPI" },
+      { "version": "1.0", "date": "2021-08-16", "by": "ASPI" },
+      { "version": "1.0.1", "date": "2021-11-24", "by": "Bank Indonesia + ASPI" },
+      { "version": "1.0.2", "date": "2024-09", "by": "ASPI", "note": "Revisi-1" }
+    ]
+  },
+  "entries": [
+    {
+      "id": "snap.meta.architecture",
+      "category": "foundation",
+      "title": "Transport and format",
+      "source": "Teknis & Keamanan §2.1.1-2.1.4",
+      "summary": "REST APIs, JSON request/response bodies, UTF-8 encoding. HTTP verbs POST/GET/DELETE/PUT. The access-token service is always POST.",
+      "keywords": ["rest", "json", "utf-8", "http method"]
+    },
+    {
+      "id": "snap.sec.access-token.endpoint",
+      "category": "auth",
+      "title": "Access token endpoint (B2B / B2B2C)",
+      "source": "Teknis & Keamanan §2.1.5",
+      "summary": "OAuth2 client-credentials token. B2B path {version}/access-token/b2b (service code 73); B2B2C {version}/access-token/b2b2c (74). POST. Token TTL 900s (15 min). Response: accessToken, tokenType (Bearer | Mac), expiresIn.",
+      "httpMethod": "POST",
+      "keywords": ["access token", "b2b", "oauth", "client_credentials", "grantType"]
+    },
+    {
+      "id": "snap.sec.access-token.signature",
+      "category": "auth",
+      "title": "Access token signature (asymmetric)",
+      "source": "Teknis & Keamanan §2.1.5",
+      "summary": "Token request is signed with the client's RSA private key; the provider validates with the registered public key.",
+      "algorithm": "SHA256withRSA",
+      "stringToSign": "clientId + \"|\" + X-TIMESTAMP",
+      "headers": ["Content-Type", "X-TIMESTAMP", "X-CLIENT-KEY", "X-SIGNATURE"],
+      "body": { "grantType": "client_credentials" },
+      "keywords": ["x-signature", "rsa", "sha256withrsa", "x-client-key", "token signature"]
+    },
+    {
+      "id": "snap.sec.transaction.headers",
+      "category": "auth",
+      "title": "Transaction headers (B2B)",
+      "source": "Teknis & Keamanan §2.1.6",
+      "summary": "Headers on every transactional call (bank<->biller B2B): Content-Type, Authorization (Bearer accessToken), X-TIMESTAMP, X-SIGNATURE, ORIGIN (optional), X-PARTNER-ID (<=36), X-EXTERNAL-ID (<=36), CHANNEL-ID (<=5). B2B2C adds Authorization-Customer, X-IP-ADDRESS, X-DEVICE-ID, X-LATITUDE/LONGITUDE.",
+      "headers": ["Content-Type", "Authorization", "X-TIMESTAMP", "X-SIGNATURE", "ORIGIN", "X-PARTNER-ID", "X-EXTERNAL-ID", "CHANNEL-ID"],
+      "keywords": ["x-partner-id", "x-external-id", "channel-id", "authorization", "headers"]
+    },
+    {
+      "id": "snap.sec.transaction.signature.symmetric",
+      "category": "auth",
+      "title": "Transaction signature - symmetric (type 1, default)",
+      "source": "Teknis & Keamanan §2.1.6",
+      "summary": "Default X-SIGNATURE for transactional calls. HMAC-SHA512 keyed by the client secret over a string that binds method, endpoint, access token, a hash of the (minified) body, and the timestamp. X-SIGNATURE type marker = 1.",
+      "algorithm": "HMAC-SHA512",
+      "key": "clientSecret",
+      "stringToSign": "HTTPMethod + \":\" + EndpointUrl + \":\" + AccessToken + \":\" + Lowercase(HexEncode(SHA-256(minify(RequestBody)))) + \":\" + X-TIMESTAMP",
+      "keywords": ["hmac", "sha512", "transaction signature", "x-signature", "symmetric"]
+    },
+    {
+      "id": "snap.sec.transaction.signature.asymmetric",
+      "category": "auth",
+      "title": "Transaction signature - asymmetric (type 2)",
+      "source": "Teknis & Keamanan §2.1.6",
+      "summary": "Alternative X-SIGNATURE without an access token. RSA over the same string but WITHOUT the AccessToken segment. X-SIGNATURE type marker = 2.",
+      "algorithm": "SHA256withRSA",
+      "stringToSign": "HTTPMethod + \":\" + EndpointUrl + \":\" + Lowercase(HexEncode(SHA-256(minify(RequestBody)))) + \":\" + X-TIMESTAMP",
+      "keywords": ["asymmetric", "rsa", "transaction signature", "without token"]
+    },
+    {
+      "id": "snap.sec.body-minify",
+      "category": "auth",
+      "title": "Body minification for hashing",
+      "source": "Teknis & Keamanan §2.1.6 (Catatan)",
+      "summary": "Before SHA-256, the request body is minified (insignificant whitespace removed). An absent body hashes the empty string. On OUTBOUND signing we must minify; on INBOUND verification we hash the raw bytes the counterparty sent.",
+      "keywords": ["minify", "sha-256", "body hash", "lowercase hex"]
+    },
+    {
+      "id": "snap.sec.endpoint-url",
+      "category": "auth",
+      "title": "EndpointUrl in stringToSign",
+      "source": "Teknis & Keamanan §2.1.6 (Catatan)",
+      "summary": "EndpointUrl is the relative path including all query parameters (not the absolute URL).",
+      "keywords": ["endpoint url", "relative path", "query parameters"]
+    },
+    {
+      "id": "snap.sec.timestamp-format",
+      "category": "auth",
+      "title": "X-TIMESTAMP format",
+      "source": "Teknis & Keamanan §2.1.5-2.1.6",
+      "summary": "ISO-8601 with timezone offset: yyyy-MM-ddTHH:mm:ss.SSSTZD. The field spec includes milliseconds (.SSS); the doc's own example omits them (e.g. 2020-12-17T10:55:00+07:00) - follow the specific bank's sandbox. Parse leniently.",
+      "keywords": ["x-timestamp", "iso8601", "timezone", "timestamp format"]
+    },
+    {
+      "id": "snap.sec.external-id",
+      "category": "auth",
+      "title": "X-EXTERNAL-ID semantics",
+      "source": "Teknis & Keamanan §2.1.6",
+      "summary": "Reference number that must be unique within the same day (idempotency key). Max 36 chars. Type is Alphanumeric as of v1.0.2 (was Numeric String in 1.0.1).",
+      "changedIn": "1.0.2",
+      "keywords": ["x-external-id", "idempotency", "alphanumeric", "unique per day"]
+    },
+    {
+      "id": "snap.data.responsecode",
+      "category": "response",
+      "title": "Response code format",
+      "source": "Data & Spesifikasi Teknis §6.1",
+      "summary": "7-digit responseCode = [HTTP status:3][service code:2][case code:2]. VA service code = 24 (inquiry) / 25 (payment). Examples: 2002400 inquiry success, 2002500 payment success, 4042412 VA not found, 4042414 paid bill, 4042419 expired bill, 4042512 payment VA not found, 4042513 invalid amount, 4012400 invalid signature, 4092400 conflict (duplicate X-EXTERNAL-ID).",
+      "keywords": ["response code", "responseCode", "2002400", "4042412", "case code", "service code"]
+    },
+    {
+      "id": "snap.data.va",
+      "category": "service",
+      "title": "Virtual Account services (overview)",
+      "source": "Data & Spesifikasi Teknis §4.2.2.7 (pp.191-319)",
+      "summary": "VA service family. SELF_HOSTED / gateway-hosted path (bank -> gateway): Inquiry, Payment, Inquiry Status. BANK_HOSTED path (gateway -> bank): Create VA, Update VA, Update Status VA, Get Report. Field-level schemas are enriched per-operation when the maybank adapter is built.",
+      "keywords": ["virtual account", "transfer-va", "va services"]
+    },
+    {
+      "id": "snap.data.va.inquiry",
+      "category": "service",
+      "title": "VA Inquiry (bank -> gateway)",
+      "source": "Data & Spesifikasi Teknis §4.2.2.7",
+      "summary": "Bank queries the biller for a VA's bill detail. Gateway answers with virtualAccountData (name, totalAmount, billDetails, inquiryStatus). HTTP method is POST as of v1.0.2 (changed from GET). Path commonly {version}/transfer-va/inquiry.",
+      "httpMethod": "POST",
+      "changedIn": "1.0.2",
+      "keywords": ["inquiry", "transfer-va/inquiry", "virtualAccountData", "billDetails"]
+    },
+    {
+      "id": "snap.data.va.payment",
+      "category": "service",
+      "title": "VA Payment notification (bank -> gateway)",
+      "source": "Data & Spesifikasi Teknis §4.2.2.7",
+      "summary": "Bank notifies the biller of a received payment; gateway records it and acknowledges. Path commonly {version}/transfer-va/payment. v1.0.2: parameter billReferenceNo is camelCase (was BillReferenceNo); several VA fields changed from left-pad '0' to left-pad space.",
+      "httpMethod": "POST",
+      "changedIn": "1.0.2",
+      "keywords": ["payment", "transfer-va/payment", "billReferenceNo", "paidAmount"]
+    },
+    {
+      "id": "snap.data.va.bankhosted",
+      "category": "service",
+      "title": "VA create/update (gateway -> bank, BANK_HOSTED)",
+      "source": "Data & Spesifikasi Teknis §4.2.2.7",
+      "summary": "Create VA, Update VA, Update Status VA, Get Report - used only on the BANK_HOSTED (Model 2) path where the bank owns the VA registry. Not needed for the SELF_HOSTED launch banks; implement when a bank-hosted SNAP deal lands.",
+      "keywords": ["create va", "update va", "bank-hosted", "model 2"]
+    },
+    {
+      "id": "snap.changelog.1.0.2",
+      "category": "meta",
+      "title": "v1.0.1 -> v1.0.2 changes relevant to VA",
+      "source": "Version sheets of both docs (Revisi-1)",
+      "summary": "Security doc: removed 'Private Key' wording from key-exchange §1.7.1/1.7.2; access-token body granttype -> grantType; X-EXTERNAL-ID Numeric -> Alphanumeric. Data doc (VA-relevant): Inquiry VA HTTP GET -> POST; payment BillReferenceNo -> billReferenceNo; left-pad '0' -> left-pad space on VA fields; timezone examples '-07:00' -> '+07:00'; assorted Datetime/ISO8601 types -> String. None break the prior PTB BCA implementation.",
+      "changedIn": "1.0.2",
+      "keywords": ["changelog", "1.0.2", "grantType", "billReferenceNo", "GET to POST"]
+    }
+  ]
+}

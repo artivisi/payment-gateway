@@ -5,3 +5,7 @@ build/
 .vscode/
 .DS_Store
 *.log
+
+# Archived upstream SNAP spec PDFs — local reference only, never committed/redistributed.
+# Provenance (version, checksum, ASPI URL) is tracked in docs/snap/snap-1.0.2.json.
+docs/snap/sources/
