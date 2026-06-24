@@ -98,7 +98,13 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 - [ ] WireMock/SOAP stub + functional test
 
 ### `maybank` (SNAP/REST) — reference jasa-pelabuhan
-- **Build against SNAP 1.0.2** (Sept 2024, latest) via the ASPI dev portal (`apidevportal.aspi-indonesia.or.id`), not the 2023 BI PDF the PTB code used. Signature/header model is unchanged across 1.0.x — the PTB `SnapSignatureHelper` is a valid base. SNAP governance moved BI→ASPI (Sept 2023); compliance is now mandatory. Verify Maybank's current per-bank SNAP profile (sandbox URLs, partnerServiceId padding, bank-specific fields) against their portal. Exact 1.0.1→1.0.2 field diff is gated behind the ASPI portal (registration required).
+- **Target SNAP 1.0.2** (Sept 2024). Spec confirmed from the official BI/ASPI PDFs (Standar Teknis & Keamanan + Standar Data; in user's Downloads — do NOT commit to this public repo). Signature/header model is **identical** to the PTB BCA code → `SnapSignatureHelper` is directly reusable. The only v1.0.1→1.0.2 changes (none breaking): "Private Key" wording removed from key-exchange sections; access-token body field `granttype`→`grantType` (PTB already correct); `X-EXTERNAL-ID` description Numeric→**Alphanumeric** (B2B). Verify Maybank's per-bank profile (sandbox URLs, partnerServiceId padding) against their sandbox.
+- Confirmed string-to-sign (build against these exactly):
+  - Token: `X-SIGNATURE = SHA256withRSA(privateKey, clientId + "|" + X-TIMESTAMP)`; `POST {version}/access-token/b2b`, body `grantType=client_credentials`, token TTL 900s.
+  - Transaction (symmetric): `X-SIGNATURE = HMAC-SHA512(clientSecret, HTTPMethod + ":" + relativeUrl + ":" + accessToken + ":" + lowercaseHex(SHA-256(minify(body))) + ":" + X-TIMESTAMP)`. Headers: Authorization Bearer, X-PARTNER-ID, X-EXTERNAL-ID (alphanumeric, unique/day), CHANNEL-ID.
+  - Nuance: **minify** (strip whitespace) the body before SHA-256 on outbound signing; on inbound verification hash the raw received body. Empty body → empty string. X-TIMESTAMP `yyyy-MM-ddTHH:mm:ss.SSSTZD` (spec example omits millis — follow the bank's sandbox).
+- VA message schemas (transfer-va inquiry/payment fields, response codes 200xx/404xx) live in the **Standar Data & Spesifikasi Teknis** PDF (§4.2.2.7) — mine that when building the inbound endpoints.
+- Derived SNAP index committed at `docs/snap/snap-1.0.2.json` (stable ids, our interpretation, source checksums + ASPI URLs). Tag SNAP code with `@SnapSpec("snap.…")` for spec traceability; `SnapSpecIndexTest` guards the index.
 - [ ] OAuth `/access-token/b2b`, RSA SHA256withRSA token signature
 - [ ] HMAC-SHA512 transaction signature (`METHOD:path:token:lowerhex(sha256(body)):timestamp`); ±5min window
 - [ ] `snap_external_id` (daily idempotency) + `mitra_access_token` tables
