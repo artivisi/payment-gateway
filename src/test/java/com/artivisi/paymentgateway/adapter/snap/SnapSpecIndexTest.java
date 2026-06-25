@@ -49,33 +49,44 @@ class SnapSpecIndexTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void everyCodeSnapSpecIdExistsInTheIndex() throws Exception {
+    void specTraceabilityIsBidirectional() throws Exception {
         Map<String, Object> root = loadIndex();
         Set<String> indexIds = new HashSet<>();
         for (Map<String, Object> entry : (List<Map<String, Object>>) root.get("entries")) {
             indexIds.add((String) entry.get("id"));
         }
 
-        Set<String> referenced = new TreeSet<>();
+        Set<String> mainIds = new TreeSet<>();
+        Set<String> testIds = new TreeSet<>();
         ClassPathScanningCandidateComponentProvider scanner =
                 new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter((reader, factory) -> true);
         for (var candidate : scanner.findCandidateComponents("com.artivisi.paymentgateway")) {
             Class<?> type = Class.forName(candidate.getBeanClassName());
-            collect(referenced, type);
+            Set<String> bucket = isTestClass(type) ? testIds : mainIds;
+            collect(bucket, type);
             for (var method : type.getDeclaredMethods()) {
-                collect(referenced, method);
+                collect(bucket, method);
             }
             for (var field : type.getDeclaredFields()) {
-                collect(referenced, field);
+                collect(bucket, field);
             }
             for (var constructor : type.getDeclaredConstructors()) {
-                collect(referenced, constructor);
+                collect(bucket, constructor);
             }
         }
 
-        assertThat(referenced).as("@SnapSpec usages must be discovered").isNotEmpty();
-        assertThat(indexIds).as("every @SnapSpec id must exist in the index").containsAll(referenced);
+        assertThat(mainIds).as("@SnapSpec usages in production code must be discovered").isNotEmpty();
+
+        Set<String> all = new TreeSet<>(mainIds);
+        all.addAll(testIds);
+        assertThat(indexIds).as("every @SnapSpec id must exist in the index").containsAll(all);
+        assertThat(testIds).as("every implemented @SnapSpec id must be verified by a test").containsAll(mainIds);
+    }
+
+    private static boolean isTestClass(Class<?> type) {
+        var codeSource = type.getProtectionDomain().getCodeSource();
+        return codeSource != null && codeSource.getLocation().getPath().contains("test-classes");
     }
 
     private static void collect(Collection<String> ids, AnnotatedElement element) {
