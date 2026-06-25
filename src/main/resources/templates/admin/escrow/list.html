@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Escrow Accounts')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('escrow')}"></nav>
+<main class="mx-auto max-w-6xl px-4 py-8" data-testid="escrow-list">
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold text-slate-900">Escrow Accounts</h1>
+        <a th:href="@{/admin/escrow-accounts/new}" class="btn-primary">New escrow</a>
+    </div>
+
+    <div th:if="${message}" class="mb-4 rounded-md bg-accent-50 px-4 py-3 text-sm text-accent-800"
+         th:text="${message}"></div>
+
+    <div class="card overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+            <tr>
+                <th class="th">Code</th>
+                <th class="th">Provider</th>
+                <th class="th">Hosting</th>
+                <th class="th">Transport · Auth</th>
+                <th class="th">Environment</th>
+                <th class="th">VA space</th>
+                <th class="th">Institution</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="e : ${escrows}">
+                <td class="td font-medium text-slate-900" th:text="${e.code}">code</td>
+                <td class="td" th:text="${e.provider}">provider</td>
+                <td class="td"><span class="badge-muted" th:text="${e.hostingModel}">SELF_HOSTED</span></td>
+                <td class="td" th:text="${e.transport} + ' · ' + ${e.authScheme}">REST_JSON</td>
+                <td class="td" th:text="${e.activeEnvironment}">SANDBOX</td>
+                <td class="td font-mono text-xs" th:text="${e.vaPrefix} + ' / ' + ${e.vaDigitLength} + 'd'">900 / 10d</td>
+                <td class="td" th:text="${e.institutionTag} ?: '—'">—</td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(escrows)}">
+                <td class="td text-slate-400" colspan="7">No escrow accounts yet.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>
