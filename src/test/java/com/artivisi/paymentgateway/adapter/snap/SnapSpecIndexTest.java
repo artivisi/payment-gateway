@@ -1,14 +1,18 @@
 package com.artivisi.paymentgateway.adapter.snap;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.lang.reflect.AnnotatedElement;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,6 +44,44 @@ class SnapSpecIndexTest {
             assertThat((String) entry.get("source")).as("source of " + id).isNotBlank();
             assertThat((String) entry.get("summary")).as("summary of " + id).isNotBlank();
             assertThat(ids.add(id)).as("duplicate id " + id).isTrue();
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void everyCodeSnapSpecIdExistsInTheIndex() throws Exception {
+        Map<String, Object> root = loadIndex();
+        Set<String> indexIds = new HashSet<>();
+        for (Map<String, Object> entry : (List<Map<String, Object>>) root.get("entries")) {
+            indexIds.add((String) entry.get("id"));
+        }
+
+        Set<String> referenced = new TreeSet<>();
+        ClassPathScanningCandidateComponentProvider scanner =
+                new ClassPathScanningCandidateComponentProvider(false);
+        scanner.addIncludeFilter((reader, factory) -> true);
+        for (var candidate : scanner.findCandidateComponents("com.artivisi.paymentgateway")) {
+            Class<?> type = Class.forName(candidate.getBeanClassName());
+            collect(referenced, type);
+            for (var method : type.getDeclaredMethods()) {
+                collect(referenced, method);
+            }
+            for (var field : type.getDeclaredFields()) {
+                collect(referenced, field);
+            }
+            for (var constructor : type.getDeclaredConstructors()) {
+                collect(referenced, constructor);
+            }
+        }
+
+        assertThat(referenced).as("@SnapSpec usages must be discovered").isNotEmpty();
+        assertThat(indexIds).as("every @SnapSpec id must exist in the index").containsAll(referenced);
+    }
+
+    private static void collect(Collection<String> ids, AnnotatedElement element) {
+        SnapSpec annotation = element.getAnnotation(SnapSpec.class);
+        if (annotation != null) {
+            ids.addAll(List.of(annotation.value()));
         }
     }
 

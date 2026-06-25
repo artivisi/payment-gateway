@@ -10,6 +10,8 @@ public interface EscrowAccountRepository extends JpaRepository<EscrowAccount, St
 
     Optional<EscrowAccount> findByCode(String code);
 
+    Optional<EscrowAccount> findByClientId(String clientId);
+
     boolean existsByCode(String code);
 
     List<EscrowAccount> findByProvider(String provider);

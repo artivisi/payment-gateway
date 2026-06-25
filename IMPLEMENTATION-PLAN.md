@@ -18,7 +18,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 |---|---|---|
 | 0 | Scaffold | `[x]` |
 | 1 | Core (Charge + VA lifecycle, Consumer API, webhooks) | `[x]` |
-| 2 | Adapters (bsi, cimb, maybank) | `[~]` |
+| 2 | Adapters (bsi, cimb, maybank) | `[x]` |
 | 3 | Reconciliation | `[ ]` |
 | 4 | Web admin UI | `[ ]` |
 
@@ -108,11 +108,13 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
   - Nuance: **minify** (strip whitespace) the body before SHA-256 on outbound signing; on inbound verification hash the raw received body. Empty body → empty string. X-TIMESTAMP `yyyy-MM-ddTHH:mm:ss.SSSTZD` (spec example omits millis — follow the bank's sandbox).
 - VA message schemas (transfer-va inquiry/payment fields, response codes 200xx/404xx) live in the **Standar Data & Spesifikasi Teknis** PDF (§4.2.2.7) — mine that when building the inbound endpoints.
 - Derived SNAP index committed at `docs/snap/snap-1.0.2.json` (stable ids, our interpretation, source checksums + ASPI URLs). Tag SNAP code with `@SnapSpec("snap.…")` for spec traceability; `SnapSpecIndexTest` guards the index.
-- [ ] OAuth `/access-token/b2b`, RSA SHA256withRSA token signature
-- [ ] HMAC-SHA512 transaction signature (`METHOD:path:token:lowerhex(sha256(body)):timestamp`); ±5min window
-- [ ] `snap_external_id` (daily idempotency) + `mitra_access_token` tables
-- [ ] SNAP inquiry `/v1.0/transfer-va/inquiry` + payment `/v1.0/transfer-va/payment`; partnerServiceId padding, response codes
-- [ ] Test against `snap-provider-simulator`
+- [x] OAuth `/access-token/b2b`, RSA SHA256withRSA token signature validation (`SnapSignatureHelper.verifyToken`, `MaybankController.token`); `SnapTokenService` issues 900s bearer tokens (`snap_access_token`)
+- [x] HMAC-SHA512 transaction signature validation over the raw body (`SnapRequestValidator`); escrow resolved from the bearer token
+- [x] Daily `X-EXTERNAL-ID` idempotency (`snap_external_id`, V3); `snap_access_token` table
+- [x] SNAP inquiry + payment endpoints; response codes 2007300/2002400/2002500/4042412/4012400/4092400
+- [~] `snap-provider-simulator` e2e — not used; the bank is the caller, so the test signs (RSA+HMAC) and calls our endpoints directly. Simulator/docker-compose e2e = follow-up.
+- **`maybank` adapter complete.** `@SnapSpec` traceability is enforced — `SnapSpecIndexTest` scans the code and fails if any tag references an id missing from `docs/snap/snap-1.0.2.json`.
+- Follow-ups: ±5min X-TIMESTAMP window check; partnerServiceId padding nuance; `snap-provider-simulator` e2e.
 
 **Exit:** each adapter answers inquiry + records payment end-to-end against its simulator/stub, driving the Phase-1 core. docker-compose runs all three.
 
