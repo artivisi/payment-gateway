@@ -26,6 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -172,5 +173,51 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
         paymentService.apply(bsi, bsiVa, new BigDecimal("1000000"), "BSI-REF-1", Instant.now());
         assertThatThrownBy(() -> inquiryService.inquire(cimb, cimbVa))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    void reversal_reopensChargeAndReactivatesSiblings() {
+        Charge charge = createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
+        Instant payTime = Instant.now();
+        paymentService.apply(bsi, bsiVa, new BigDecimal("1000000"), "BSI-REF-1", payTime);
+        paymentService.reverse(bsi, bsiVa, "BSI-REF-1", new BigDecimal("1000000"), payTime.plusSeconds(60));
+
+        Charge reloaded = chargeRepository.findById(charge.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(ChargeStatus.ACTIVE);
+        assertThat(reloaded.getCumulativePaid()).isEqualByComparingTo("0");
+        assertThat(vaStatus(bsi.getId(), bsiVa)).isEqualTo(VirtualAccountStatus.ACTIVE);
+        assertThat(vaStatus(cimb.getId(), cimbVa)).isEqualTo(VirtualAccountStatus.ACTIVE);
+        // payable again
+        assertThat(inquiryService.inquire(bsi, bsiVa).remainingAmount()).isEqualByComparingTo("1000000");
+    }
+
+    @Test
+    void reversal_isIdempotent() {
+        createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
+        Instant payTime = Instant.now();
+        paymentService.apply(bsi, bsiVa, new BigDecimal("1000000"), "BSI-REF-1", payTime);
+        var first = paymentService.reverse(bsi, bsiVa, "BSI-REF-1", new BigDecimal("1000000"), payTime.plusSeconds(10));
+        var second = paymentService.reverse(bsi, bsiVa, "BSI-REF-1", new BigDecimal("1000000"), payTime.plusSeconds(20));
+        assertThat(second.getId()).isEqualTo(first.getId());
+    }
+
+    @Test
+    void reversal_amountMismatchIsRejected() {
+        createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
+        Instant payTime = Instant.now();
+        paymentService.apply(bsi, bsiVa, new BigDecimal("1000000"), "BSI-REF-1", payTime);
+        assertThatThrownBy(() -> paymentService.reverse(bsi, bsiVa, "BSI-REF-1", new BigDecimal("999"), payTime.plusSeconds(10)))
+                .isInstanceOf(InvalidPaymentException.class)
+                .hasMessageContaining("does not match");
+    }
+
+    @Test
+    void reversal_outsideWindowIsRejected() {
+        createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
+        Instant payTime = Instant.now();
+        paymentService.apply(bsi, bsiVa, new BigDecimal("1000000"), "BSI-REF-1", payTime);
+        assertThatThrownBy(() -> paymentService.reverse(bsi, bsiVa, "BSI-REF-1", new BigDecimal("1000000"), payTime.plus(Duration.ofMinutes(61))))
+                .isInstanceOf(InvalidPaymentException.class)
+                .hasMessageContaining("window");
     }
 }

@@ -66,6 +66,7 @@ public class BsiAdapterController {
         return switch (action) {
             case "inquiry" -> handleInquiry(escrow, request);
             case "payment" -> handlePayment(escrow, request);
+            case "reversal" -> handleReversal(escrow, request);
             default -> BsiResponse.error(BsiResponseCode.INVALID_ACTION,
                     "unsupported action: " + action, action, request.nomorPembayaran(), request.idTransaksi());
         };
@@ -102,6 +103,25 @@ public class BsiAdapterController {
         } catch (InvalidPaymentException e) {
             return BsiResponse.error(BsiResponseCode.INVALID_AMOUNT, e.getMessage(),
                     "payment", request.nomorPembayaran(), request.idTransaksi());
+        }
+    }
+
+    private BsiResponse handleReversal(EscrowAccount escrow, BsiRequest request) {
+        try {
+            Payment payment = paymentApplicationService.reverse(escrow, request.nomorPembayaran(),
+                    request.idTransaksi(), request.nilai(), Instant.now());
+            Charge charge = chargeRepository.findById(payment.getCharge().getId()).orElseThrow();
+            return new BsiResponse(BsiResponseCode.SUCCESS, "Success", "reversal",
+                    request.nomorPembayaran(), request.nomorInvoice(),
+                    charge.getChargeType().name(), charge.getPayerName(),
+                    charge.getAmount(), charge.getAmount().subtract(charge.getCumulativePaid()),
+                    charge.getCumulativePaid(), payment.getId(), request.idTransaksi());
+        } catch (NotFoundException e) {
+            return BsiResponse.error(BsiResponseCode.INVALID_ACCOUNT, e.getMessage(),
+                    "reversal", request.nomorPembayaran(), request.idTransaksi());
+        } catch (InvalidPaymentException e) {
+            return BsiResponse.error(BsiResponseCode.INVALID_AMOUNT, e.getMessage(),
+                    "reversal", request.nomorPembayaran(), request.idTransaksi());
         }
     }
 }

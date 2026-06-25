@@ -88,8 +88,9 @@ Replace the operator's Kafka-wired single-bank VA fleet with one self-hosted, es
 - [x] Escrow resolution from VA number (`EscrowResolver`, by provider + number space)
 - [x] SHA1 checksum verify (`nomorPembayaran + sharedKey + tanggalTransaksi`, sharedKey = escrow secret) — kept only because the bank mandates it
 - [x] Map proprietary request/response to core (`InquiryService`/`PaymentApplicationService`); response codes 00/03/12/13/25
-- [~] Reversal flow — contract decision resolved; **implement next**
-- [x] Functional test (RestAssured; bank→gateway, so no WireMock needed for inbound). 6 tests green
+- [x] Reversal flow — `PaymentApplicationService.reverse` (window-bounded via `gateway.reversal.window-minutes`; subtracts shared cumulative, re-opens charge + reactivates siblings settled by the reversed payment; idempotent; emits PAYMENT_REVERSED webhook). BSI `reversal` action mapped.
+- [x] Functional test (RestAssured; bank→gateway, so no WireMock needed for inbound). 7 adapter + 4 lifecycle reversal tests green
+- **`bsi` adapter complete** (inquiry + payment + reversal).
 
 ### `cimb` (SOAP/XML) — port of the legacy CIMB service
 - [ ] Spring-WS endpoint, namespace `http://CIMB3rdParty/BillPaymentWS`, ops `CIMB3rdParty_InquiryRq/Rs`, `_PaymentRq/Rs`
