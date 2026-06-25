@@ -80,7 +80,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 **Goal:** `BankProvider` contract implemented for the three launch banks; all SELF_HOSTED (inquiry + payment notification). Suggested order **bsi → cimb → maybank** (simplest transport first; SNAP crypto last).
 
 ### Contract
-- [~] SELF_HOSTED adapters are inbound controllers (bank → gateway) that verify the bank's signature, resolve the escrow from the VA number (`EscrowResolver`), and call core `InquiryService` / `PaymentApplicationService`. A formal `BankProvider` Java interface will be extracted once `cimb` exists (factor real commonality, not guessed) — BANK_HOSTED `createVa`/`cancelVa` + reconciliation `pullSettlement`/`importStatement` land with their phases.
+- [x] SELF_HOSTED adapters are inbound endpoints (bank → gateway) that verify the bank's auth, resolve the escrow from the VA number (`EscrowResolver`), and call core `InquiryService` / `PaymentApplicationService` (+ `reverse`). **Finding (bsi + cimb done):** the shared contract is those core services, not a polymorphic interface — bsi (REST/JSON) and cimb (SOAP/XML) have genuinely different transports/message types, so a `BankProvider` Java interface for inbound adds no value and is skipped. The interface becomes meaningful for **BANK_HOSTED outbound** (`createVa`/`cancelVa`) + **reconciliation** (`pullSettlement`/`importStatement`); extract it there, with those phases.
 - **Decision (resolved):** reversal **is** part of the SELF_HOSTED contract — BSI sends reversal messages, so the gateway must handle them. Implement inquiry + payment first, then reversal (revert cumulative, re-open charge + reactivate siblings settled by the reversed payment; fail loud on cancelled charges / out-of-window).
 
 ### `bsi` (proprietary REST/JSON) — port of bsm-makara
@@ -93,10 +93,12 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 - **`bsi` adapter complete** (inquiry + payment + reversal).
 
 ### `cimb` (SOAP/XML) — port of cimb-ws
-- [ ] Spring-WS endpoint, namespace `http://CIMB3rdParty/BillPaymentWS`, ops `CIMB3rdParty_InquiryRq/Rs`, `_PaymentRq/Rs`
-- [ ] JAXB binding from `cimb.xsd`; strip response SOAP header (CIMB strictness)
-- [ ] Auth via HTTPS + IP allowlist (no WS-Security)
-- [ ] WireMock/SOAP stub + functional test
+- [x] Spring-WS endpoint (MessageDispatcherServlet at `/ws/cimb/*`, coexists with the REST DispatcherServlet), namespace `http://CIMB3rdParty/BillPaymentWS`, ops `CIMB3rdParty_InquiryRq/Rs`, `_PaymentRq/Rs`
+- [x] Hand-written JAXB message classes (children unqualified per CIMB's format); default payload processors bind them — no marshaller bean needed in spring-ws 5. (Published WSDL/XSD = follow-up.)
+- [x] Auth via HTTPS + IP allowlist at the network layer (no in-message signature). Response SOAP-header stripping not needed (Spring-WS responses carry no header by default).
+- [x] Functional test: SOAP envelopes via RestAssured; response codes 00/16/38. 4 tests green
+- No reversal (CIMB protocol has none).
+- **`cimb` adapter complete** (inquiry + payment).
 
 ### `maybank` (SNAP/REST) — reference jasa-pelabuhan
 - **Target SNAP 1.0.2** (Sept 2024). Spec confirmed from the official BI/ASPI PDFs (Standar Teknis & Keamanan + Standar Data; in user's Downloads — do NOT commit to this public repo). Signature/header model is **identical** to the PTB BCA code → `SnapSignatureHelper` is directly reusable. The only v1.0.1→1.0.2 changes (none breaking): "Private Key" wording removed from key-exchange sections; access-token body field `granttype`→`grantType` (PTB already correct); `X-EXTERNAL-ID` description Numeric→**Alphanumeric** (B2B). Verify Maybank's per-bank profile (sandbox URLs, partnerServiceId padding) against their sandbox.
