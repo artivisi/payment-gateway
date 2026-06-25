@@ -23,6 +23,8 @@ gateway:
     backoff-base-seconds: 30
     poll-interval-ms: 5000
     request-timeout-seconds: 10
+  reversal:
+    window-minutes: 60
 
 management:
   endpoints:

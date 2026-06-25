@@ -140,4 +140,20 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
         post(body("payment", vaNumber, checksum(vaNumber), new BigDecimal("999")))
                 .then().statusCode(200).body("responseCode", equalTo("13"));
     }
+
+    @Test
+    void reversal_reopensChargeForPayment() {
+        post(body("payment", vaNumber, checksum(vaNumber), new BigDecimal("1000000")))
+                .then().body("responseCode", equalTo("00"));
+
+        post(body("reversal", vaNumber, checksum(vaNumber), new BigDecimal("1000000")))
+                .then().statusCode(200)
+                .body("responseCode", equalTo("00"))
+                .body("akumulasiPembayaran", comparesEqualTo(new BigDecimal("0")));
+
+        // Reversed charge is payable again.
+        post(body("inquiry", vaNumber, checksum(vaNumber), null))
+                .then().body("responseCode", equalTo("00"))
+                .body("tagihanEfektif", comparesEqualTo(new BigDecimal("1000000")));
+    }
 }
