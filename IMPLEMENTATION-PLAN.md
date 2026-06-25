@@ -20,7 +20,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 | 1 | Core (Charge + VA lifecycle, Consumer API, webhooks) | `[x]` |
 | 2 | Adapters (bsi, cimb, maybank) | `[x]` |
 | 3 | Reconciliation | `[~]` |
-| 4 | Web admin UI | `[ ]` |
+| 4 | Web admin UI | `[~]` |
 
 ---
 
@@ -140,14 +140,16 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 
 **Goal:** Thymeleaf + HTMX + Tailwind admin over the core.
 
-- [ ] Escrow management (CRUD, credentials, number space, hosting model)
-- [ ] Consumer management (CRUD, webhook URL, secret rotation)
+- [x] Brand + shell: Tailwind v4 `@theme` (ArtiVisi primary #2e3192 / accent #58c034), standalone-CLI build → `static/css/app.css` (binary gitignored; rebuild cmd in `src/main/frontend/app.css`); logos + branded nav; dashboard with counts. `/` → `/admin`.
+- [~] Escrow management — list + create form done; edit/delete + detail/credential view = follow-up
+- [~] Consumer management — list + create form done; secret rotation = follow-up
 - [ ] Charge / VA / payment browse + search
 - [ ] Reconciliation dashboard (runs, discrepancies)
 - [ ] Audit log view
-- [ ] Frontend: native `fetch` + thin wrapper, no npm HTTP libs
+- [x] Frontend self-hosted, no CDN (CSP-friendly): htmx vendored. **Alpine.js not used** (htmx + server-render sufficed); if added later, use the **CSP build** (`@alpinejs/csp`) per project guidance. `cookie`-only session tracking (no jsessionid in URLs).
+- [x] Playwright: dashboard renders on brand + create-consumer through the form end-to-end.
 
-**Exit:** an operator can configure an escrow + consumer and observe a charge through to settlement entirely in the UI. Playwright covers the flows.
+**Exit:** ◐ operator can create escrows + consumers and see dashboard counts in the branded UI; charge/payment/recon/audit browse screens remain. 62 tests green.
 
 ---
 
