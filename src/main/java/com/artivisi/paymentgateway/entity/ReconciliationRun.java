@@ -42,6 +42,12 @@ public class ReconciliationRun {
 
     private Instant finishedAt;
 
+    private Integer matchedCount;
+
+    private Integer recoveredCount;
+
+    private Integer discrepancyCount;
+
     @CreationTimestamp
     private Instant createdAt;
 }
