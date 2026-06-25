@@ -12,11 +12,13 @@ import com.artivisi.paymentgateway.exception.InvalidPaymentException;
 import com.artivisi.paymentgateway.exception.NotFoundException;
 import com.artivisi.paymentgateway.repository.ChargeRepository;
 import com.artivisi.paymentgateway.repository.PaymentRepository;
+import com.artivisi.paymentgateway.config.ReversalProperties;
 import com.artivisi.paymentgateway.repository.VirtualAccountRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -34,15 +36,18 @@ public class PaymentApplicationService {
     private final ChargeRepository chargeRepository;
     private final PaymentRepository paymentRepository;
     private final WebhookService webhookService;
+    private final ReversalProperties reversalProperties;
 
     public PaymentApplicationService(VirtualAccountRepository virtualAccountRepository,
                                      ChargeRepository chargeRepository,
                                      PaymentRepository paymentRepository,
-                                     WebhookService webhookService) {
+                                     WebhookService webhookService,
+                                     ReversalProperties reversalProperties) {
         this.virtualAccountRepository = virtualAccountRepository;
         this.chargeRepository = chargeRepository;
         this.paymentRepository = paymentRepository;
         this.webhookService = webhookService;
+        this.reversalProperties = reversalProperties;
     }
 
     @Transactional
@@ -100,6 +105,62 @@ public class PaymentApplicationService {
             webhookService.enqueue(charge, saved, WebhookEventType.CHARGE_PAID);
         }
         return saved;
+    }
+
+    /**
+     * Reverses a previously accepted payment within the configured window. Subtracts from the
+     * shared cumulative and re-opens the charge; if the payment had settled the charge (siblings
+     * cancelled), reactivates the siblings. Idempotent if the payment is already reversed.
+     */
+    @Transactional
+    public Payment reverse(EscrowAccount escrow, String vaNumber, String bankReference,
+                           BigDecimal amount, Instant reversalTime) {
+        VirtualAccount va = virtualAccountRepository
+                .findByEscrowAccountIdAndVaNumber(escrow.getId(), vaNumber)
+                .orElseThrow(() -> new NotFoundException(
+                        "VA not found in escrow " + escrow.getCode() + ": " + vaNumber));
+        Payment payment = paymentRepository
+                .findByVirtualAccountIdAndBankReference(va.getId(), bankReference)
+                .orElseThrow(() -> new NotFoundException(
+                        "no payment to reverse for reference " + bankReference));
+
+        if (payment.getStatus() == PaymentStatus.REVERSED) {
+            return payment;
+        }
+        if (amount != null && payment.getAmount().compareTo(amount) != 0) {
+            throw new InvalidPaymentException(
+                    "reversal amount " + amount + " does not match payment " + payment.getAmount());
+        }
+        long minutesElapsed = Duration.between(payment.getTransactionTime(), reversalTime).toMinutes();
+        if (minutesElapsed > reversalProperties.windowMinutes()) {
+            throw new InvalidPaymentException("reversal window of "
+                    + reversalProperties.windowMinutes() + " minutes exceeded");
+        }
+
+        Charge charge = chargeRepository.lockById(payment.getCharge().getId())
+                .orElseThrow(() -> new NotFoundException("charge not found for reversal"));
+        if (charge.getStatus() == ChargeStatus.CANCELLED) {
+            throw new InvalidPaymentException("charge is cancelled");
+        }
+
+        boolean settledByThisPayment = charge.getStatus() == ChargeStatus.PAID;
+        payment.setStatus(PaymentStatus.REVERSED);
+        charge.setCumulativePaid(charge.getCumulativePaid().subtract(payment.getAmount()));
+        charge.setStatus(charge.getCumulativePaid().signum() == 0
+                ? ChargeStatus.ACTIVE : ChargeStatus.PARTIALLY_PAID);
+        if (settledByThisPayment) {
+            for (VirtualAccount sibling : virtualAccountRepository.findByChargeId(charge.getId())) {
+                if (sibling.getStatus() == VirtualAccountStatus.PAID
+                        || sibling.getStatus() == VirtualAccountStatus.CANCELLED) {
+                    sibling.setStatus(VirtualAccountStatus.ACTIVE);
+                    virtualAccountRepository.save(sibling);
+                }
+            }
+        }
+
+        Payment reversed = paymentRepository.save(payment);
+        webhookService.enqueue(charge, reversed, WebhookEventType.PAYMENT_REVERSED);
+        return reversed;
     }
 
     private void applyClosed(Charge charge, VirtualAccount paidVa, BigDecimal amount) {
