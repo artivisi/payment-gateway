@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(title)">
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title th:text="${title} + ' · Payment Gateway'">Payment Gateway</title>
+    <link rel="icon" type="image/svg+xml" th:href="@{/img/logo-artivisi.svg}"/>
+    <link rel="stylesheet" th:href="@{/css/app.css}"/>
+    <script defer th:src="@{/js/htmx.min.js}"></script>
+</head>
+<body>
+<header th:fragment="navbar(active)" class="bg-primary-600 text-white">
+    <div class="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
+        <a th:href="@{/admin}" class="flex items-center gap-2">
+            <img th:src="@{/img/logo-artivisi-white.svg}" alt="ArtiVisi" class="h-7 w-auto"/>
+            <span class="text-sm font-semibold tracking-wide">Payment Gateway</span>
+        </a>
+        <nav class="flex items-center gap-1 text-sm">
+            <a th:href="@{/admin}" th:classappend="${active == 'dashboard'} ? 'bg-primary-700' : ''"
+               class="rounded px-3 py-1.5 hover:bg-primary-700">Dashboard</a>
+            <a th:href="@{/admin/escrow-accounts}" th:classappend="${active == 'escrow'} ? 'bg-primary-700' : ''"
+               class="rounded px-3 py-1.5 hover:bg-primary-700">Escrows</a>
+            <a th:href="@{/admin/consumers}" th:classappend="${active == 'consumer'} ? 'bg-primary-700' : ''"
+               class="rounded px-3 py-1.5 hover:bg-primary-700">Consumers</a>
+        </nav>
+    </div>
+</header>
+</body>
+</html>

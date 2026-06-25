@@ -6,23 +6,52 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Phase-0 browser smoke test: stands up the Playwright harness against the running app
- * and verifies the landing page renders. The admin UI arrives in Phase 4; this only
- * proves the end-to-end browser path works.
+ * Browser tests for the admin UI: the dashboard renders on the ArtiVisi brand, and a consumer can
+ * be created through the form end-to-end.
  */
 class PlaywrightSmokeTest extends AbstractIntegrationTest {
 
+    private static final AtomicInteger SEQ = new AtomicInteger();
+
+    private String base() {
+        return "http://localhost:" + port;
+    }
+
     @Test
-    void landingPageRenders() {
+    void dashboardRenders() {
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
-            page.navigate("http://localhost:" + port + "/");
-            assertThat(page.title()).isEqualTo("payment-gateway");
-            assertThat(page.getByTestId("app-title").textContent()).contains("payment-gateway");
+            page.navigate(base() + "/");   // redirects to /admin
+            assertThat(page.url()).endsWith("/admin");
+            assertThat(page.title()).isEqualTo("Dashboard · Payment Gateway");
+            assertThat(page.getByTestId("dashboard").textContent()).contains("Escrows").contains("Consumers");
+            assertThat(page.locator("header img[alt='ArtiVisi']").count()).isEqualTo(1);
+            browser.close();
+        }
+    }
+
+    @Test
+    void createConsumerThroughUi() {
+        int n = SEQ.incrementAndGet();
+        String code = "ui-consumer-" + n;
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage();
+            page.navigate(base() + "/admin/consumers/new");
+            page.fill("#code", code);
+            page.fill("#name", "UI Test");
+            page.fill("#clientId", "ui-client-" + n);
+            page.fill("#clientSecret", "ui-secret");
+            page.fill("#webhookUrl", "https://hook.example/ui");
+            page.selectOption("#status", "ACTIVE");
+            page.click("button[type=submit]");
+            assertThat(page.getByTestId("consumer-list").textContent()).contains(code);
             browser.close();
         }
     }

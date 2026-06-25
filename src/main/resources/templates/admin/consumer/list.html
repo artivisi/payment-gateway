@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Consumers')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('consumer')}"></nav>
+<main class="mx-auto max-w-6xl px-4 py-8" data-testid="consumer-list">
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold text-slate-900">Consumers</h1>
+        <a th:href="@{/admin/consumers/new}" class="btn-primary">New consumer</a>
+    </div>
+
+    <div th:if="${message}" class="mb-4 rounded-md bg-accent-50 px-4 py-3 text-sm text-accent-800"
+         th:text="${message}"></div>
+
+    <div class="card overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+            <tr>
+                <th class="th">Code</th>
+                <th class="th">Name</th>
+                <th class="th">Client ID</th>
+                <th class="th">Webhook URL</th>
+                <th class="th">Status</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="c : ${consumers}">
+                <td class="td font-medium text-slate-900" th:text="${c.code}">code</td>
+                <td class="td" th:text="${c.name}">name</td>
+                <td class="td font-mono text-xs" th:text="${c.clientId}">client</td>
+                <td class="td text-xs text-slate-500" th:text="${c.webhookUrl}">url</td>
+                <td class="td">
+                    <span th:classappend="${c.status.name() == 'ACTIVE'} ? 'badge-ok' : 'badge-muted'"
+                          th:text="${c.status}">ACTIVE</span>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(consumers)}">
+                <td class="td text-slate-400" colspan="5">No consumers yet.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>
