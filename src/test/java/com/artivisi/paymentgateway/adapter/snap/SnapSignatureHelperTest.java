@@ -17,6 +17,7 @@ class SnapSignatureHelperTest {
     }
 
     @Test
+    @SnapSpec("snap.sec.access-token.signature")
     void tokenSignatureRoundTrips() throws Exception {
         KeyPair keyPair = rsaKeyPair();
         String publicKeyPem = Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded());
@@ -31,6 +32,7 @@ class SnapSignatureHelperTest {
     }
 
     @Test
+    @SnapSpec({"snap.sec.transaction.signature.symmetric", "snap.sec.endpoint-url"})
     void transactionSignatureRoundTrips() {
         String secret = "client-secret";
         String body = "{\"virtualAccountNo\":\"  12345 9999999\"}";
@@ -46,6 +48,7 @@ class SnapSignatureHelperTest {
     }
 
     @Test
+    @SnapSpec("snap.sec.body-minify")
     void emptyBodyHashesEmptyString() {
         assertThat(SnapSignatureHelper.sha256HexLower(""))
                 .isEqualTo("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");

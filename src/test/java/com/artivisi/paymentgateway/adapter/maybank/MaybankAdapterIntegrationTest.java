@@ -2,6 +2,7 @@ package com.artivisi.paymentgateway.adapter.maybank;
 
 import com.artivisi.paymentgateway.AbstractIntegrationTest;
 import com.artivisi.paymentgateway.adapter.snap.SnapSignatureHelper;
+import com.artivisi.paymentgateway.adapter.snap.SnapSpec;
 import com.artivisi.paymentgateway.dto.ChargeAccountRequest;
 import com.artivisi.paymentgateway.dto.ConsumerRequest;
 import com.artivisi.paymentgateway.dto.CreateChargeRequest;
@@ -107,6 +108,8 @@ class MaybankAdapterIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @SnapSpec({"snap.sec.access-token.endpoint", "snap.sec.access-token.signature",
+            "snap.sec.transaction.signature.symmetric", "snap.data.va.inquiry", "snap.data.va.payment"})
     void fullFlow_tokenInquiryPayment() {
         String token = obtainAccessToken();
 
@@ -143,6 +146,7 @@ class MaybankAdapterIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    @SnapSpec("snap.sec.external-id")
     void inquiry_duplicateExternalId_isConflict() {
         String token = obtainAccessToken();
         transaction(INQUIRY_PATH, token, inquiryBody(), "EXT-DUP").then().statusCode(200);
