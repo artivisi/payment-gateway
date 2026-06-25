@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+/*
+ * ArtiVisi brand palette. Primary indigo #2e3192 and accent green #58c034
+ * are taken from the logo (see ~/workspace/website/artivisi.github.io).
+ * Rebuild: ./.tools/tailwindcss -i src/main/frontend/app.css -o src/main/resources/static/css/app.css --minify
+ */
+@theme {
+  --color-primary-50: #eef0fb;
+  --color-primary-100: #dde0f6;
+  --color-primary-200: #bcc2ee;
+  --color-primary-300: #9aa3e5;
+  --color-primary-400: #6b76cf;
+  --color-primary-500: #3f48b0;
+  --color-primary-600: #2e3192;
+  --color-primary-700: #262a7e;
+  --color-primary-800: #1f2266;
+  --color-primary-900: #191b4f;
+
+  --color-accent-50: #f0fbe9;
+  --color-accent-100: #dcf5cb;
+  --color-accent-200: #bdeb9d;
+  --color-accent-300: #97dd6a;
+  --color-accent-400: #73cd41;
+  --color-accent-500: #58c034;
+  --color-accent-600: #46a128;
+  --color-accent-700: #367d20;
+  --color-accent-800: #2c631f;
+  --color-accent-900: #26521e;
+
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50;
+  }
+  .card {
+    @apply rounded-lg border border-slate-200 bg-white shadow-sm;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-slate-700;
+  }
+  .input {
+    @apply block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500;
+  }
+  .badge-ok {
+    @apply inline-flex items-center rounded-full bg-accent-100 px-2.5 py-0.5 text-xs font-medium text-accent-800;
+  }
+  .badge-muted {
+    @apply inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600;
+  }
+  .th {
+    @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .td {
+    @apply whitespace-nowrap px-4 py-3 text-sm text-slate-700;
+  }
+}

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('New Escrow Account')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('escrow')}"></nav>
+<main class="mx-auto max-w-3xl px-4 py-8" data-testid="escrow-form">
+    <h1 class="mb-6 text-2xl font-semibold text-slate-900">New Escrow Account</h1>
+
+    <div th:if="${error}" class="mb-4 rounded-md bg-red-50 px-4 py-3 text-sm text-red-700" th:text="${error}"></div>
+
+    <form th:action="@{/admin/escrow-accounts}" method="post" class="card space-y-6 p-6">
+        <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+                <label class="label" for="code">Code</label>
+                <input class="input" id="code" name="code" required/>
+            </div>
+            <div>
+                <label class="label" for="provider">Provider</label>
+                <select class="input" id="provider" name="provider">
+                    <option value="maybank">maybank</option>
+                    <option value="bsi">bsi</option>
+                    <option value="cimb">cimb</option>
+                </select>
+            </div>
+            <div>
+                <label class="label" for="hostingModel">Hosting model</label>
+                <select class="input" id="hostingModel" name="hostingModel">
+                    <option>SELF_HOSTED</option>
+                    <option>BANK_HOSTED</option>
+                </select>
+            </div>
+            <div>
+                <label class="label" for="activeEnvironment">Environment</label>
+                <select class="input" id="activeEnvironment" name="activeEnvironment">
+                    <option>SANDBOX</option>
+                    <option>PRODUCTION</option>
+                </select>
+            </div>
+            <div>
+                <label class="label" for="transport">Transport</label>
+                <select class="input" id="transport" name="transport">
+                    <option>REST_JSON</option>
+                    <option>SOAP_XML</option>
+                </select>
+            </div>
+            <div>
+                <label class="label" for="authScheme">Auth scheme</label>
+                <select class="input" id="authScheme" name="authScheme">
+                    <option>SNAP</option>
+                    <option>PROPRIETARY</option>
+                </select>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Number space &amp; settlement</h2>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="label" for="companyId">Company ID</label>
+                    <input class="input" id="companyId" name="companyId" required/>
+                </div>
+                <div>
+                    <label class="label" for="vaPrefix">VA prefix</label>
+                    <input class="input" id="vaPrefix" name="vaPrefix" required/>
+                </div>
+                <div>
+                    <label class="label" for="vaDigitLength">VA digit length</label>
+                    <input class="input" id="vaDigitLength" name="vaDigitLength" type="number" required/>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="label" for="settlementAccountNumber">Settlement account number</label>
+                    <input class="input" id="settlementAccountNumber" name="settlementAccountNumber" required/>
+                </div>
+                <div>
+                    <label class="label" for="settlementAccountName">Settlement account name</label>
+                    <input class="input" id="settlementAccountName" name="settlementAccountName" required/>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Credentials</h2>
+            <p class="mb-3 text-xs text-slate-400">Secrets are encrypted at rest and never shown again.</p>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="label" for="clientId">Client ID</label>
+                    <input class="input" id="clientId" name="clientId"/>
+                </div>
+                <div>
+                    <label class="label" for="clientSecret">Client secret</label>
+                    <input class="input" id="clientSecret" name="clientSecret" type="password"/>
+                </div>
+                <div>
+                    <label class="label" for="partnerId">Partner ID</label>
+                    <input class="input" id="partnerId" name="partnerId"/>
+                </div>
+                <div>
+                    <label class="label" for="channelId">Channel ID</label>
+                    <input class="input" id="channelId" name="channelId"/>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="label" for="publicKey">Public key (PEM/base64)</label>
+                    <textarea class="input font-mono text-xs" id="publicKey" name="publicKey" rows="3"></textarea>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Grouping tags</h2>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="label" for="merchantTag">Merchant tag</label>
+                    <input class="input" id="merchantTag" name="merchantTag"/>
+                </div>
+                <div>
+                    <label class="label" for="institutionTag">Institution tag</label>
+                    <input class="input" id="institutionTag" name="institutionTag"/>
+                </div>
+            </div>
+        </section>
+
+        <div class="flex gap-3">
+            <button type="submit" class="btn-primary">Create escrow</button>
+            <a th:href="@{/admin/escrow-accounts}" class="btn-ghost">Cancel</a>
+        </div>
+    </form>
+</main>
+</body>
+</html>
