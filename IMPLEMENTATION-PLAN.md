@@ -19,7 +19,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 | 0 | Scaffold | `[x]` |
 | 1 | Core (Charge + VA lifecycle, Consumer API, webhooks) | `[x]` |
 | 2 | Adapters (bsi, cimb, maybank) | `[x]` |
-| 3 | Reconciliation | `[ ]` |
+| 3 | Reconciliation | `[~]` |
 | 4 | Web admin UI | `[ ]` |
 
 ---
@@ -124,14 +124,15 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 
 **Goal:** end-of-day per-escrow settlement match + recovery, for all three banks.
 
-- [ ] `pullSettlement(escrow, period)` (transaction-list endpoint) and/or `importStatement(file)` per adapter
-- [ ] Match settlement credits to payments
-- [ ] Recover paid-not-notified (mark paid + forward webhook)
-- [ ] Flag notified-not-settled, amount mismatch, duplicate, unmatched credit
-- [ ] `ReconciliationRun` persisted; report per escrow and per institution tag
-- [ ] Functional tests with seeded discrepancies
+- [x] Match settlement credits to payments (`ReconciliationService`, escrow + period scoped)
+- [x] Recover paid-not-notified (`apply` → payment created + webhook forwarded), flagged `PAID_NOT_NOTIFIED_RECOVERED` (or `RECOVERY_FAILED`)
+- [x] Flag notified-not-settled, amount mismatch, duplicate, unmatched credit (`DiscrepancyType`)
+- [x] `ReconciliationRun` (+ matched/recovered/discrepancy counts) and `ReconciliationDiscrepancy` persisted (V4); admin trigger `POST /api/escrow-accounts/{code}/reconciliations` (import-statement path)
+- [~] `pullSettlement` outbound per-bank (transaction-list endpoint + WireMock) — deferred; the engine is bank-agnostic and fed by imported credits for now. This is where the **BANK_HOSTED/outbound `BankProvider` interface** finally gets extracted.
+- [~] Report per **institution tag** — per-escrow run persisted; cross-escrow per-institution aggregation = follow-up
+- [x] Functional tests: all six outcomes classified, recovery + webhook, clean run, HTTP endpoint. 4 tests
 
-**Exit:** a recon run over a day's stub settlement detects and recovers a dropped notification and flags each discrepancy class.
+**Exit:** ✅ a recon run over a day's imported settlement detects + recovers a dropped notification and flags each discrepancy class. 61 tests green. (Outbound pull + per-institution report remain.)
 
 ---
 
