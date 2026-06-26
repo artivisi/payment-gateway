@@ -1,0 +1,2 @@
+code,name,clientId,clientSecret,webhookUrl,status
+demo-academic,Academic System,demo-academic-client,demo-academic-secret,https://consumer.example/webhook,ACTIVE
