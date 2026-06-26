@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Reconciliation')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('reconciliation')}"></nav>
+<main class="mx-auto max-w-6xl px-4 py-8" data-testid="reconciliation-list">
+    <h1 class="mb-6 text-2xl font-semibold text-slate-900">Reconciliation runs</h1>
+    <div class="card overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+            <tr>
+                <th class="th">Created</th>
+                <th class="th">Escrow</th>
+                <th class="th">Period</th>
+                <th class="th">Status</th>
+                <th class="th">Matched</th>
+                <th class="th">Recovered</th>
+                <th class="th">Discrepancies</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="r : ${runs}">
+                <td class="td text-xs text-slate-500">
+                    <a class="text-primary-700 hover:underline"
+                       th:href="@{/admin/reconciliations/{id}(id=${r.id})}" th:text="${r.createdAt}">time</a>
+                </td>
+                <td class="td" th:text="${r.escrowAccount.code}">escrow</td>
+                <td class="td" th:text="${r.period}">period</td>
+                <td class="td"><span class="badge-muted" th:text="${r.status}">COMPLETED</span></td>
+                <td class="td" th:text="${r.matchedCount}">0</td>
+                <td class="td text-accent-700" th:text="${r.recoveredCount}">0</td>
+                <td class="td" th:text="${r.discrepancyCount}">0</td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(runs)}">
+                <td class="td text-slate-400" colspan="7">No reconciliation runs yet.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>

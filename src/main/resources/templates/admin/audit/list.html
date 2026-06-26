@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Audit log')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('audit')}"></nav>
+<main class="mx-auto max-w-6xl px-4 py-8" data-testid="audit-list">
+    <h1 class="mb-6 text-2xl font-semibold text-slate-900">Audit log</h1>
+    <div class="card overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+            <tr>
+                <th class="th">Time</th>
+                <th class="th">Event</th>
+                <th class="th">Entity</th>
+                <th class="th">Entity ID</th>
+                <th class="th">Detail</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="e : ${events}">
+                <td class="td text-xs text-slate-500" th:text="${e.createdAt}">time</td>
+                <td class="td" th:text="${e.eventType}">event</td>
+                <td class="td" th:text="${e.entityType}">entity</td>
+                <td class="td font-mono text-xs" th:text="${e.entityId} ?: '—'">id</td>
+                <td class="td text-xs text-slate-500" th:text="${e.detail}">detail</td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(events)}">
+                <td class="td text-slate-400" colspan="5">No audit events recorded yet.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>

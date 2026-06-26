@@ -6,6 +6,7 @@ import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -32,6 +33,25 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             assertThat(page.title()).isEqualTo("Dashboard · Payment Gateway");
             assertThat(page.getByTestId("dashboard").textContent()).contains("Escrows").contains("Consumers");
             assertThat(page.locator("header img[alt='ArtiVisi']").count()).isEqualTo(1);
+            browser.close();
+        }
+    }
+
+    @Test
+    void browseSectionsRender() {
+        Map<String, String> sections = Map.of(
+                "/admin/escrow-accounts", "escrow-list",
+                "/admin/charges", "charge-list",
+                "/admin/payments", "payment-list",
+                "/admin/reconciliations", "reconciliation-list",
+                "/admin/audit", "audit-list");
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage();
+            sections.forEach((path, testId) -> {
+                page.navigate(base() + path);
+                assertThat(page.getByTestId(testId).count()).as(path).isEqualTo(1);
+            });
             browser.close();
         }
     }
