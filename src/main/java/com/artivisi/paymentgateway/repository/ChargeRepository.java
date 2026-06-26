@@ -2,11 +2,13 @@ package com.artivisi.paymentgateway.repository;
 
 import com.artivisi.paymentgateway.entity.Charge;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface ChargeRepository extends JpaRepository<Charge, String> {
@@ -19,4 +21,10 @@ public interface ChargeRepository extends JpaRepository<Charge, String> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from Charge c where c.id = :id")
     Optional<Charge> lockById(@Param("id") String id);
+
+    @Query("select c from Charge c join fetch c.consumer order by c.createdAt desc")
+    List<Charge> findRecentWithConsumer(Pageable pageable);
+
+    @Query("select c from Charge c join fetch c.consumer where c.id = :id")
+    Optional<Charge> findByIdWithConsumer(@Param("id") String id);
 }

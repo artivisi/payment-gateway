@@ -22,6 +22,14 @@
                class="rounded px-3 py-1.5 hover:bg-primary-700">Escrows</a>
             <a th:href="@{/admin/consumers}" th:classappend="${active == 'consumer'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Consumers</a>
+            <a th:href="@{/admin/charges}" th:classappend="${active == 'charge'} ? 'bg-primary-700' : ''"
+               class="rounded px-3 py-1.5 hover:bg-primary-700">Charges</a>
+            <a th:href="@{/admin/payments}" th:classappend="${active == 'payment'} ? 'bg-primary-700' : ''"
+               class="rounded px-3 py-1.5 hover:bg-primary-700">Payments</a>
+            <a th:href="@{/admin/reconciliations}" th:classappend="${active == 'reconciliation'} ? 'bg-primary-700' : ''"
+               class="rounded px-3 py-1.5 hover:bg-primary-700">Reconciliation</a>
+            <a th:href="@{/admin/audit}" th:classappend="${active == 'audit'} ? 'bg-primary-700' : ''"
+               class="rounded px-3 py-1.5 hover:bg-primary-700">Audit</a>
         </nav>
     </div>
 </header>
