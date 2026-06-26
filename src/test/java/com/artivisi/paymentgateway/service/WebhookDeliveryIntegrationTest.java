@@ -44,7 +44,7 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
     @Autowired ConsumerService consumerService;
     @Autowired ChargeService chargeService;
     @Autowired PaymentApplicationService paymentService;
-    @Autowired WebhookDispatcher webhookDispatcher;
+    @Autowired WebhookService webhookService;
     @Autowired WebhookDeliveryRepository webhookRepository;
 
     private HttpServer server;
@@ -109,6 +109,12 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
         return HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
     }
 
+    /** Dispatch only this charge's deliveries (isolated; the global outbox holds other tests' rows). */
+    private void dispatchOwn(String chargeId) {
+        webhookRepository.findByChargeIdOrderByCreatedAtAsc(chargeId)
+                .forEach(d -> webhookService.attempt(d.getId()));
+    }
+
     @Test
     void closedPayment_deliversSignedPaymentAndPaidEvents() throws Exception {
         Fixture f = seed(startReceiver(200));
@@ -119,8 +125,7 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
         assertThat(before).hasSize(2);
         assertThat(before).allMatch(d -> d.getStatus() == WebhookStatus.PENDING);
 
-        int dispatched = webhookDispatcher.dispatchDue();
-        assertThat(dispatched).isEqualTo(2);
+        dispatchOwn(chargeId);
 
         assertThat(received).hasSize(2);
         assertThat(received).extracting(Captured::event)
@@ -137,7 +142,7 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
         Fixture f = seed(startReceiver(500));
         String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BSI-REF-1");
 
-        webhookDispatcher.dispatchDue();
+        dispatchOwn(chargeId);
 
         WebhookDelivery delivery = webhookRepository.findByChargeIdOrderByCreatedAtAsc(chargeId).getFirst();
         assertThat(delivery.getStatus()).isEqualTo(WebhookStatus.PENDING);
@@ -156,7 +161,7 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
         delivery.setNextAttemptAt(Instant.now());
         webhookRepository.save(delivery);
 
-        webhookDispatcher.dispatchDue();
+        dispatchOwn(chargeId);
 
         WebhookDelivery reloaded = webhookRepository.findById(delivery.getId()).orElseThrow();
         assertThat(reloaded.getAttempts()).isEqualTo(reloaded.getMaxAttempts());

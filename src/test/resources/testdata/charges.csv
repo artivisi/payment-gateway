@@ -1,0 +1,5 @@
+consumerReference,consumerCode,payerName,chargeType,amount,escrowCode,vaNumber
+DEMO-INV-1,demo-academic,Payer One,CLOSED,100000,demo-bsi,9400000001
+DEMO-INV-2,demo-academic,Payer Two,CLOSED,200000,demo-bsi,9400000002
+DEMO-INV-3,demo-academic,Payer Three,CLOSED,300000,demo-bsi,9400000003
+DEMO-INV-4,demo-academic,Payer Four,CLOSED,400000,demo-bsi,9400000004

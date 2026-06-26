@@ -1,0 +1,7 @@
+vaNumber,bankReference,type,note
+9400000001,BANK-R1,MATCHED,settlement matches recorded payment (counted in matchedCount, not a discrepancy)
+9400000001,BANK-R1,DUPLICATE,second credit with the same bank reference
+9400000002,BANK-R2,PAID_NOT_NOTIFIED_RECOVERED,bank settled but gateway had no payment; recovered + webhook
+9400000003,BANK-R3,AMOUNT_MISMATCH,recorded 300000 vs settled 250000
+9409999999,BANK-R9,UNMATCHED_CREDIT,no virtual account for this number
+9400000004,BANK-R4,NOTIFIED_NOT_SETTLED,gateway recorded a payment the bank did not settle

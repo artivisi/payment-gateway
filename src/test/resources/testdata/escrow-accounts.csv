@@ -1,0 +1,2 @@
+code,provider,hostingModel,transport,authScheme,activeEnvironment,companyId,vaPrefix,vaDigitLength,settlementAccountNumber,settlementAccountName
+demo-bsi,bsi,SELF_HOSTED,REST_JSON,PROPRIETARY,SANDBOX,94099,940,10,9400900111,Operator Settlement
