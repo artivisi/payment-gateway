@@ -1,0 +1,4 @@
+escrowCode,vaNumber,amount,bankReference,transactionTime
+demo-bsi,9400000001,100000,BANK-R1,2026-06-25T10:00:00Z
+demo-bsi,9400000003,300000,BANK-R3,2026-06-25T10:00:00Z
+demo-bsi,9400000004,400000,BANK-R4,2026-06-25T10:00:00Z
