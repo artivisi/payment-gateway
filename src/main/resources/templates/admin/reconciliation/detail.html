@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Reconciliation run')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('reconciliation')}"></nav>
+<main class="mx-auto max-w-5xl px-4 py-8" data-testid="reconciliation-detail">
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold text-slate-900"
+            th:text="${run.escrowAccount.code} + ' · ' + ${run.period}">run</h1>
+        <a th:href="@{/admin/reconciliations}" class="btn-ghost">Back</a>
+    </div>
+
+    <div class="card mb-6 grid grid-cols-2 gap-4 p-6 sm:grid-cols-4">
+        <div><p class="text-xs text-slate-500">Status</p><p th:text="${run.status}">COMPLETED</p></div>
+        <div><p class="text-xs text-slate-500">Matched</p><p th:text="${run.matchedCount}">0</p></div>
+        <div><p class="text-xs text-slate-500">Recovered</p><p class="text-accent-700" th:text="${run.recoveredCount}">0</p></div>
+        <div><p class="text-xs text-slate-500">Discrepancies</p><p th:text="${run.discrepancyCount}">0</p></div>
+    </div>
+
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Discrepancies</h2>
+    <div class="card overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+            <tr>
+                <th class="th">Type</th>
+                <th class="th">VA number</th>
+                <th class="th">Bank reference</th>
+                <th class="th">Amount</th>
+                <th class="th">Detail</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="d : ${discrepancies}">
+                <td class="td"><span class="badge-muted" th:text="${d.type}">TYPE</span></td>
+                <td class="td font-mono text-xs" th:text="${d.vaNumber} ?: '—'">va</td>
+                <td class="td font-mono text-xs" th:text="${d.bankReference} ?: '—'">ref</td>
+                <td class="td font-mono text-xs" th:text="${d.amount} ?: '—'">0</td>
+                <td class="td text-xs text-slate-500" th:text="${d.detail}">detail</td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(discrepancies)}">
+                <td class="td text-slate-400" colspan="5">No discrepancies — clean run.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>

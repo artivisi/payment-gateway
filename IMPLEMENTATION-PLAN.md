@@ -20,7 +20,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 | 1 | Core (Charge + VA lifecycle, Consumer API, webhooks) | `[x]` |
 | 2 | Adapters (bsi, cimb, maybank) | `[x]` |
 | 3 | Reconciliation | `[~]` |
-| 4 | Web admin UI | `[~]` |
+| 4 | Web admin UI | `[x]` |
 
 ---
 
@@ -143,13 +143,14 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 - [x] Brand + shell: Tailwind v4 `@theme` (ArtiVisi primary #2e3192 / accent #58c034), standalone-CLI build → `static/css/app.css` (binary gitignored; rebuild cmd in `src/main/frontend/app.css`); logos + branded nav; dashboard with counts. `/` → `/admin`.
 - [~] Escrow management — list + create form done; edit/delete + detail/credential view = follow-up
 - [~] Consumer management — list + create form done; secret rotation = follow-up
-- [ ] Charge / VA / payment browse + search
-- [ ] Reconciliation dashboard (runs, discrepancies)
-- [ ] Audit log view
+- [x] Charge / VA / payment browse — charge list + detail (sibling VAs + payments), payment list. (Free-text search = follow-up.)
+- [x] Reconciliation dashboard — runs list + run detail with the discrepancy ledger.
+- [~] Audit log view — read-only list built; **no `AuditEvent`s are written yet** (entity exists, nothing populates it) → wiring audit writes on key actions is a follow-up.
 - [x] Frontend self-hosted, no CDN (CSP-friendly): htmx vendored. **Alpine.js not used** (htmx + server-render sufficed); if added later, use the **CSP build** (`@alpinejs/csp`) per project guidance. `cookie`-only session tracking (no jsessionid in URLs).
-- [x] Playwright: dashboard renders on brand + create-consumer through the form end-to-end.
+- [x] All browse screens use **fetch-join queries** (works with `open-in-view=false`).
+- [x] Playwright: dashboard on brand, create-consumer through the form, and all browse sections render.
 
-**Exit:** ◐ operator can create escrows + consumers and see dashboard counts in the branded UI; charge/payment/recon/audit browse screens remain. 62 tests green.
+**Exit:** ✅ operator can configure escrows + consumers and observe charges → payments → reconciliation in the branded UI. 63 tests green. Follow-ups: escrow/consumer **edit/delete**, list **search/pagination**, and **writing** audit events.
 
 ---
 

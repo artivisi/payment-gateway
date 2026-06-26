@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Charge')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('charge')}"></nav>
+<main class="mx-auto max-w-5xl px-4 py-8" data-testid="charge-detail">
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold text-slate-900" th:text="${charge.consumerReference}">Charge</h1>
+        <a th:href="@{/admin/charges}" class="btn-ghost">Back</a>
+    </div>
+
+    <div class="card mb-6 grid grid-cols-2 gap-4 p-6 sm:grid-cols-4">
+        <div><p class="text-xs text-slate-500">Consumer</p><p th:text="${charge.consumer.code}">c</p></div>
+        <div><p class="text-xs text-slate-500">Payer</p><p th:text="${charge.payerName}">p</p></div>
+        <div><p class="text-xs text-slate-500">Type</p><p th:text="${charge.chargeType}">CLOSED</p></div>
+        <div><p class="text-xs text-slate-500">Status</p><p th:text="${charge.status}">ACTIVE</p></div>
+        <div><p class="text-xs text-slate-500">Amount</p><p class="font-mono" th:text="${charge.amount}">0</p></div>
+        <div><p class="text-xs text-slate-500">Cumulative paid</p><p class="font-mono" th:text="${charge.cumulativePaid}">0</p></div>
+        <div><p class="text-xs text-slate-500">Expires</p><p class="text-sm" th:text="${charge.expiresAt} ?: '—'">—</p></div>
+        <div><p class="text-xs text-slate-500">Created</p><p class="text-sm" th:text="${charge.createdAt}">t</p></div>
+    </div>
+
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Virtual accounts</h2>
+    <div class="card mb-6 overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50"><tr><th class="th">Escrow</th><th class="th">VA number</th><th class="th">Status</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="a : ${accounts}">
+                <td class="td" th:text="${a.escrowAccount.code}">escrow</td>
+                <td class="td font-mono text-xs" th:text="${a.vaNumber}">va</td>
+                <td class="td"><span class="badge-muted" th:text="${a.status}">ACTIVE</span></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Payments</h2>
+    <div class="card overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50"><tr><th class="th">Time</th><th class="th">VA</th><th class="th">Bank ref</th><th class="th">Amount</th><th class="th">Status</th></tr></thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="p : ${payments}">
+                <td class="td text-xs text-slate-500" th:text="${p.transactionTime}">t</td>
+                <td class="td font-mono text-xs" th:text="${p.virtualAccount.vaNumber}">va</td>
+                <td class="td font-mono text-xs" th:text="${p.bankReference}">ref</td>
+                <td class="td font-mono text-xs" th:text="${p.amount}">0</td>
+                <td class="td"><span class="badge-muted" th:text="${p.status}">ACCEPTED</span></td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(payments)}"><td class="td text-slate-400" colspan="5">No payments.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>

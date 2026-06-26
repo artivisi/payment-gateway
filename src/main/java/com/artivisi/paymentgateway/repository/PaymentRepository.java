@@ -2,6 +2,7 @@ package com.artivisi.paymentgateway.repository;
 
 import com.artivisi.paymentgateway.entity.Payment;
 import com.artivisi.paymentgateway.entity.PaymentStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -26,4 +27,10 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
                                                 @Param("status") PaymentStatus status,
                                                 @Param("start") Instant start,
                                                 @Param("end") Instant end);
+
+    @Query("select p from Payment p join fetch p.virtualAccount join fetch p.charge order by p.createdAt desc")
+    List<Payment> findRecentWithVaAndCharge(Pageable pageable);
+
+    @Query("select p from Payment p join fetch p.virtualAccount where p.charge.id = :chargeId order by p.createdAt")
+    List<Payment> findByChargeIdWithVa(@Param("chargeId") String chargeId);
 }
