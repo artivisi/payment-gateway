@@ -127,7 +127,8 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 - [x] Match settlement credits to payments (`ReconciliationService`, escrow + period scoped)
 - [x] Recover paid-not-notified (`apply` → payment created + webhook forwarded), flagged `PAID_NOT_NOTIFIED_RECOVERED` (or `RECOVERY_FAILED`)
 - [x] Flag notified-not-settled, amount mismatch, duplicate, unmatched credit (`DiscrepancyType`)
-- [x] `ReconciliationRun` (+ matched/recovered/discrepancy counts) and `ReconciliationDiscrepancy` persisted (V4); admin trigger `POST /api/escrow-accounts/{code}/reconciliations` (import-statement path)
+- [x] `ReconciliationRun` (+ matched/recovered/discrepancy counts) and `ReconciliationDiscrepancy` persisted (V4); admin trigger `POST /api/escrow-accounts/{code}/reconciliations` (JSON credits) **and** `/reconciliations/import` (multipart settlement CSV → `SettlementCsvParser`) — realizes `importStatement(file)`
+- [x] Test-data rig: `src/test/resources/testdata/*.csv` fixtures (escrow/consumer/charge/payment + settlement-sample + expected-discrepancies) loaded via `CsvFixtures`; `ReconciliationCsvImportTest` drives the full scenario through the upload endpoint
 - [~] `pullSettlement` outbound per-bank (transaction-list endpoint + WireMock) — deferred; the engine is bank-agnostic and fed by imported credits for now. This is where the **BANK_HOSTED/outbound `BankProvider` interface** finally gets extracted.
 - [~] Report per **institution tag** — per-escrow run persisted; cross-escrow per-institution aggregation = follow-up
 - [x] Functional tests: all six outcomes classified, recovery + webhook, clean run, HTTP endpoint. 4 tests
