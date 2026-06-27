@@ -40,17 +40,20 @@ public class ReconciliationService {
     private final VirtualAccountRepository virtualAccountRepository;
     private final PaymentRepository paymentRepository;
     private final PaymentApplicationService paymentApplicationService;
+    private final AuditService auditService;
 
     public ReconciliationService(ReconciliationRunRepository runRepository,
                                  ReconciliationDiscrepancyRepository discrepancyRepository,
                                  VirtualAccountRepository virtualAccountRepository,
                                  PaymentRepository paymentRepository,
-                                 PaymentApplicationService paymentApplicationService) {
+                                 PaymentApplicationService paymentApplicationService,
+                                 AuditService auditService) {
         this.runRepository = runRepository;
         this.discrepancyRepository = discrepancyRepository;
         this.virtualAccountRepository = virtualAccountRepository;
         this.paymentRepository = paymentRepository;
         this.paymentApplicationService = paymentApplicationService;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -124,7 +127,11 @@ public class ReconciliationService {
         run.setDiscrepancyCount(discrepancies.size());
         run.setStatus(ReconciliationStatus.COMPLETED);
         run.setFinishedAt(Instant.now());
-        return runRepository.save(run);
+        ReconciliationRun completed = runRepository.save(run);
+        auditService.record("RECONCILIATION_RUN", "ReconciliationRun", completed.getId(),
+                "escrow=" + escrow.getCode() + " period=" + period + " matched=" + matched
+                        + " recovered=" + recovered + " discrepancies=" + discrepancies.size());
+        return completed;
     }
 
     private static String key(Payment payment) {

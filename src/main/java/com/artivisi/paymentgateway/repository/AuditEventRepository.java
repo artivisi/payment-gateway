@@ -8,4 +8,6 @@ import java.util.List;
 public interface AuditEventRepository extends JpaRepository<AuditEvent, String> {
 
     List<AuditEvent> findTop200ByOrderByCreatedAtDesc();
+
+    List<AuditEvent> findByEntityId(String entityId);
 }

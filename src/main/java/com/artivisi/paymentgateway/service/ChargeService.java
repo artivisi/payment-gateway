@@ -32,15 +32,18 @@ public class ChargeService {
     private final VirtualAccountRepository virtualAccountRepository;
     private final EscrowAccountRepository escrowAccountRepository;
     private final NumberSpaceValidator numberSpaceValidator;
+    private final AuditService auditService;
 
     public ChargeService(ChargeRepository chargeRepository,
                          VirtualAccountRepository virtualAccountRepository,
                          EscrowAccountRepository escrowAccountRepository,
-                         NumberSpaceValidator numberSpaceValidator) {
+                         NumberSpaceValidator numberSpaceValidator,
+                         AuditService auditService) {
         this.chargeRepository = chargeRepository;
         this.virtualAccountRepository = virtualAccountRepository;
         this.escrowAccountRepository = escrowAccountRepository;
         this.numberSpaceValidator = numberSpaceValidator;
+        this.auditService = auditService;
     }
 
     /** Result of create: the charge view plus whether it was newly created (vs idempotent hit). */
@@ -96,6 +99,9 @@ public class ChargeService {
             vas.add(virtualAccountRepository.save(va));
         }
 
+        auditService.record("CHARGE_CREATED", "Charge", savedCharge.getId(),
+                "consumerReference=" + savedCharge.getConsumerReference()
+                        + " type=" + savedCharge.getChargeType() + " amount=" + savedCharge.getAmount());
         return new CreateChargeOutcome(ChargeResponse.from(savedCharge, vas), true);
     }
 
@@ -121,6 +127,8 @@ public class ChargeService {
             }
             virtualAccountRepository.save(va);
         }
+        auditService.record("CHARGE_CANCELLED", "Charge", charge.getId(),
+                "consumerReference=" + charge.getConsumerReference());
         return ChargeResponse.from(charge, vas);
     }
 }

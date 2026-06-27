@@ -37,17 +37,20 @@ public class PaymentApplicationService {
     private final PaymentRepository paymentRepository;
     private final WebhookService webhookService;
     private final ReversalProperties reversalProperties;
+    private final AuditService auditService;
 
     public PaymentApplicationService(VirtualAccountRepository virtualAccountRepository,
                                      ChargeRepository chargeRepository,
                                      PaymentRepository paymentRepository,
                                      WebhookService webhookService,
-                                     ReversalProperties reversalProperties) {
+                                     ReversalProperties reversalProperties,
+                                     AuditService auditService) {
         this.virtualAccountRepository = virtualAccountRepository;
         this.chargeRepository = chargeRepository;
         this.paymentRepository = paymentRepository;
         this.webhookService = webhookService;
         this.reversalProperties = reversalProperties;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -104,6 +107,8 @@ public class PaymentApplicationService {
         if (charge.getStatus() == ChargeStatus.PAID) {
             webhookService.enqueue(charge, saved, WebhookEventType.CHARGE_PAID);
         }
+        auditService.record("PAYMENT_APPLIED", "Payment", saved.getId(),
+                "va=" + vaNumber + " amount=" + amount + " ref=" + bankReference);
         return saved;
     }
 
@@ -160,6 +165,8 @@ public class PaymentApplicationService {
 
         Payment reversed = paymentRepository.save(payment);
         webhookService.enqueue(charge, reversed, WebhookEventType.PAYMENT_REVERSED);
+        auditService.record("PAYMENT_REVERSED", "Payment", reversed.getId(),
+                "va=" + vaNumber + " amount=" + reversed.getAmount() + " ref=" + bankReference);
         return reversed;
     }
 

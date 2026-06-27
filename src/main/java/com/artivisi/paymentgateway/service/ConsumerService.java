@@ -14,9 +14,11 @@ import java.util.List;
 public class ConsumerService {
 
     private final ConsumerRepository repository;
+    private final AuditService auditService;
 
-    public ConsumerService(ConsumerRepository repository) {
+    public ConsumerService(ConsumerRepository repository, AuditService auditService) {
         this.repository = repository;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -34,7 +36,9 @@ public class ConsumerService {
         c.setClientSecret(request.clientSecret());
         c.setWebhookUrl(request.webhookUrl());
         c.setStatus(request.status());
-        return repository.save(c);
+        Consumer saved = repository.save(c);
+        auditService.record("CONSUMER_CREATED", "Consumer", saved.getId(), "code=" + saved.getCode());
+        return saved;
     }
 
     @Transactional(readOnly = true)
