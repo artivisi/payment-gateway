@@ -193,6 +193,37 @@ class WebhookBulkheadTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void failedCount_andAnalysisListing_surfaceFailedDeliveries() throws Exception {
+        Fixture f = seed(startReceiver(500));
+        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BSI-FC");
+        WebhookDelivery d = webhookRepository.findByChargeIdOrderByCreatedAtAsc(chargeId).getFirst();
+        d.setAttempts(d.getMaxAttempts() - 1);
+        webhookRepository.save(d);
+        webhookService.recordResult(d.getId(), new WebhookSendResult(false, 500, "HTTP 500"));
+
+        assertThat(webhookService.failedCount(f.consumer().getId())).isEqualTo(1);
+        assertThat(webhookService.listByStatus(WebhookStatus.FAILED, f.consumer().getCode()))
+                .extracting(WebhookDelivery::getId).contains(d.getId());
+    }
+
+    @Test
+    void replayDelivery_requeuesSingleFailed() throws Exception {
+        Fixture f = seed(startReceiver(500));
+        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BSI-RD");
+        WebhookDelivery d = webhookRepository.findByChargeIdOrderByCreatedAtAsc(chargeId).getFirst();
+        d.setAttempts(d.getMaxAttempts() - 1);
+        webhookRepository.save(d);
+        webhookService.recordResult(d.getId(), new WebhookSendResult(false, 500, "HTTP 500"));
+
+        boolean requeued = webhookService.replayDelivery(d.getId());
+
+        assertThat(requeued).isTrue();
+        WebhookDelivery reloaded = webhookRepository.findById(d.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(WebhookStatus.PENDING);
+        assertThat(reloaded.getAttempts()).isZero();
+    }
+
+    @Test
     void dispatcher_deliversClaimedBatchThroughBulkhead() throws Exception {
         Fixture f = seed(startReceiver(200));
         String chargeId = createAndPay(f, ChargeType.CLOSED, "1000000", "BSI-D");

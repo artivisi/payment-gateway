@@ -27,7 +27,13 @@ public class AdminConsumerController {
 
     @GetMapping
     public String list(Model model) {
-        model.addAttribute("consumers", consumerService.list());
+        var consumers = consumerService.list();
+        java.util.Map<String, Long> failedCounts = new java.util.HashMap<>();
+        for (var c : consumers) {
+            failedCounts.put(c.getId(), webhookService.failedCount(c.getId()));
+        }
+        model.addAttribute("consumers", consumers);
+        model.addAttribute("failedCounts", failedCounts);
         return "admin/consumer/list";
     }
 

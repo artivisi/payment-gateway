@@ -28,6 +28,8 @@
                class="rounded px-3 py-1.5 hover:bg-primary-700">Payments</a>
             <a th:href="@{/admin/reconciliations}" th:classappend="${active == 'reconciliation'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Reconciliation</a>
+            <a th:href="@{/admin/webhooks}" th:classappend="${active == 'webhook'} ? 'bg-primary-700' : ''"
+               class="rounded px-3 py-1.5 hover:bg-primary-700">Webhooks</a>
             <a th:href="@{/admin/audit}" th:classappend="${active == 'audit'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Audit</a>
         </nav>
