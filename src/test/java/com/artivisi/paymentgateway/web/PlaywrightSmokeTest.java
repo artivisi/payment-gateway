@@ -44,6 +44,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                 "/admin/charges", "charge-list",
                 "/admin/payments", "payment-list",
                 "/admin/reconciliations", "reconciliation-list",
+                "/admin/webhooks", "webhook-list",
                 "/admin/audit", "audit-list");
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch();

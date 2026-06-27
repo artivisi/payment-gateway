@@ -6,6 +6,7 @@ import com.artivisi.paymentgateway.entity.Payment;
 import com.artivisi.paymentgateway.entity.WebhookDelivery;
 import com.artivisi.paymentgateway.entity.WebhookEventType;
 import com.artivisi.paymentgateway.entity.WebhookStatus;
+import com.artivisi.paymentgateway.exception.NotFoundException;
 import com.artivisi.paymentgateway.repository.WebhookDeliveryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -140,6 +141,37 @@ public class WebhookService {
         }
         WebhookSendResult result = sender.send(buildTask(delivery));
         recordResult(deliveryId, result);
+    }
+
+    @Transactional(readOnly = true)
+    public long failedCount(String consumerId) {
+        return repository.countByConsumerIdAndStatus(consumerId, WebhookStatus.FAILED);
+    }
+
+    /** Admin analysis view: deliveries in a status (optionally one consumer), newest attempt first, capped. */
+    @Transactional(readOnly = true)
+    public List<WebhookDelivery> listByStatus(WebhookStatus status, String consumerCode) {
+        var top = PageRequest.of(0, 200);
+        return (consumerCode == null || consumerCode.isBlank())
+                ? repository.findByStatusWithDetail(status, top)
+                : repository.findByStatusAndConsumerCodeWithDetail(status, consumerCode, top);
+    }
+
+    /** Ops recovery: requeue a single FAILED delivery. Returns false if it is not in FAILED state. */
+    @Transactional
+    public boolean replayDelivery(String deliveryId) {
+        WebhookDelivery d = repository.findById(deliveryId)
+                .orElseThrow(() -> new NotFoundException("Webhook delivery not found: " + deliveryId));
+        if (d.getStatus() != WebhookStatus.FAILED) {
+            return false;
+        }
+        d.setStatus(WebhookStatus.PENDING);
+        d.setAttempts(0);
+        d.setNextAttemptAt(Instant.now());
+        d.setLastError(null);
+        repository.save(d);
+        auditService.record("WEBHOOK_REPLAY", "WebhookDelivery", deliveryId, "single replay");
+        return true;
     }
 
     /** Ops recovery: requeue every FAILED delivery for a consumer (attempts reset, due now). */
