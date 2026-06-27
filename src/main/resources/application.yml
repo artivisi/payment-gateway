@@ -31,6 +31,10 @@ gateway:
     per-consumer-concurrency: 4
     batch-size: 100
     stale-sending-seconds: 120
+    http:
+      max-connections-per-host: 16
+      connect-timeout-ms: 5000
+      pending-acquire-timeout-ms: 5000
   reversal:
     window-minutes: 60
 
