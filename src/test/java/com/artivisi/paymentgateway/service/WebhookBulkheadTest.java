@@ -53,6 +53,7 @@ class WebhookBulkheadTest extends AbstractIntegrationTest {
     @Autowired WebhookDeliveryRepository webhookRepository;
     @Autowired ChargeRepository chargeRepository;
     @Autowired AuditEventRepository auditRepository;
+    @Autowired com.artivisi.paymentgateway.config.WebhookProperties webhookProperties;
 
     private HttpServer server;
     private final List<String> received = Collections.synchronizedList(new ArrayList<>());
@@ -221,6 +222,16 @@ class WebhookBulkheadTest extends AbstractIntegrationTest {
         WebhookDelivery reloaded = webhookRepository.findById(d.getId()).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(WebhookStatus.PENDING);
         assertThat(reloaded.getAttempts()).isZero();
+    }
+
+    @Test
+    void httpConnectionLimits_areExplicitlyConfigured() {
+        var http = webhookProperties.http();
+        // Fail-loud config: @Validated @NotNull would block startup if these were missing.
+        assertThat(http).isNotNull();
+        assertThat(http.maxConnectionsPerHost()).isPositive();
+        assertThat(http.connectTimeoutMs()).isPositive();
+        assertThat(http.pendingAcquireTimeoutMs()).isPositive();
     }
 
     @Test
