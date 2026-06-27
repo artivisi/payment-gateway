@@ -46,8 +46,13 @@
                               th:action="@{/admin/consumers/{id}/webhook/suspend(id=${c.id})}">
                             <button type="submit" class="text-xs font-medium text-amber-700 hover:underline">Suspend</button>
                         </form>
-                        <form method="post" th:action="@{/admin/consumers/{id}/webhook/replay(id=${c.id})}">
-                            <button type="submit" class="text-xs font-medium text-slate-600 hover:underline">Replay failed</button>
+                        <a th:if="${failedCounts.get(c.id) > 0}"
+                           th:href="@{/admin/webhooks(status='FAILED', consumer=${c.code})}"
+                           class="badge-muted text-rose-700 hover:underline"
+                           th:text="${failedCounts.get(c.id)} + ' failed'">3 failed</a>
+                        <form th:if="${failedCounts.get(c.id) > 0}" method="post"
+                              th:action="@{/admin/consumers/{id}/webhook/replay(id=${c.id})}">
+                            <button type="submit" class="text-xs font-medium text-slate-600 hover:underline">Replay all</button>
                         </form>
                     </div>
                 </td>

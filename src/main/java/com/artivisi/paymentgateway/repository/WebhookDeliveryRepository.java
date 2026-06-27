@@ -34,5 +34,18 @@ public interface WebhookDeliveryRepository extends JpaRepository<WebhookDelivery
 
     List<WebhookDelivery> findByConsumerIdAndStatus(String consumerId, WebhookStatus status);
 
+    long countByConsumerIdAndStatus(String consumerId, WebhookStatus status);
+
+    /** Deliveries in a status, newest attempt first, with consumer + charge fetched for the admin view. */
+    @Query("select d from WebhookDelivery d join fetch d.consumer c join fetch d.charge "
+            + "where d.status = :status order by d.updatedAt desc")
+    List<WebhookDelivery> findByStatusWithDetail(@Param("status") WebhookStatus status, Pageable pageable);
+
+    @Query("select d from WebhookDelivery d join fetch d.consumer c join fetch d.charge "
+            + "where d.status = :status and c.code = :consumerCode order by d.updatedAt desc")
+    List<WebhookDelivery> findByStatusAndConsumerCodeWithDetail(@Param("status") WebhookStatus status,
+                                                                @Param("consumerCode") String consumerCode,
+                                                                Pageable pageable);
+
     List<WebhookDelivery> findByChargeIdOrderByCreatedAtAsc(String chargeId);
 }
