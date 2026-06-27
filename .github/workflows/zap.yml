@@ -1,0 +1,70 @@
+name: ZAP DAST
+
+# Manual-only (conserves quota; DAST is heavy). Boots the app against a throwaway Postgres and
+# runs an OWASP ZAP baseline (passive) scan against it. Findings are reported as an artifact, not
+# a gate (fail_action: false) — review the report and tune .zap/rules.tsv.
+on:
+  workflow_dispatch:
+
+jobs:
+  zap:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: gateway
+          POSTGRES_USER: gateway
+          POSTGRES_PASSWORD: gateway
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Build jar
+        run: mvn -B -DskipTests package
+
+      - name: Start app
+        env:
+          GATEWAY_DB_URL: jdbc:postgresql://localhost:5432/gateway
+          GATEWAY_DB_USERNAME: gateway
+          GATEWAY_DB_PASSWORD: gateway
+          # Throwaway AES-256 key (base64 of 32 bytes) — DAST runs against ephemeral data only.
+          GATEWAY_SECRET_KEY: MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=
+        run: |
+          java -jar target/payment-gateway-*.jar > app.log 2>&1 &
+          echo "Waiting for app health..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/actuator/health > /dev/null; then
+              echo "App is up."; exit 0
+            fi
+            sleep 5
+          done
+          echo "App did not become healthy:"; cat app.log; exit 1
+
+      - name: ZAP baseline scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:8080'
+          rules_file_name: '.zap/rules.tsv'
+          allow_issue_writing: false
+          fail_action: false
+
+      - name: Upload app log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-log
+          path: app.log

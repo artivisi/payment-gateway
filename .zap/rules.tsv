@@ -1,0 +1,4 @@
+# OWASP ZAP baseline rule overrides. One rule per line, tab-separated:
+#   <pluginId>	<WARN|IGNORE|FAIL>	<optional comment>
+# Default action for unlisted rules is WARN. Add IGNORE lines for vetted false positives.
+# Plugin IDs: https://www.zaproxy.org/docs/alerts/

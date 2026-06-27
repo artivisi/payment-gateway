@@ -20,6 +20,11 @@
     <properties>
         <java.version>25</java.version>
         <playwright.version>1.60.0</playwright.version>
+        <!-- SonarCloud. Token is passed at invocation (-Dsonar.token / SONAR_TOKEN); never commit it.
+             Adjust organization/projectKey when the SonarCloud project is created. -->
+        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.organization>artivisi</sonar.organization>
+        <sonar.projectKey>artivisi_payment-gateway</sonar.projectKey>
     </properties>
 
     <dependencies>
