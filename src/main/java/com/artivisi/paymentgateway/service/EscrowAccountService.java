@@ -14,9 +14,11 @@ import java.util.List;
 public class EscrowAccountService {
 
     private final EscrowAccountRepository repository;
+    private final AuditService auditService;
 
-    public EscrowAccountService(EscrowAccountRepository repository) {
+    public EscrowAccountService(EscrowAccountRepository repository, AuditService auditService) {
         this.repository = repository;
+        this.auditService = auditService;
     }
 
     @Transactional
@@ -46,7 +48,9 @@ public class EscrowAccountService {
         e.setVaDigitLength(request.vaDigitLength());
         e.setMerchantTag(request.merchantTag());
         e.setInstitutionTag(request.institutionTag());
-        return repository.save(e);
+        EscrowAccount saved = repository.save(e);
+        auditService.record("ESCROW_CREATED", "EscrowAccount", saved.getId(), "code=" + saved.getCode());
+        return saved;
     }
 
     @Transactional(readOnly = true)
