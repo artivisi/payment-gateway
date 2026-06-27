@@ -28,6 +28,9 @@ gateway:
     backoff-base-seconds: 30
     poll-interval-ms: 5000
     request-timeout-seconds: 10
+    per-consumer-concurrency: 4
+    batch-size: 100
+    stale-sending-seconds: 120
   reversal:
     window-minutes: 60
 

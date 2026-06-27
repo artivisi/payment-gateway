@@ -21,6 +21,7 @@
                 <th class="th">Client ID</th>
                 <th class="th">Webhook URL</th>
                 <th class="th">Status</th>
+                <th class="th">Delivery</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -33,9 +34,26 @@
                     <span th:classappend="${c.status.name() == 'ACTIVE'} ? 'badge-ok' : 'badge-muted'"
                           th:text="${c.status}">ACTIVE</span>
                 </td>
+                <td class="td">
+                    <div class="flex items-center gap-2">
+                        <span th:if="${c.webhookSuspended}" class="badge-muted">Suspended</span>
+                        <span th:unless="${c.webhookSuspended}" class="badge-ok">Active</span>
+                        <form th:if="${c.webhookSuspended}" method="post"
+                              th:action="@{/admin/consumers/{id}/webhook/resume(id=${c.id})}">
+                            <button type="submit" class="text-xs font-medium text-primary-700 hover:underline">Resume</button>
+                        </form>
+                        <form th:unless="${c.webhookSuspended}" method="post"
+                              th:action="@{/admin/consumers/{id}/webhook/suspend(id=${c.id})}">
+                            <button type="submit" class="text-xs font-medium text-amber-700 hover:underline">Suspend</button>
+                        </form>
+                        <form method="post" th:action="@{/admin/consumers/{id}/webhook/replay(id=${c.id})}">
+                            <button type="submit" class="text-xs font-medium text-slate-600 hover:underline">Replay failed</button>
+                        </form>
+                    </div>
+                </td>
             </tr>
             <tr th:if="${#lists.isEmpty(consumers)}">
-                <td class="td text-slate-400" colspan="5">No consumers yet.</td>
+                <td class="td text-slate-400" colspan="6">No consumers yet.</td>
             </tr>
             </tbody>
         </table>

@@ -36,8 +36,20 @@ public class ConsumerService {
         c.setClientSecret(request.clientSecret());
         c.setWebhookUrl(request.webhookUrl());
         c.setStatus(request.status());
+        c.setWebhookSuspended(false);
         Consumer saved = repository.save(c);
         auditService.record("CONSUMER_CREATED", "Consumer", saved.getId(), "code=" + saved.getCode());
+        return saved;
+    }
+
+    /** Ops kill-switch: pause/resume webhook delivery to a consumer without touching its auth status. */
+    @Transactional
+    public Consumer setWebhookSuspended(String id, boolean suspended) {
+        Consumer c = get(id);
+        c.setWebhookSuspended(suspended);
+        Consumer saved = repository.save(c);
+        auditService.record(suspended ? "CONSUMER_WEBHOOK_SUSPENDED" : "CONSUMER_WEBHOOK_RESUMED",
+                "Consumer", saved.getId(), "code=" + saved.getCode());
         return saved;
     }
 
