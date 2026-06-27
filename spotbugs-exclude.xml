@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+    <!--
+      Spring constructor-DI beans store injected collaborators (repositories, services, WebClient,
+      ObjectMapper); these are framework-managed singletons, not a real exposure. DTO records expose
+      List fields that are consumed read-only. Defensive copies here add noise without value.
+    -->
+    <Match>
+        <Bug pattern="EI_EXPOSE_REP,EI_EXPOSE_REP2"/>
+    </Match>
+    <!-- Signature/verification helpers intentionally catch broadly and fail safe (return false). -->
+    <Match>
+        <Bug pattern="REC_CATCH_EXCEPTION"/>
+    </Match>
+    <!-- Fail-loud constructors (e.g. SecretCipher) throw on invalid config by design. -->
+    <Match>
+        <Bug pattern="CT_CONSTRUCTOR_THROW"/>
+    </Match>
+</FindBugsFilter>

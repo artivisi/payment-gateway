@@ -1,0 +1,35 @@
+name: Dependency-Check
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 1'
+
+# OWASP Dependency-Check (supply-chain CVE scan). Needs an NVD API key
+# (repo secret NVD_API_KEY) for a usable database download rate.
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: OWASP Dependency-Check
+        run: >-
+          mvn -B org.owasp:dependency-check-maven:12.2.2:check
+          -DfailBuildOnCVSS=7
+          -DnvdApiKey=${{ secrets.NVD_API_KEY }}
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report.html
