@@ -1,10 +1,8 @@
 name: Dependency-Check
 
+# Manual-only to conserve GitHub Actions quota. Trigger from the Actions tab when needed.
 on:
-  push:
-    branches: [main]
-  schedule:
-    - cron: '0 4 * * 1'
+  workflow_dispatch:
 
 # OWASP Dependency-Check (supply-chain CVE scan). Needs an NVD API key
 # (repo secret NVD_API_KEY) for a usable database download rate.

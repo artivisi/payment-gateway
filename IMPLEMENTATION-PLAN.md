@@ -161,7 +161,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 - [ ] Functional-first tests: RestAssured + Testcontainers + Playwright; WireMock (bsi/cimb), snap-provider-simulator (maybank); docker-compose end-to-end
 - [ ] Fail loud, no fallbacks — assert on every config/validation path
 - [ ] Never log secrets or signatures
-- [~] DevSecOps gates: **SpotBugs** ✅ (verify gate, 0 findings) · **CodeQL** ✅ (`.github/workflows/codeql.yml`) · **OWASP Dependency-Check** ✅ (`dependency-check.yml`, weekly, needs `NVD_API_KEY` secret) · **CI** ✅ (`ci.yml`: JDK 25, `mvn verify` = tests + SpotBugs). Remaining: **SonarCloud** + **OWASP ZAP** (need external project/token + a running target).
+- [x] DevSecOps gates: **SpotBugs** ✅ (local `verify` gate, 0 findings) · **CI** (`ci.yml`) · **CodeQL** (`codeql.yml`) · **OWASP Dependency-Check** (`dependency-check.yml`, needs `NVD_API_KEY`) · **SonarCloud** (`sonarcloud.yml` + pom `sonar.*`, needs `SONAR_TOKEN` + project) · **OWASP ZAP** baseline (`zap.yml`, boots app vs throwaway Postgres). **All GitHub workflows are `workflow_dispatch`-only** (manual, to conserve Actions quota) — the suite is run locally with `mvn verify`; SpotBugs is the enforced local gate. JaCoCo coverage for Sonar deferred pending Java 25 support.
 - [ ] Governance: no client names/credentials/endpoints/sample data in repo; neutral naming
 
 ## Open decisions
