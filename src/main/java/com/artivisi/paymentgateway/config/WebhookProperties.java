@@ -1,5 +1,6 @@
 package com.artivisi.paymentgateway.config;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -18,6 +19,21 @@ public record WebhookProperties(
         /** Max deliveries claimed per poll across all consumers. */
         @NotNull @Positive Integer batchSize,
         /** A SENDING row older than this (crash mid-send) is reclaimed as due. */
-        @NotNull @Positive Integer staleSendingSeconds
+        @NotNull @Positive Integer staleSendingSeconds,
+        /** Outbound HTTP client limits — pinned explicitly, not inherited from reactor-netty defaults. */
+        @NotNull @Valid Http http
 ) {
+
+    /**
+     * reactor-netty connection limits for the delivery client. {@code maxConnectionsPerHost} maps to the
+     * pool's max connections (reactor-netty pools per remote host, so this caps connections to any one
+     * consumer endpoint); {@code pendingAcquireTimeoutMs} fails fast when that pool is saturated instead
+     * of inheriting the 45s default.
+     */
+    public record Http(
+            @NotNull @Positive Integer maxConnectionsPerHost,
+            @NotNull @Positive Integer connectTimeoutMs,
+            @NotNull @Positive Integer pendingAcquireTimeoutMs
+    ) {
+    }
 }
