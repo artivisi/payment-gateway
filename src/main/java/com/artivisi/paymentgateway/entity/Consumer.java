@@ -43,6 +43,9 @@ public class Consumer {
     @Enumerated(EnumType.STRING)
     private ConsumerStatus status;
 
+    /** Ops kill-switch: when true, the dispatcher skips this consumer's deliveries entirely. */
+    private boolean webhookSuspended;
+
     @CreationTimestamp
     private Instant createdAt;
 
