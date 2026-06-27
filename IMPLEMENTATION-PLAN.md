@@ -146,7 +146,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 - [~] Consumer management — list + create form done; secret rotation = follow-up
 - [x] Charge / VA / payment browse — charge list + detail (sibling VAs + payments), payment list. (Free-text search = follow-up.)
 - [x] Reconciliation dashboard — runs list + run detail with the discrepancy ledger.
-- [~] Audit log view — read-only list built; **no `AuditEvent`s are written yet** (entity exists, nothing populates it) → wiring audit writes on key actions is a follow-up.
+- [x] Audit log view — read-only list, now populated: `AuditService` writes ESCROW/CONSUMER/CHARGE created/cancelled, PAYMENT applied/reversed, RECONCILIATION_RUN (no secrets in detail).
 - [x] Frontend self-hosted, no CDN (CSP-friendly): htmx vendored. **Alpine.js not used** (htmx + server-render sufficed); if added later, use the **CSP build** (`@alpinejs/csp`) per project guidance. `cookie`-only session tracking (no jsessionid in URLs).
 - [x] All browse screens use **fetch-join queries** (works with `open-in-view=false`).
 - [x] Playwright: dashboard on brand, create-consumer through the form, and all browse sections render.
@@ -160,7 +160,7 @@ Replace Tazkia's Kafka-wired single-bank VA fleet with one self-hosted, escrow-c
 - [ ] Functional-first tests: RestAssured + Testcontainers + Playwright; WireMock (bsi/cimb), snap-provider-simulator (maybank); docker-compose end-to-end
 - [ ] Fail loud, no fallbacks — assert on every config/validation path
 - [ ] Never log secrets or signatures
-- [ ] DevSecOps gates: SpotBugs (0 findings), CodeQL, OWASP ZAP, OWASP Dependency-Check, SonarCloud
+- [~] DevSecOps gates: **SpotBugs** ✅ (verify gate, 0 findings) · **CodeQL** ✅ (`.github/workflows/codeql.yml`) · **OWASP Dependency-Check** ✅ (`dependency-check.yml`, weekly, needs `NVD_API_KEY` secret) · **CI** ✅ (`ci.yml`: JDK 25, `mvn verify` = tests + SpotBugs). Remaining: **SonarCloud** + **OWASP ZAP** (need external project/token + a running target).
 - [ ] Governance: no client names/credentials/endpoints/sample data in repo; neutral naming
 
 ## Open decisions
