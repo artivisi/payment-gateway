@@ -40,13 +40,24 @@ public class SecurityConfig {
                         .requestMatchers("/api/**", "/ws/**").permitAll()
                         // Post-login step-up pages: any authenticated operator (incl. pre-MFA).
                         .requestMatchers("/change-password", "/mfa", "/mfa/enroll").authenticated()
-                        // Security administration is ADMIN-only.
-                        .requestMatchers("/admin/operators/**", "/admin/bank-ip-rules/**").hasRole("ADMIN")
-                        // Managing escrows = managing bank credentials → ADMIN-only.
-                        .requestMatchers(HttpMethod.POST, "/admin/escrow-accounts/**").hasRole("ADMIN")
-                        // Any other state change → ADMIN or OPERATOR (AUDITOR is read-only).
-                        .requestMatchers(HttpMethod.POST, "/admin/**").hasAnyRole("ADMIN", "OPERATOR")
-                        .requestMatchers("/admin/**").hasAnyRole("ADMIN", "OPERATOR", "AUDITOR")
+                        // Permission-based RBAC (feature -> permission). View vs manage split where it matters.
+                        .requestMatchers("/admin/operators/**").hasAuthority("OPERATOR_MANAGE")
+                        .requestMatchers("/admin/roles/**").hasAuthority("ROLE_MANAGE")
+                        .requestMatchers("/admin/bank-ip-rules/**").hasAuthority("BANK_IP_MANAGE")
+                        .requestMatchers(HttpMethod.POST, "/admin/escrow-accounts/**").hasAuthority("ESCROW_MANAGE")
+                        .requestMatchers("/admin/escrow-accounts/**").hasAuthority("ESCROW_VIEW")
+                        .requestMatchers(HttpMethod.POST, "/admin/consumers/*/webhook/**").hasAuthority("WEBHOOK_MANAGE")
+                        .requestMatchers(HttpMethod.POST, "/admin/consumers/**").hasAuthority("CONSUMER_MANAGE")
+                        .requestMatchers("/admin/consumers/**").hasAuthority("CONSUMER_VIEW")
+                        .requestMatchers(HttpMethod.POST, "/admin/webhooks/**").hasAuthority("WEBHOOK_MANAGE")
+                        .requestMatchers("/admin/webhooks/**").hasAuthority("WEBHOOK_VIEW")
+                        .requestMatchers("/admin/charges/**").hasAuthority("CHARGE_VIEW")
+                        .requestMatchers("/admin/payments/**").hasAuthority("PAYMENT_VIEW")
+                        .requestMatchers("/admin/reconciliations/**").hasAuthority("RECONCILIATION_VIEW")
+                        .requestMatchers("/admin/audit/**").hasAuthority("AUDIT_VIEW")
+                        // Dashboard + any other admin path: just an authenticated operator.
+                        .requestMatchers("/admin", "/admin/").authenticated()
+                        .requestMatchers("/admin/**").authenticated()
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginPage("/login")

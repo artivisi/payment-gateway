@@ -92,7 +92,7 @@ Functional-first: RestAssured + Testcontainers + Playwright. Bank simulators: [s
 
 SpotBugs (0 findings), CodeQL, OWASP ZAP DAST, OWASP Dependency-Check, SonarCloud. Frontend: native `fetch` + a thin wrapper; no npm HTTP libraries.
 
-**Admin auth (PCI control baseline — not in PCI scope, no card data; see `docs/security/pci-dss.md`).** Spring Security gates `/admin`: per-operator accounts, roles `ADMIN`/`OPERATOR`/`AUDITOR` (least privilege), bcrypt + min-12 passwords, lockout, 15-min idle session, forced password change + **TOTP MFA** on first login, fail-loud bootstrap admin (no default credential). Every `AuditEvent` carries the authenticated actor.
+**Admin auth (PCI control baseline — not in PCI scope, no card data; see `docs/security/pci-dss.md`).** Spring Security gates `/admin`: per-operator accounts, bcrypt + min-12 passwords, lockout, 15-min idle session, forced password change + **TOTP MFA** on first login, fail-loud bootstrap admin (no default credential). Every `AuditEvent` carries the authenticated actor. Authorization is **permission-based**: a fixed `Permission` enum (feature → permission, checked via `hasAuthority`), with **data-driven roles** (`role`/`role_permission`, one per operator) editable at runtime via the admin Roles UI — built-in `ADMIN`/`OPERATOR`/`AUDITOR` seeded, custom roles addable.
 
 **Bank-callback access control.** Maybank has SNAP signatures; BSI a checksum; CIMB nothing in-message. App-layer **per-provider IP allowlist** (`bank_ip_rule`, admin-managed) gates `/api/bank/*` + `/ws/cimb/*` — source IP not allowlisted → 403, no rule = unrestricted. Needs `server.forward-headers-strategy` + a trusted proxy behind a load balancer.
 

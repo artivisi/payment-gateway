@@ -2,8 +2,8 @@ package com.artivisi.paymentgateway.web;
 
 import com.artivisi.paymentgateway.AbstractIntegrationTest;
 import com.artivisi.paymentgateway.entity.Operator;
-import com.artivisi.paymentgateway.entity.OperatorRole;
 import com.artivisi.paymentgateway.repository.OperatorRepository;
+import com.artivisi.paymentgateway.repository.RoleRepository;
 import com.artivisi.paymentgateway.service.TotpService;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Page;
@@ -32,6 +32,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
     private static final String OPERATOR_PASS = "playwright-pass-123456";
 
     @Autowired OperatorRepository operatorRepository;
+    @Autowired RoleRepository roleRepository;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired TotpService totpService;
 
@@ -44,7 +45,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             o.setUsername(OPERATOR_USER);
             o.setPasswordHash(passwordEncoder.encode(OPERATOR_PASS));
             o.setFullName("Playwright Admin");
-            o.setRole(OperatorRole.ADMIN);
+            o.setRole(roleRepository.findByName("ADMIN").orElseThrow());
             o.setEnabled(true);
             o.setMfaEnabled(true);
             o.setMfaSecret(totpService.generateSecret());
@@ -116,6 +117,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                 "/admin/reconciliations", "reconciliation-list",
                 "/admin/webhooks", "webhook-list",
                 "/admin/operators", "operator-list",
+                "/admin/roles", "role-list",
                 "/admin/bank-ip-rules", "bank-ip-rule-list",
                 "/admin/audit", "audit-list");
         try (Playwright playwright = Playwright.create()) {

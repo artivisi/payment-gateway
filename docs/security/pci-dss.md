@@ -20,7 +20,7 @@ Cardholder Data Environment. The moment card data is stored, scope expands acros
 | 3.5 | Protect stored secrets | Bank API credentials and TOTP secrets encrypted at rest (AES-256-GCM, `SecretConverter`). No card data stored. |
 | 4 | Encrypt transmission | Session cookie `HttpOnly` + `SameSite=Strict`; `Secure` flag set when served over HTTPS. HSTS + security headers via Spring Security defaults. TLS termination is a deployment responsibility. |
 | 6 | Secure SDLC | SpotBugs (enforced local gate, 0 findings), CodeQL, OWASP Dependency-Check, SonarCloud, OWASP ZAP (workflows under `.github/workflows`). |
-| 7 | Least privilege | Roles `ADMIN` / `OPERATOR` / `AUDITOR`. ADMIN: escrow credentials, operators, bank IP rules. OPERATOR: daily ops (no credential management). AUDITOR: read-only (no POST). Enforced in `SecurityConfig`. |
+| 7 | Least privilege | **Permission-based** RBAC: a fixed `Permission` vocabulary (feature → permission) enforced via `hasAuthority` in `SecurityConfig`; **roles are data** (`role` + `role_permission`), one per operator, customisable at runtime (admin Roles UI). Built-in `ADMIN` (all permissions) / `OPERATOR` (daily ops) / `AUDITOR` (view-only) seeded; new roles can be added. Built-in roles are non-deletable; a role in use cannot be deleted. |
 | 8.2.1 | Unique identity | Per-operator accounts (`operator` table), no shared logins. |
 | 8.3.1 | Strong cryptography for auth | Passwords hashed with bcrypt. |
 | 8.3.4 | Lockout | Account locks after `max-failed-attempts` (10) for `lock-minutes` (30). `AuthEventListener`. |
