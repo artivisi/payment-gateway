@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Two-factor')}"></head>
+<body class="bg-slate-100 text-slate-800">
+<main class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4" data-testid="mfa-page">
+    <div class="card p-8">
+        <h1 class="mb-2 text-lg font-semibold text-slate-900">Two-factor verification</h1>
+        <p class="mb-6 text-sm text-slate-500">Enter the current 6-digit code from your authenticator app.</p>
+
+        <div th:if="${error}" class="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700" th:text="${error}"></div>
+
+        <form th:action="@{/mfa}" method="post" class="space-y-4">
+            <div>
+                <label for="code" class="block text-sm font-medium text-slate-700">6-digit code</label>
+                <input id="code" name="code" type="text" inputmode="numeric" pattern="[0-9]*" required autofocus
+                       class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-mono tracking-widest"/>
+            </div>
+            <button type="submit" class="btn-primary w-full">Verify</button>
+        </form>
+    </div>
+</main>
+</body>
+</html>

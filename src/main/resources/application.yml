@@ -1,7 +1,15 @@
 server:
+  # Honour X-Forwarded-* from a trusted proxy so the bank IP allowlist sees the real client IP.
+  forward-headers-strategy: native
   servlet:
     session:
+      timeout: 15m            # PCI Req 8.2.8 idle timeout
       tracking-modes: cookie
+      cookie:
+        http-only: true
+        same-site: strict
+        # 'secure' intentionally unset: Tomcat sets it when the request is HTTPS (prod terminates TLS),
+        # while local/test traffic over HTTP still works.
 
 spring:
   application:
@@ -23,6 +31,16 @@ gateway:
   security:
     # Base64-encoded 32-byte (AES-256) key. Required; app fails to start if absent or wrong length.
     secret-key: ${GATEWAY_SECRET_KEY}
+  admin:
+    # First ADMIN, seeded when the operator table is empty. Required (fail loud); change + enrol MFA
+    # are forced on first login.
+    bootstrap:
+      username: ${GATEWAY_ADMIN_USERNAME}
+      password: ${GATEWAY_ADMIN_PASSWORD}
+    max-failed-attempts: 10   # PCI Req 8.3.4
+    lock-minutes: 30
+    mfa:
+      issuer: ArtiVisi Payment Gateway
   webhook:
     max-attempts: 6
     backoff-base-seconds: 30
