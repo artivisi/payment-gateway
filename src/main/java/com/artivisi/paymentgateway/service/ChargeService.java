@@ -85,6 +85,9 @@ public class ChargeService {
             }
             EscrowAccount escrow = escrowAccountRepository.findByCode(account.escrowCode())
                     .orElseThrow(() -> new NotFoundException("escrow not found: " + account.escrowCode()));
+            if (!escrow.isEnabled()) {
+                throw new InvalidRequestException("escrow is disabled: " + account.escrowCode());
+            }
             numberSpaceValidator.validate(escrow, account.vaNumber());
             if (virtualAccountRepository
                     .findByEscrowAccountIdAndVaNumber(escrow.getId(), account.vaNumber()).isPresent()) {

@@ -23,6 +23,8 @@
                 <th class="th">Environment</th>
                 <th class="th">VA space</th>
                 <th class="th">Institution</th>
+                <th class="th">Status</th>
+                <th class="th">Actions</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -34,9 +36,25 @@
                 <td class="td" th:text="${e.activeEnvironment}">SANDBOX</td>
                 <td class="td font-mono text-xs" th:text="${e.vaPrefix} + ' / ' + ${e.vaDigitLength} + 'd'">900 / 10d</td>
                 <td class="td" th:text="${e.institutionTag} ?: '—'">—</td>
+                <td class="td">
+                    <span th:classappend="${e.enabled} ? 'badge-ok' : 'badge-muted'"
+                          th:text="${e.enabled} ? 'Enabled' : 'Disabled'">Enabled</span>
+                </td>
+                <td class="td">
+                    <div class="flex items-center gap-2">
+                        <a th:href="@{/admin/escrow-accounts/{id}/edit(id=${e.id})}"
+                           class="text-xs font-medium text-primary-700 hover:underline">Edit</a>
+                        <form th:if="${e.enabled}" method="post" th:action="@{/admin/escrow-accounts/{id}/disable(id=${e.id})}">
+                            <button class="text-xs font-medium text-amber-700 hover:underline">Disable</button>
+                        </form>
+                        <form th:unless="${e.enabled}" method="post" th:action="@{/admin/escrow-accounts/{id}/enable(id=${e.id})}">
+                            <button class="text-xs font-medium text-primary-700 hover:underline">Enable</button>
+                        </form>
+                    </div>
+                </td>
             </tr>
             <tr th:if="${#lists.isEmpty(escrows)}">
-                <td class="td text-slate-400" colspan="7">No escrow accounts yet.</td>
+                <td class="td text-slate-400" colspan="9">No escrow accounts yet.</td>
             </tr>
             </tbody>
         </table>
