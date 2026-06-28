@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Edit Escrow Account')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('escrow')}"></nav>
+<main class="mx-auto max-w-3xl px-4 py-8" data-testid="escrow-edit">
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold text-slate-900">
+            Escrow <span class="font-mono" th:text="${escrow.code}">code</span>
+        </h1>
+        <div class="flex items-center gap-2">
+            <span th:classappend="${escrow.enabled} ? 'badge-ok' : 'badge-muted'"
+                  th:text="${escrow.enabled} ? 'Enabled' : 'Disabled'">Enabled</span>
+            <form th:if="${escrow.enabled}" method="post" th:action="@{/admin/escrow-accounts/{id}/disable(id=${escrow.id})}">
+                <button class="text-sm font-medium text-amber-700 hover:underline">Disable</button>
+            </form>
+            <form th:unless="${escrow.enabled}" method="post" th:action="@{/admin/escrow-accounts/{id}/enable(id=${escrow.id})}">
+                <button class="text-sm font-medium text-primary-700 hover:underline">Enable</button>
+            </form>
+        </div>
+    </div>
+
+    <div th:if="${error}" class="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700" th:text="${error}"></div>
+    <div th:if="${structuralLocked}" class="mb-4 rounded-md bg-slate-100 px-4 py-3 text-sm text-slate-600">
+        This escrow has virtual accounts — provider, transport, auth scheme, hosting model and number space are frozen.
+    </div>
+
+    <form th:action="@{/admin/escrow-accounts/{id}(id=${escrow.id})}" method="post" class="card space-y-6 p-6">
+        <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+                <label class="label">Provider</label>
+                <select th:if="${!structuralLocked}" class="input" name="provider">
+                    <option th:each="p : ${ {'maybank','bsi','cimb'} }" th:value="${p}" th:text="${p}"
+                            th:selected="${escrow.provider == p}">p</option>
+                </select>
+                <input th:if="${structuralLocked}" class="input bg-slate-50" type="text" th:value="${escrow.provider}" readonly/>
+                <input th:if="${structuralLocked}" type="hidden" name="provider" th:value="${escrow.provider}"/>
+            </div>
+            <div>
+                <label class="label">Hosting model</label>
+                <select th:if="${!structuralLocked}" class="input" name="hostingModel">
+                    <option th:each="h : ${T(com.artivisi.paymentgateway.entity.HostingModel).values()}"
+                            th:value="${h}" th:text="${h}" th:selected="${escrow.hostingModel == h}">h</option>
+                </select>
+                <input th:if="${structuralLocked}" class="input bg-slate-50" type="text" th:value="${escrow.hostingModel}" readonly/>
+                <input th:if="${structuralLocked}" type="hidden" name="hostingModel" th:value="${escrow.hostingModel}"/>
+            </div>
+            <div>
+                <label class="label">Transport</label>
+                <select th:if="${!structuralLocked}" class="input" name="transport">
+                    <option th:each="t : ${T(com.artivisi.paymentgateway.entity.TransportProtocol).values()}"
+                            th:value="${t}" th:text="${t}" th:selected="${escrow.transport == t}">t</option>
+                </select>
+                <input th:if="${structuralLocked}" class="input bg-slate-50" type="text" th:value="${escrow.transport}" readonly/>
+                <input th:if="${structuralLocked}" type="hidden" name="transport" th:value="${escrow.transport}"/>
+            </div>
+            <div>
+                <label class="label">Auth scheme</label>
+                <select th:if="${!structuralLocked}" class="input" name="authScheme">
+                    <option th:each="a : ${T(com.artivisi.paymentgateway.entity.AuthScheme).values()}"
+                            th:value="${a}" th:text="${a}" th:selected="${escrow.authScheme == a}">a</option>
+                </select>
+                <input th:if="${structuralLocked}" class="input bg-slate-50" type="text" th:value="${escrow.authScheme}" readonly/>
+                <input th:if="${structuralLocked}" type="hidden" name="authScheme" th:value="${escrow.authScheme}"/>
+            </div>
+            <div>
+                <label class="label" for="activeEnvironment">Environment</label>
+                <select class="input" id="activeEnvironment" name="activeEnvironment">
+                    <option th:each="env : ${T(com.artivisi.paymentgateway.entity.EscrowEnvironment).values()}"
+                            th:value="${env}" th:text="${env}" th:selected="${escrow.activeEnvironment == env}">env</option>
+                </select>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Number space &amp; settlement</h2>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                    <label class="label" for="companyId">Company ID</label>
+                    <input class="input" th:classappend="${structuralLocked} ? 'bg-slate-50' : ''" id="companyId"
+                           name="companyId" th:value="${escrow.companyId}" th:readonly="${structuralLocked}" required/>
+                </div>
+                <div>
+                    <label class="label" for="vaPrefix">VA prefix</label>
+                    <input class="input" th:classappend="${structuralLocked} ? 'bg-slate-50' : ''" id="vaPrefix"
+                           name="vaPrefix" th:value="${escrow.vaPrefix}" th:readonly="${structuralLocked}" required/>
+                </div>
+                <div>
+                    <label class="label" for="vaDigitLength">VA digit length</label>
+                    <input class="input" th:classappend="${structuralLocked} ? 'bg-slate-50' : ''" id="vaDigitLength"
+                           name="vaDigitLength" type="number" th:value="${escrow.vaDigitLength}"
+                           th:readonly="${structuralLocked}" required/>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="label" for="settlementAccountNumber">Settlement account number</label>
+                    <input class="input" id="settlementAccountNumber" name="settlementAccountNumber"
+                           th:value="${escrow.settlementAccountNumber}" required/>
+                </div>
+                <div>
+                    <label class="label" for="settlementAccountName">Settlement account name</label>
+                    <input class="input" id="settlementAccountName" name="settlementAccountName"
+                           th:value="${escrow.settlementAccountName}" required/>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Endpoints &amp; credentials</h2>
+            <p class="mb-3 text-xs text-slate-400">Secrets are encrypted at rest and never shown. Leave a secret blank to keep it.</p>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="label" for="sandboxBaseUrl">Sandbox base URL</label>
+                    <input class="input" id="sandboxBaseUrl" name="sandboxBaseUrl" th:value="${escrow.sandboxBaseUrl}"/>
+                </div>
+                <div>
+                    <label class="label" for="productionBaseUrl">Production base URL</label>
+                    <input class="input" id="productionBaseUrl" name="productionBaseUrl" th:value="${escrow.productionBaseUrl}"/>
+                </div>
+                <div>
+                    <label class="label" for="clientId">Client ID</label>
+                    <input class="input" id="clientId" name="clientId" th:value="${escrow.clientId}"/>
+                </div>
+                <div>
+                    <label class="label" for="clientSecret">Client secret
+                        <span class="text-xs text-slate-400" th:text="${escrow.clientSecret != null} ? '(set)' : '(none)'">(none)</span>
+                    </label>
+                    <input class="input" id="clientSecret" name="clientSecret" type="password" placeholder="leave blank to keep"/>
+                </div>
+                <div>
+                    <label class="label" for="partnerId">Partner ID</label>
+                    <input class="input" id="partnerId" name="partnerId" th:value="${escrow.partnerId}"/>
+                </div>
+                <div>
+                    <label class="label" for="channelId">Channel ID</label>
+                    <input class="input" id="channelId" name="channelId" th:value="${escrow.channelId}"/>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="label" for="privateKey">Private key
+                        <span class="text-xs text-slate-400" th:text="${escrow.privateKey != null} ? '(set)' : '(none)'">(none)</span>
+                    </label>
+                    <textarea class="input font-mono text-xs" id="privateKey" name="privateKey" rows="2"
+                              placeholder="leave blank to keep"></textarea>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="label" for="publicKey">Public key (PEM/base64)</label>
+                    <textarea class="input font-mono text-xs" id="publicKey" name="publicKey" rows="3"
+                              th:text="${escrow.publicKey}"></textarea>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Grouping tags</h2>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="label" for="merchantTag">Merchant tag</label>
+                    <input class="input" id="merchantTag" name="merchantTag" th:value="${escrow.merchantTag}"/>
+                </div>
+                <div>
+                    <label class="label" for="institutionTag">Institution tag</label>
+                    <input class="input" id="institutionTag" name="institutionTag" th:value="${escrow.institutionTag}"/>
+                </div>
+            </div>
+        </section>
+
+        <div class="flex gap-3">
+            <button type="submit" class="btn-primary">Save changes</button>
+            <a th:href="@{/admin/escrow-accounts}" class="btn-ghost">Cancel</a>
+        </div>
+    </form>
+</main>
+</body>
+</html>

@@ -1,9 +1,15 @@
 package com.artivisi.paymentgateway.web;
 
 import com.artivisi.paymentgateway.AbstractIntegrationTest;
+import com.artivisi.paymentgateway.dto.EscrowAccountRequest;
+import com.artivisi.paymentgateway.entity.AuthScheme;
+import com.artivisi.paymentgateway.entity.EscrowEnvironment;
+import com.artivisi.paymentgateway.entity.HostingModel;
 import com.artivisi.paymentgateway.entity.Operator;
+import com.artivisi.paymentgateway.entity.TransportProtocol;
 import com.artivisi.paymentgateway.repository.OperatorRepository;
 import com.artivisi.paymentgateway.repository.RoleRepository;
+import com.artivisi.paymentgateway.service.EscrowAccountService;
 import com.artivisi.paymentgateway.service.TotpService;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Page;
@@ -35,6 +41,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
     @Autowired RoleRepository roleRepository;
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired TotpService totpService;
+    @Autowired EscrowAccountService escrowAccountService;
 
     private String operatorSecret;
 
@@ -128,6 +135,24 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                 page.navigate(base() + path);
                 assertThat(page.getByTestId(testId).count()).as(path).isEqualTo(1);
             });
+            browser.close();
+        }
+    }
+
+    @Test
+    void escrowEditPageRenders() {
+        var escrow = escrowAccountService.create(new EscrowAccountRequest(
+                "pw-escrow-" + SEQ.incrementAndGet(), "bsi", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
+                "900900111", "Settle", "90099", "900", 10, null, null));
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage();
+            login(page);
+            page.navigate(base() + "/admin/escrow-accounts/" + escrow.getId() + "/edit");
+            assertThat(page.getByTestId("escrow-edit").count()).isEqualTo(1);
+            // unlocked (no VAs) → structural selects rendered (verifies the SpEL T()/list expressions)
+            assertThat(page.locator("select[name=provider]").count()).isEqualTo(1);
             browser.close();
         }
     }
