@@ -75,7 +75,9 @@ Consumers compute the number; the gateway validates it (within the escrow's comp
 
 ## Reconciliation
 
-End-of-day, per escrow account: pull the bank's settlement (transaction-list endpoint or imported statement file), match credits to payments, recover paid-not-notified payments (mark paid + forward webhook), and flag notified-not-settled, amount mismatch, duplicate, and unmatched credit. Report per escrow and per institution.
+End-of-day, per escrow account: ingest the bank's settlement, match credits to payments, recover paid-not-notified payments (mark paid + forward webhook), and flag notified-not-settled, amount mismatch, duplicate, and unmatched credit. Report per escrow and per institution.
+
+**Settlement input is a downloaded file, not an API.** Indonesian banks generally don't expose a settlement pull endpoint — ops download a CSV from the bank's cash-management portal (or a PDF statement). The primary path is the **CSV import** (`/reconciliations/import`); per-bank CSV column/format mapping is the open work. A `pullSettlement` REST API is bank-dependent and rare — implement only if a specific bank offers it (or SFTP host-to-host file drop). Prefer CSV over parsing PDFs in-app.
 
 ## Principles
 
