@@ -80,6 +80,9 @@ public class EscrowAccount {
 
     private String institutionTag;
 
+    /** Disabled escrows are rejected for new charges; history is preserved. */
+    private boolean enabled;
+
     @CreationTimestamp
     private Instant createdAt;
 

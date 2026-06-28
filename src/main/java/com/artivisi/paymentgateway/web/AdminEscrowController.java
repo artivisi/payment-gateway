@@ -1,6 +1,7 @@
 package com.artivisi.paymentgateway.web;
 
 import com.artivisi.paymentgateway.dto.EscrowAccountRequest;
+import com.artivisi.paymentgateway.dto.EscrowUpdateRequest;
 import com.artivisi.paymentgateway.entity.AuthScheme;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
@@ -9,6 +10,7 @@ import com.artivisi.paymentgateway.service.EscrowAccountService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -68,6 +70,65 @@ public class AdminEscrowController {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/admin/escrow-accounts/new";
         }
+    }
+
+    @GetMapping("/{id}/edit")
+    public String edit(@PathVariable String id, Model model) {
+        model.addAttribute("escrow", escrowAccountService.get(id));
+        model.addAttribute("structuralLocked", escrowAccountService.hasVirtualAccounts(id));
+        return "admin/escrow/edit";
+    }
+
+    @PostMapping("/{id}")
+    public String update(
+            @PathVariable String id,
+            @RequestParam String provider,
+            @RequestParam HostingModel hostingModel,
+            @RequestParam TransportProtocol transport,
+            @RequestParam AuthScheme authScheme,
+            @RequestParam EscrowEnvironment activeEnvironment,
+            @RequestParam(required = false) String clientId,
+            @RequestParam(required = false) String clientSecret,
+            @RequestParam(required = false) String partnerId,
+            @RequestParam(required = false) String channelId,
+            @RequestParam(required = false) String privateKey,
+            @RequestParam(required = false) String publicKey,
+            @RequestParam(required = false) String sandboxBaseUrl,
+            @RequestParam(required = false) String productionBaseUrl,
+            @RequestParam String settlementAccountNumber,
+            @RequestParam String settlementAccountName,
+            @RequestParam String companyId,
+            @RequestParam String vaPrefix,
+            @RequestParam Integer vaDigitLength,
+            @RequestParam(required = false) String merchantTag,
+            @RequestParam(required = false) String institutionTag,
+            RedirectAttributes redirectAttributes) {
+        try {
+            escrowAccountService.update(id, new EscrowUpdateRequest(provider, hostingModel, transport, authScheme,
+                    activeEnvironment, blankToNull(clientId), blankToNull(clientSecret), blankToNull(partnerId),
+                    blankToNull(channelId), blankToNull(privateKey), blankToNull(publicKey), blankToNull(sandboxBaseUrl),
+                    blankToNull(productionBaseUrl), settlementAccountNumber, settlementAccountName, companyId, vaPrefix,
+                    vaDigitLength, blankToNull(merchantTag), blankToNull(institutionTag)));
+            redirectAttributes.addFlashAttribute("message", "Escrow updated.");
+            return "redirect:/admin/escrow-accounts";
+        } catch (RuntimeException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/admin/escrow-accounts/" + id + "/edit";
+        }
+    }
+
+    @PostMapping("/{id}/enable")
+    public String enable(@PathVariable String id, RedirectAttributes ra) {
+        escrowAccountService.setEnabled(id, true);
+        ra.addFlashAttribute("message", "Escrow enabled.");
+        return "redirect:/admin/escrow-accounts";
+    }
+
+    @PostMapping("/{id}/disable")
+    public String disable(@PathVariable String id, RedirectAttributes ra) {
+        escrowAccountService.setEnabled(id, false);
+        ra.addFlashAttribute("message", "Escrow disabled.");
+        return "redirect:/admin/escrow-accounts";
     }
 
     private static String blankToNull(String value) {
