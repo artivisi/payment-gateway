@@ -4,12 +4,16 @@
 <body class="bg-slate-50 text-slate-800">
 <nav th:replace="~{fragments :: navbar('audit')}"></nav>
 <main class="mx-auto max-w-6xl px-4 py-8" data-testid="audit-list">
-    <h1 class="mb-6 text-2xl font-semibold text-slate-900">Audit log</h1>
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold text-slate-900">Audit log</h1>
+        <div th:replace="~{fragments :: searchBox(${q}, '/admin/audit')}"></div>
+    </div>
     <div class="card overflow-hidden">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
             <tr>
                 <th class="th">Time</th>
+                <th class="th">Actor</th>
                 <th class="th">Event</th>
                 <th class="th">Entity</th>
                 <th class="th">Entity ID</th>
@@ -19,17 +23,19 @@
             <tbody class="divide-y divide-slate-100">
             <tr th:each="e : ${events}">
                 <td class="td text-xs text-slate-500" th:text="${e.createdAt}">time</td>
+                <td class="td text-xs" th:text="${e.actor} ?: '—'">actor</td>
                 <td class="td" th:text="${e.eventType}">event</td>
                 <td class="td" th:text="${e.entityType}">entity</td>
                 <td class="td font-mono text-xs" th:text="${e.entityId} ?: '—'">id</td>
                 <td class="td text-xs text-slate-500" th:text="${e.detail}">detail</td>
             </tr>
-            <tr th:if="${#lists.isEmpty(events)}">
-                <td class="td text-slate-400" colspan="5">No audit events recorded yet.</td>
+            <tr th:if="${events.isEmpty()}">
+                <td class="td text-slate-400" colspan="6">No audit events found.</td>
             </tr>
             </tbody>
         </table>
     </div>
+    <div th:replace="~{fragments :: pagination(${events}, ${q}, '/admin/audit')}"></div>
 </main>
 </body>
 </html>

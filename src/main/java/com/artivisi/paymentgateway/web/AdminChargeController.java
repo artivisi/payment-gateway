@@ -11,10 +11,13 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 @RequestMapping("/admin/charges")
 public class AdminChargeController {
+
+    private static final int PAGE_SIZE = 25;
 
     private final ChargeRepository chargeRepository;
     private final VirtualAccountRepository virtualAccountRepository;
@@ -29,8 +32,11 @@ public class AdminChargeController {
     }
 
     @GetMapping
-    public String list(Model model) {
-        model.addAttribute("charges", chargeRepository.findRecentWithConsumer(PageRequest.of(0, 100)));
+    public String list(@RequestParam(defaultValue = "0") int page,
+                       @RequestParam(required = false) String q, Model model) {
+        String query = (q == null || q.isBlank()) ? null : q.trim();
+        model.addAttribute("charges", chargeRepository.search(query, PageRequest.of(page, PAGE_SIZE)));
+        model.addAttribute("q", q);
         return "admin/charge/list";
     }
 

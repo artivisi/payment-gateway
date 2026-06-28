@@ -58,5 +58,23 @@
         </div>
     </div>
 </header>
+
+<form th:fragment="searchBox(q, path)" method="get" th:action="@{${path}}" class="flex gap-2">
+    <input type="text" name="q" th:value="${q}" placeholder="Search…"
+           class="rounded-md border border-slate-300 px-3 py-1.5 text-sm"/>
+    <button type="submit" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">Search</button>
+</form>
+
+<div th:fragment="pagination(page, q, path)" th:if="${page.totalPages > 1}"
+     class="mt-4 flex items-center justify-between text-sm">
+    <span class="text-slate-500"
+          th:text="'Page ' + (${page.number} + 1) + ' / ' + ${page.totalPages} + ' · ' + ${page.totalElements} + ' total'">Page</span>
+    <div class="flex gap-2">
+        <a th:if="${page.hasPrevious()}" th:href="@{${path}(page=${page.number - 1}, q=${q})}"
+           class="rounded border border-slate-300 px-3 py-1 hover:bg-slate-50">Prev</a>
+        <a th:if="${page.hasNext()}" th:href="@{${path}(page=${page.number + 1}, q=${q})}"
+           class="rounded border border-slate-300 px-3 py-1 hover:bg-slate-50">Next</a>
+    </div>
+</div>
 </body>
 </html>
