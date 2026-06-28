@@ -3,9 +3,10 @@ package com.artivisi.paymentgateway.entity;
 import com.artivisi.paymentgateway.config.SecretConverter;
 import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,8 +34,9 @@ public class Operator {
 
     private String fullName;
 
-    @Enumerated(EnumType.STRING)
-    private OperatorRole role;
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "role_id")
+    private Role role;
 
     private boolean enabled;
 

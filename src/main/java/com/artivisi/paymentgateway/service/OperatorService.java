@@ -2,10 +2,11 @@ package com.artivisi.paymentgateway.service;
 
 import com.artivisi.paymentgateway.config.AdminSecurityProperties;
 import com.artivisi.paymentgateway.entity.Operator;
-import com.artivisi.paymentgateway.entity.OperatorRole;
+import com.artivisi.paymentgateway.entity.Role;
 import com.artivisi.paymentgateway.exception.DuplicateException;
 import com.artivisi.paymentgateway.exception.NotFoundException;
 import com.artivisi.paymentgateway.repository.OperatorRepository;
+import com.artivisi.paymentgateway.repository.RoleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -23,15 +24,17 @@ public class OperatorService {
     private static final int MIN_PASSWORD_LENGTH = 12; // PCI Req 8.3.6
 
     private final OperatorRepository repository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final TotpService totpService;
     private final AuditService auditService;
     private final AdminSecurityProperties properties;
 
-    public OperatorService(OperatorRepository repository, PasswordEncoder passwordEncoder,
-                           TotpService totpService, AuditService auditService,
-                           AdminSecurityProperties properties) {
+    public OperatorService(OperatorRepository repository, RoleRepository roleRepository,
+                           PasswordEncoder passwordEncoder, TotpService totpService,
+                           AuditService auditService, AdminSecurityProperties properties) {
         this.repository = repository;
+        this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.totpService = totpService;
         this.auditService = auditService;
@@ -49,7 +52,8 @@ public class OperatorService {
         admin.setUsername(bootstrap.username());
         admin.setPasswordHash(passwordEncoder.encode(bootstrap.password()));
         admin.setFullName("Bootstrap Administrator");
-        admin.setRole(OperatorRole.ADMIN);
+        admin.setRole(roleRepository.findByName("ADMIN")
+                .orElseThrow(() -> new IllegalStateException("ADMIN role not seeded (migration V7)")));
         admin.setEnabled(true);
         admin.setFailedAttempts(0);
         admin.setMfaEnabled(false);
@@ -71,11 +75,13 @@ public class OperatorService {
     }
 
     @Transactional
-    public Operator create(String username, String fullName, OperatorRole role, String initialPassword) {
+    public Operator create(String username, String fullName, String roleId, String initialPassword) {
         if (repository.existsByUsername(username)) {
             throw new DuplicateException("Operator username already exists: " + username);
         }
         validatePassword(initialPassword);
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new NotFoundException("Role not found: " + roleId));
         Operator op = new Operator();
         op.setUsername(username);
         op.setFullName(fullName);
@@ -86,7 +92,8 @@ public class OperatorService {
         op.setMfaEnabled(false);
         op.setMustChangePassword(true);
         Operator saved = repository.save(op);
-        auditService.record("OPERATOR_CREATED", "Operator", saved.getId(), "username=" + username + " role=" + role);
+        auditService.record("OPERATOR_CREATED", "Operator", saved.getId(),
+                "username=" + username + " role=" + role.getName());
         return saved;
     }
 

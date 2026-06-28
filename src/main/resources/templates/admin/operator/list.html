@@ -30,7 +30,7 @@
             <tr th:each="o : ${operators}">
                 <td class="td font-medium text-slate-900" th:text="${o.username}">user</td>
                 <td class="td" th:text="${o.fullName}">name</td>
-                <td class="td"><span class="badge-muted" th:text="${o.role}">ROLE</span></td>
+                <td class="td"><span class="badge-muted" th:text="${o.role.name}">ROLE</span></td>
                 <td class="td">
                     <span th:classappend="${o.enabled} ? 'badge-ok' : 'badge-muted'" th:text="${o.enabled} ? 'Yes' : 'No'">Yes</span>
                 </td>

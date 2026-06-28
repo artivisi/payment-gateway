@@ -14,5 +14,7 @@ public interface OperatorRepository extends JpaRepository<Operator, String> {
 
     long count();
 
+    long countByRoleId(String roleId);
+
     List<Operator> findAllByOrderByUsernameAsc();
 }
