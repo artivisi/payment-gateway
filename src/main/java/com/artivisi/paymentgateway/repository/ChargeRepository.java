@@ -2,6 +2,7 @@ package com.artivisi.paymentgateway.repository;
 
 import com.artivisi.paymentgateway.entity.Charge;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -24,6 +25,20 @@ public interface ChargeRepository extends JpaRepository<Charge, String> {
 
     @Query("select c from Charge c join fetch c.consumer order by c.createdAt desc")
     List<Charge> findRecentWithConsumer(Pageable pageable);
+
+    @Query(value = "select c from Charge c join fetch c.consumer "
+            + "where :pattern is null or lower(c.consumerReference) like :pattern "
+            + "or lower(c.payerName) like :pattern "
+            + "order by c.createdAt desc",
+            countQuery = "select count(c) from Charge c "
+            + "where :pattern is null or lower(c.consumerReference) like :pattern "
+            + "or lower(c.payerName) like :pattern")
+    Page<Charge> searchByPattern(@Param("pattern") String pattern, Pageable pageable);
+
+    /** Search consumerReference / payer (case-insensitive substring); blank q = all. */
+    default Page<Charge> search(String q, Pageable pageable) {
+        return searchByPattern(q == null || q.isBlank() ? null : "%" + q.toLowerCase() + "%", pageable);
+    }
 
     @Query("select c from Charge c join fetch c.consumer where c.id = :id")
     Optional<Charge> findByIdWithConsumer(@Param("id") String id);
