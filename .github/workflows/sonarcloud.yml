@@ -2,7 +2,7 @@ name: SonarCloud
 
 # Manual-only (conserves quota). Requires a SonarCloud project + repo secret SONAR_TOKEN,
 # and matching sonar.organization / sonar.projectKey in pom.xml.
-# Local equivalent: mvn -B clean test-compile sonar:sonar -Dsonar.token=$SONAR_TOKEN
+# Local equivalent: mvn -B clean verify sonar:sonar -Dsonar.token=$SONAR_TOKEN
 on:
   workflow_dispatch:
 
@@ -22,9 +22,9 @@ jobs:
           java-version: '25'
           cache: maven
 
-      # test-compile (not verify) builds main + test sources without running the suite —
-      # analysis only needs the bytecode. No JaCoCo coverage yet (pending Java 25 support).
-      - name: Build + analyze
+      # verify runs the suite under the JaCoCo agent (Testcontainers needs Docker, present on
+      # ubuntu-latest) so Sonar gets coverage from target/site/jacoco/jacoco.xml.
+      - name: Build, test, analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn -B clean test-compile sonar:sonar -Dsonar.token=$SONAR_TOKEN
+        run: mvn -B clean verify sonar:sonar -Dsonar.token=$SONAR_TOKEN
