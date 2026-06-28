@@ -1,7 +1,7 @@
 package com.artivisi.paymentgateway.web;
 
-import com.artivisi.paymentgateway.entity.OperatorRole;
 import com.artivisi.paymentgateway.service.OperatorService;
+import com.artivisi.paymentgateway.service.RoleService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,9 +17,11 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class AdminOperatorController {
 
     private final OperatorService operatorService;
+    private final RoleService roleService;
 
-    public AdminOperatorController(OperatorService operatorService) {
+    public AdminOperatorController(OperatorService operatorService, RoleService roleService) {
         this.operatorService = operatorService;
+        this.roleService = roleService;
     }
 
     @GetMapping
@@ -30,18 +32,18 @@ public class AdminOperatorController {
 
     @GetMapping("/new")
     public String form(Model model) {
-        model.addAttribute("roles", OperatorRole.values());
+        model.addAttribute("roles", roleService.list());
         return "admin/operator/form";
     }
 
     @PostMapping
     public String create(@RequestParam String username,
                          @RequestParam String fullName,
-                         @RequestParam OperatorRole role,
+                         @RequestParam String roleId,
                          @RequestParam String password,
                          RedirectAttributes redirectAttributes) {
         try {
-            operatorService.create(username, fullName, role, password);
+            operatorService.create(username, fullName, roleId, password);
             redirectAttributes.addFlashAttribute("message", "Operator '" + username + "' created.");
             return "redirect:/admin/operators";
         } catch (RuntimeException e) {

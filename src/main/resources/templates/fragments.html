@@ -19,24 +19,34 @@
         <nav class="flex items-center gap-1 text-sm">
             <a th:href="@{/admin}" th:classappend="${active == 'dashboard'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Dashboard</a>
-            <a th:href="@{/admin/escrow-accounts}" th:classappend="${active == 'escrow'} ? 'bg-primary-700' : ''"
+            <a sec:authorize="hasAuthority('ESCROW_VIEW')" th:href="@{/admin/escrow-accounts}"
+               th:classappend="${active == 'escrow'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Escrows</a>
-            <a th:href="@{/admin/consumers}" th:classappend="${active == 'consumer'} ? 'bg-primary-700' : ''"
+            <a sec:authorize="hasAuthority('CONSUMER_VIEW')" th:href="@{/admin/consumers}"
+               th:classappend="${active == 'consumer'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Consumers</a>
-            <a th:href="@{/admin/charges}" th:classappend="${active == 'charge'} ? 'bg-primary-700' : ''"
+            <a sec:authorize="hasAuthority('CHARGE_VIEW')" th:href="@{/admin/charges}"
+               th:classappend="${active == 'charge'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Charges</a>
-            <a th:href="@{/admin/payments}" th:classappend="${active == 'payment'} ? 'bg-primary-700' : ''"
+            <a sec:authorize="hasAuthority('PAYMENT_VIEW')" th:href="@{/admin/payments}"
+               th:classappend="${active == 'payment'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Payments</a>
-            <a th:href="@{/admin/reconciliations}" th:classappend="${active == 'reconciliation'} ? 'bg-primary-700' : ''"
+            <a sec:authorize="hasAuthority('RECONCILIATION_VIEW')" th:href="@{/admin/reconciliations}"
+               th:classappend="${active == 'reconciliation'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Reconciliation</a>
-            <a th:href="@{/admin/webhooks}" th:classappend="${active == 'webhook'} ? 'bg-primary-700' : ''"
+            <a sec:authorize="hasAuthority('WEBHOOK_VIEW')" th:href="@{/admin/webhooks}"
+               th:classappend="${active == 'webhook'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Webhooks</a>
-            <a th:href="@{/admin/audit}" th:classappend="${active == 'audit'} ? 'bg-primary-700' : ''"
+            <a sec:authorize="hasAuthority('AUDIT_VIEW')" th:href="@{/admin/audit}"
+               th:classappend="${active == 'audit'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Audit</a>
-            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/operators}"
+            <a sec:authorize="hasAuthority('OPERATOR_MANAGE')" th:href="@{/admin/operators}"
                th:classappend="${active == 'operator'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Operators</a>
-            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/bank-ip-rules}"
+            <a sec:authorize="hasAuthority('ROLE_MANAGE')" th:href="@{/admin/roles}"
+               th:classappend="${active == 'role'} ? 'bg-primary-700' : ''"
+               class="rounded px-3 py-1.5 hover:bg-primary-700">Roles</a>
+            <a sec:authorize="hasAuthority('BANK_IP_MANAGE')" th:href="@{/admin/bank-ip-rules}"
                th:classappend="${active == 'bankip'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Bank IP</a>
         </nav>

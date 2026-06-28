@@ -12,7 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/** Loads {@link Operator}s for Spring Security: role authority, enabled and lock state. */
+/**
+ * Loads {@link Operator}s for Spring Security. Authorities are the operator's role's effective
+ * <b>permissions</b> (not the role name) — every authorization check is permission-based.
+ */
 @Service
 public class OperatorDetailsService implements UserDetailsService {
 
@@ -27,9 +30,12 @@ public class OperatorDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) {
         Operator operator = repository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Unknown operator"));
+        List<SimpleGrantedAuthority> authorities = operator.getRole().effectivePermissions().stream()
+                .map(permission -> new SimpleGrantedAuthority(permission.name()))
+                .toList();
         return User.withUsername(operator.getUsername())
                 .password(operator.getPasswordHash())
-                .authorities(List.of(new SimpleGrantedAuthority("ROLE_" + operator.getRole().name())))
+                .authorities(authorities)
                 .disabled(!operator.isEnabled())
                 .accountLocked(operator.isLocked())
                 .build();

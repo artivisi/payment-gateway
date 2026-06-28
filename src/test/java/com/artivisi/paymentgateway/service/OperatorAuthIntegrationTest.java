@@ -3,8 +3,8 @@ package com.artivisi.paymentgateway.service;
 import com.artivisi.paymentgateway.AbstractIntegrationTest;
 import com.artivisi.paymentgateway.config.AdminSecurityProperties;
 import com.artivisi.paymentgateway.entity.Operator;
-import com.artivisi.paymentgateway.entity.OperatorRole;
 import com.artivisi.paymentgateway.repository.OperatorRepository;
+import com.artivisi.paymentgateway.repository.RoleRepository;
 import dev.samstevens.totp.code.DefaultCodeGenerator;
 import dev.samstevens.totp.exceptions.CodeGenerationException;
 import dev.samstevens.totp.time.SystemTimeProvider;
@@ -28,6 +28,7 @@ class OperatorAuthIntegrationTest extends AbstractIntegrationTest {
     @Autowired OperatorService operatorService;
     @Autowired TotpService totpService;
     @Autowired OperatorRepository operatorRepository;
+    @Autowired RoleRepository roleRepository;
     @Autowired AdminSecurityProperties properties;
     @Autowired ApplicationEventPublisher publisher;
 
@@ -35,10 +36,15 @@ class OperatorAuthIntegrationTest extends AbstractIntegrationTest {
         return prefix + "-" + SEQ.incrementAndGet();
     }
 
+    private String operatorRoleId() {
+        return roleRepository.findByName("OPERATOR").orElseThrow().getId();
+    }
+
     @Test
     void bootstrapAdmin_isSeededWithForcedChange() {
         Operator admin = operatorRepository.findByUsername("bootstrap-admin").orElseThrow();
-        assertThat(admin.getRole()).isEqualTo(OperatorRole.ADMIN);
+        assertThat(admin.getRole().getName()).isEqualTo("ADMIN");
+        assertThat(admin.getRole().isAllPermissions()).isTrue();
         assertThat(admin.isMustChangePassword()).isTrue();
         assertThat(admin.isMfaEnabled()).isFalse();
     }
@@ -46,14 +52,14 @@ class OperatorAuthIntegrationTest extends AbstractIntegrationTest {
     @Test
     void create_enforcesMinimumPasswordLength() {
         assertThatThrownBy(() ->
-                operatorService.create(user("short"), "S", OperatorRole.OPERATOR, "tooshort"))
+                operatorService.create(user("short"), "S", operatorRoleId(), "tooshort"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void changeOwnPassword_validatesCurrentAndClearsForcedFlag() {
         String username = user("chg");
-        operatorService.create(username, "C", OperatorRole.OPERATOR, "password-123456");
+        operatorService.create(username, "C", operatorRoleId(), "password-123456");
 
         assertThatThrownBy(() ->
                 operatorService.changeOwnPassword(username, "wrong-current", "newpassword-123456"))
@@ -66,7 +72,7 @@ class OperatorAuthIntegrationTest extends AbstractIntegrationTest {
     @Test
     void mfaEnrolmentAndVerification() {
         String username = user("mfa");
-        operatorService.create(username, "M", OperatorRole.OPERATOR, "password-123456");
+        operatorService.create(username, "M", operatorRoleId(), "password-123456");
         String secret = totpService.generateSecret();
 
         assertThat(operatorService.completeMfaEnrolment(username, secret, code(secret))).isTrue();
@@ -78,7 +84,7 @@ class OperatorAuthIntegrationTest extends AbstractIntegrationTest {
     @Test
     void repeatedBadCredentials_lockTheAccount() {
         String username = user("lock");
-        operatorService.create(username, "L", OperatorRole.OPERATOR, "password-123456");
+        operatorService.create(username, "L", operatorRoleId(), "password-123456");
         var token = new UsernamePasswordAuthenticationToken(username, "bad");
 
         for (int i = 0; i < properties.maxFailedAttempts(); i++) {
