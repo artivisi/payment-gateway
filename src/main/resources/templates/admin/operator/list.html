@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Operators')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('operator')}"></nav>
+<main class="mx-auto max-w-7xl px-4 py-8" data-testid="operator-list">
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold text-slate-900">Operators</h1>
+        <a th:href="@{/admin/operators/new}" class="btn-primary">New operator</a>
+    </div>
+
+    <div th:if="${message}" class="mb-4 rounded-md bg-accent-50 px-4 py-3 text-sm text-accent-800" th:text="${message}"></div>
+    <div th:if="${error}" class="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700" th:text="${error}"></div>
+
+    <div class="card overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+            <tr>
+                <th class="th">Username</th>
+                <th class="th">Name</th>
+                <th class="th">Role</th>
+                <th class="th">Enabled</th>
+                <th class="th">MFA</th>
+                <th class="th">Locked</th>
+                <th class="th">Last login</th>
+                <th class="th">Actions</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="o : ${operators}">
+                <td class="td font-medium text-slate-900" th:text="${o.username}">user</td>
+                <td class="td" th:text="${o.fullName}">name</td>
+                <td class="td"><span class="badge-muted" th:text="${o.role}">ROLE</span></td>
+                <td class="td">
+                    <span th:classappend="${o.enabled} ? 'badge-ok' : 'badge-muted'" th:text="${o.enabled} ? 'Yes' : 'No'">Yes</span>
+                </td>
+                <td class="td" th:text="${o.mfaEnabled} ? 'Enrolled' : 'Pending'">Enrolled</td>
+                <td class="td" th:text="${o.locked} ? 'Locked' : '—'">—</td>
+                <td class="td text-xs text-slate-500" th:text="${o.lastLoginAt} ?: '—'">—</td>
+                <td class="td">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <form th:if="${o.enabled}" method="post" th:action="@{/admin/operators/{id}/disable(id=${o.id})}">
+                            <button class="text-xs font-medium text-amber-700 hover:underline">Disable</button>
+                        </form>
+                        <form th:unless="${o.enabled}" method="post" th:action="@{/admin/operators/{id}/enable(id=${o.id})}">
+                            <button class="text-xs font-medium text-primary-700 hover:underline">Enable</button>
+                        </form>
+                        <form method="post" th:action="@{/admin/operators/{id}/reset-mfa(id=${o.id})}">
+                            <button class="text-xs font-medium text-slate-600 hover:underline">Reset MFA</button>
+                        </form>
+                        <form method="post" th:action="@{/admin/operators/{id}/reset-password(id=${o.id})}"
+                              class="flex items-center gap-1">
+                            <input name="password" type="password" placeholder="temp pwd (12+)" minlength="12" required
+                                   class="w-32 rounded border border-slate-300 px-2 py-1 text-xs"/>
+                            <button class="text-xs font-medium text-slate-600 hover:underline">Reset pwd</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(operators)}">
+                <td class="td text-slate-400" colspan="8">No operators.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>

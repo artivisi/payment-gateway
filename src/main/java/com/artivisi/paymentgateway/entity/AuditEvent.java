@@ -26,6 +26,9 @@ public class AuditEvent {
 
     private String eventType;
 
+    /** Authenticated operator username that performed the action; null for system events. */
+    private String actor;
+
     private String entityType;
 
     private String entityId;

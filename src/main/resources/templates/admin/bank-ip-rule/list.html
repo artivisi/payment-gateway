@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Bank IP allowlist')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('bankip')}"></nav>
+<main class="mx-auto max-w-5xl px-4 py-8" data-testid="bank-ip-rule-list">
+    <h1 class="mb-2 text-2xl font-semibold text-slate-900">Bank IP allowlist</h1>
+    <p class="mb-6 text-sm text-slate-500">
+        Per-provider source-IP allowlist for bank callback endpoints. A provider with no enabled rule is
+        unrestricted; otherwise only listed CIDRs may call it (others get HTTP 403).
+    </p>
+
+    <div th:if="${message}" class="mb-4 rounded-md bg-accent-50 px-4 py-3 text-sm text-accent-800" th:text="${message}"></div>
+    <div th:if="${error}" class="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700" th:text="${error}"></div>
+
+    <form th:action="@{/admin/bank-ip-rules}" method="post" class="card mb-6 flex flex-wrap items-end gap-3 p-4">
+        <div>
+            <label for="provider" class="block text-sm font-medium text-slate-700">Provider</label>
+            <select id="provider" name="provider" class="mt-1 rounded-md border border-slate-300 px-3 py-2">
+                <option value="bsi">bsi</option>
+                <option value="cimb">cimb</option>
+                <option value="maybank">maybank</option>
+            </select>
+        </div>
+        <div>
+            <label for="cidr" class="block text-sm font-medium text-slate-700">CIDR / IP</label>
+            <input id="cidr" name="cidr" type="text" required placeholder="203.0.113.0/24"
+                   class="mt-1 rounded-md border border-slate-300 px-3 py-2 font-mono text-sm"/>
+        </div>
+        <div class="grow">
+            <label for="label" class="block text-sm font-medium text-slate-700">Label</label>
+            <input id="label" name="label" type="text" placeholder="Bank prod egress"
+                   class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"/>
+        </div>
+        <button type="submit" class="btn-primary">Add rule</button>
+    </form>
+
+    <div class="card overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+            <tr>
+                <th class="th">Provider</th>
+                <th class="th">CIDR</th>
+                <th class="th">Label</th>
+                <th class="th">Enabled</th>
+                <th class="th">Actions</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="r : ${rules}">
+                <td class="td font-medium text-slate-900" th:text="${r.provider}">bsi</td>
+                <td class="td font-mono text-xs" th:text="${r.cidr}">cidr</td>
+                <td class="td text-slate-500" th:text="${r.label} ?: '—'">label</td>
+                <td class="td">
+                    <span th:classappend="${r.enabled} ? 'badge-ok' : 'badge-muted'" th:text="${r.enabled} ? 'Yes' : 'No'">Yes</span>
+                </td>
+                <td class="td">
+                    <div class="flex items-center gap-2">
+                        <form th:if="${r.enabled}" method="post" th:action="@{/admin/bank-ip-rules/{id}/disable(id=${r.id})}">
+                            <button class="text-xs font-medium text-amber-700 hover:underline">Disable</button>
+                        </form>
+                        <form th:unless="${r.enabled}" method="post" th:action="@{/admin/bank-ip-rules/{id}/enable(id=${r.id})}">
+                            <button class="text-xs font-medium text-primary-700 hover:underline">Enable</button>
+                        </form>
+                        <form method="post" th:action="@{/admin/bank-ip-rules/{id}/delete(id=${r.id})}">
+                            <button class="text-xs font-medium text-rose-700 hover:underline">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(rules)}">
+                <td class="td text-slate-400" colspan="5">No rules — all providers unrestricted.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Sign in')}"></head>
+<body class="bg-slate-100 text-slate-800">
+<main class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4" data-testid="login-page">
+    <div class="card p-8">
+        <div class="mb-6 flex items-center gap-2">
+            <img th:src="@{/img/logo-artivisi.svg}" alt="ArtiVisi" class="h-8 w-auto"/>
+            <span class="text-lg font-semibold text-slate-900">Payment Gateway</span>
+        </div>
+
+        <div th:if="${param.error}" class="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            Invalid credentials, or the account is locked or disabled.
+        </div>
+        <div th:if="${param.logout}" class="mb-4 rounded-md bg-accent-50 px-4 py-3 text-sm text-accent-800">
+            You have been signed out.
+        </div>
+
+        <form th:action="@{/login}" method="post" class="space-y-4">
+            <div>
+                <label for="username" class="block text-sm font-medium text-slate-700">Username</label>
+                <input id="username" name="username" type="text" required autofocus
+                       class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"/>
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-slate-700">Password</label>
+                <input id="password" name="password" type="password" required
+                       class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"/>
+            </div>
+            <button type="submit" class="btn-primary w-full">Sign in</button>
+        </form>
+    </div>
+</main>
+</body>
+</html>
