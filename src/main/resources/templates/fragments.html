@@ -1,5 +1,6 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head th:fragment="head(title)">
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -32,7 +33,19 @@
                class="rounded px-3 py-1.5 hover:bg-primary-700">Webhooks</a>
             <a th:href="@{/admin/audit}" th:classappend="${active == 'audit'} ? 'bg-primary-700' : ''"
                class="rounded px-3 py-1.5 hover:bg-primary-700">Audit</a>
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/operators}"
+               th:classappend="${active == 'operator'} ? 'bg-primary-700' : ''"
+               class="rounded px-3 py-1.5 hover:bg-primary-700">Operators</a>
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/bank-ip-rules}"
+               th:classappend="${active == 'bankip'} ? 'bg-primary-700' : ''"
+               class="rounded px-3 py-1.5 hover:bg-primary-700">Bank IP</a>
         </nav>
+        <div class="ml-auto flex items-center gap-3 text-sm">
+            <span class="opacity-90" sec:authentication="name">user</span>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="rounded bg-primary-700 px-3 py-1.5 hover:bg-primary-800">Sign out</button>
+            </form>
+        </div>
     </div>
 </header>
 </body>
