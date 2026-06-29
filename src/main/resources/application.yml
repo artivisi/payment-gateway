@@ -55,6 +55,8 @@ gateway:
       pending-acquire-timeout-ms: 5000
   reversal:
     window-minutes: 60
+  reaper:
+    interval-ms: 60000
 
 management:
   endpoints:
