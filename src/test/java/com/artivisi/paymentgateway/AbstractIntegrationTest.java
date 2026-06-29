@@ -43,6 +43,8 @@ public abstract class AbstractIntegrationTest {
                 () -> Base64.getEncoder().encodeToString(new byte[32]));
         // Effectively disable the periodic webhook poller; tests drive dispatchDue() explicitly.
         registry.add("gateway.webhook.poll-interval-ms", () -> "3600000");
+        // Disable background expiry sweep; tests call ExpiryReaper directly.
+        registry.add("gateway.reaper.interval-ms", () -> "3600000");
         // Bootstrap admin (required config) — fail-loud placeholders would otherwise block startup.
         registry.add("gateway.admin.bootstrap.username", () -> "bootstrap-admin");
         registry.add("gateway.admin.bootstrap.password", () -> "bootstrap-pass-0001");
