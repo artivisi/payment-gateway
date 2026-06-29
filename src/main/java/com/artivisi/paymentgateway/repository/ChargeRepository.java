@@ -1,6 +1,7 @@
 package com.artivisi.paymentgateway.repository;
 
 import com.artivisi.paymentgateway.entity.Charge;
+import com.artivisi.paymentgateway.entity.ChargeStatus;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,6 +10,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,4 +44,9 @@ public interface ChargeRepository extends JpaRepository<Charge, String> {
 
     @Query("select c from Charge c join fetch c.consumer where c.id = :id")
     Optional<Charge> findByIdWithConsumer(@Param("id") String id);
+
+    /** Charges past their expiry that are still payable (not yet expired/paid/cancelled). */
+    @Query("select c from Charge c where c.expiresAt <= :now and c.status in :statuses")
+    List<Charge> findExpired(@Param("now") Instant now,
+                             @Param("statuses") List<ChargeStatus> statuses);
 }
