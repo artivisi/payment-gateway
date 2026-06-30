@@ -48,4 +48,7 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
 
     @Query("select p from Payment p join fetch p.virtualAccount where p.charge.id = :chargeId order by p.createdAt")
     List<Payment> findByChargeIdWithVa(@Param("chargeId") String chargeId);
+
+    @Query("select p from Payment p join fetch p.virtualAccount join fetch p.charge where p.id = :id")
+    Optional<Payment> findByIdWithVaAndCharge(@Param("id") String id);
 }

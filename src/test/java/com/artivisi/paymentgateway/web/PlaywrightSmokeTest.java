@@ -1,19 +1,31 @@
 package com.artivisi.paymentgateway.web;
 
 import com.artivisi.paymentgateway.AbstractIntegrationTest;
+import com.artivisi.paymentgateway.CsvFixtures;
+import com.artivisi.paymentgateway.dto.ChargeAccountRequest;
+import com.artivisi.paymentgateway.dto.ConsumerRequest;
+import com.artivisi.paymentgateway.dto.CreateChargeRequest;
 import com.artivisi.paymentgateway.dto.EscrowAccountRequest;
 import com.artivisi.paymentgateway.entity.AuthScheme;
+import com.artivisi.paymentgateway.entity.ChargeType;
+import com.artivisi.paymentgateway.entity.Consumer;
+import com.artivisi.paymentgateway.entity.ConsumerStatus;
+import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
 import com.artivisi.paymentgateway.entity.Operator;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
 import com.artivisi.paymentgateway.repository.OperatorRepository;
 import com.artivisi.paymentgateway.repository.RoleRepository;
+import com.artivisi.paymentgateway.service.ChargeService;
+import com.artivisi.paymentgateway.service.ConsumerService;
 import com.artivisi.paymentgateway.service.EscrowAccountService;
+import com.artivisi.paymentgateway.service.PaymentApplicationService;
 import com.artivisi.paymentgateway.service.TotpService;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.FilePayload;
 import dev.samstevens.totp.code.DefaultCodeGenerator;
 import dev.samstevens.totp.exceptions.CodeGenerationException;
 import dev.samstevens.totp.time.SystemTimeProvider;
@@ -22,15 +34,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Browser tests for the authenticated admin UI: log in (password + TOTP MFA), then the dashboard
- * renders and a consumer can be created through the form end-to-end.
- */
 class PlaywrightSmokeTest extends AbstractIntegrationTest {
 
     private static final AtomicInteger SEQ = new AtomicInteger();
@@ -42,6 +53,9 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired TotpService totpService;
     @Autowired EscrowAccountService escrowAccountService;
+    @Autowired ConsumerService consumerService;
+    @Autowired ChargeService chargeService;
+    @Autowired PaymentApplicationService paymentApplicationService;
 
     private String operatorSecret;
 
@@ -67,7 +81,6 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         return "http://localhost:" + port;
     }
 
-    /** Full login: password then the current TOTP. Leaves the page on /admin, session established. */
     private void login(Page page) {
         page.navigate(base() + "/login");
         page.fill("#username", OPERATOR_USER);
@@ -86,6 +99,13 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         } catch (CodeGenerationException e) {
             throw new IllegalStateException(e);
         }
+    }
+
+    private EscrowAccountRequest escrowRequest(String code) {
+        return new EscrowAccountRequest(
+                code, "bsi", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
+                "900900111", "Settle", "90099", "900", 10, null, null);
     }
 
     @Test
@@ -174,6 +194,139 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             page.selectOption("#status", "ACTIVE");
             page.click("main button[type=submit]");   // not the navbar "Sign out" button
             assertThat(page.getByTestId("consumer-list").textContent()).contains(code);
+            browser.close();
+        }
+    }
+
+    @Test
+    void editConsumerThroughUi() {
+        int n = SEQ.incrementAndGet();
+        Consumer consumer = consumerService.create(new ConsumerRequest(
+                "pw-edit-consumer-" + n, "Original Name", "pw-edit-client-" + n,
+                "pw-secret", "https://hook.example/" + n, ConsumerStatus.ACTIVE));
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage();
+            login(page);
+            page.navigate(base() + "/admin/consumers/" + consumer.getId() + "/edit");
+            assertThat(page.getByTestId("consumer-edit").count()).isEqualTo(1);
+            page.fill("#name", "Updated Name " + n);
+            page.click("main button[type=submit]");
+            page.waitForURL("**/consumers");
+            assertThat(page.getByTestId("consumer-list").textContent()).contains("Updated Name " + n);
+            browser.close();
+        }
+    }
+
+    @Test
+    void editOperatorThroughUi() {
+        int n = SEQ.incrementAndGet();
+        Operator op = new Operator();
+        op.setUsername("pw-edit-op-" + n);
+        op.setPasswordHash(passwordEncoder.encode("temp-pass-0001"));
+        op.setFullName("Original Full Name " + n);
+        op.setRole(roleRepository.findByName("OPERATOR").orElseThrow());
+        op.setEnabled(true);
+        op.setMfaEnabled(false);
+        op.setMustChangePassword(false);
+        op.setFailedAttempts(0);
+        Operator saved = operatorRepository.save(op);
+
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage();
+            login(page);
+            page.navigate(base() + "/admin/operators/" + saved.getId() + "/edit");
+            assertThat(page.getByTestId("operator-edit").count()).isEqualTo(1);
+            page.fill("#fullName", "Updated Full Name " + n);
+            page.click("main button[type=submit]");
+            page.waitForURL("**/operators");
+            assertThat(page.getByTestId("operator-list").textContent()).contains("Updated Full Name " + n);
+            browser.close();
+        }
+    }
+
+    @Test
+    void chargeDetailPageRenders() {
+        int n = SEQ.incrementAndGet();
+        String vaNumber = "900" + String.format("%07d", n);
+        EscrowAccount escrow = escrowAccountService.create(escrowRequest("pw-chr-escrow-" + n));
+        Consumer consumer = consumerService.create(new ConsumerRequest(
+                "pw-chr-consumer-" + n, "Detail Consumer", "pw-chr-client-" + n,
+                "pw-secret", "https://hook.example/" + n, ConsumerStatus.ACTIVE));
+        String chargeId = chargeService.create(consumer, new CreateChargeRequest(
+                "CHR-REF-" + n, "Test Payer", null, null,
+                ChargeType.CLOSED, new BigDecimal("500000"), null,
+                List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber)))).response().id();
+
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage();
+            login(page);
+            page.navigate(base() + "/admin/charges/" + chargeId);
+            assertThat(page.getByTestId("charge-detail").count()).isEqualTo(1);
+            assertThat(page.getByTestId("charge-detail").textContent())
+                    .contains("CHR-REF-" + n)
+                    .contains("CLOSED")
+                    .contains(vaNumber);
+            browser.close();
+        }
+    }
+
+    @Test
+    void paymentDetailPageRenders() {
+        int n = SEQ.incrementAndGet();
+        String vaNumber = "900" + String.format("%07d", n);
+        EscrowAccount escrow = escrowAccountService.create(escrowRequest("pw-pay-escrow-" + n));
+        Consumer consumer = consumerService.create(new ConsumerRequest(
+                "pw-pay-consumer-" + n, "Pay Consumer", "pw-pay-client-" + n,
+                "pw-secret", "https://hook.example/" + n, ConsumerStatus.ACTIVE));
+        chargeService.create(consumer, new CreateChargeRequest(
+                "PAY-REF-" + n, "Payer", null, null,
+                ChargeType.OPEN, new BigDecimal("500000"), null,
+                List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber))));
+        String bankRef = "BANK-" + n;
+        String paymentId = paymentApplicationService.apply(
+                escrow, vaNumber, new BigDecimal("100000"), bankRef, Instant.now()).getId();
+
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage();
+            login(page);
+            page.navigate(base() + "/admin/payments/" + paymentId);
+            assertThat(page.getByTestId("payment-detail").count()).isEqualTo(1);
+            assertThat(page.getByTestId("payment-detail").textContent())
+                    .contains(bankRef)
+                    .contains(vaNumber)
+                    .contains("PAY-REF-" + n);
+            browser.close();
+        }
+    }
+
+    @Test
+    void reconciliationAdminImportShowsFlash() {
+        int n = SEQ.incrementAndGet();
+        // Escrow matching the settlement-sample.csv VA number space (prefix=940, length=10)
+        escrowAccountService.create(new EscrowAccountRequest(
+                "pw-recon-" + n, "bsi", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
+                "940090111", "Settle", "94099", "940", 10, null, null));
+
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage();
+            login(page);
+            page.navigate(base() + "/admin/reconciliations");
+            assertThat(page.locator("#escrowCode option[value='pw-recon-" + n + "']").count()).isEqualTo(1);
+            page.selectOption("#escrowCode", "pw-recon-" + n);
+            page.fill("#period", "2026-06-25");
+            page.locator("#file").setInputFiles(new FilePayload(
+                    "settlement.csv", "text/csv",
+                    CsvFixtures.bytes("/testdata/reconciliation/settlement-sample.csv")));
+            page.locator("main button[type=submit]").click();
+            page.waitForURL("**/reconciliations");
+            assertThat(page.getByTestId("reconciliation-list").textContent())
+                    .contains("Reconciliation completed:");
             browser.close();
         }
     }
