@@ -23,7 +23,7 @@
         </div>
         <div>
             <label class="label" for="name">Name</label>
-            <input class="input" id="name" name="name" th:value="${consumer.name}" required/>
+            <input class="input" id="name" name="name" th:value="${consumer.name}" required data-testid="name"/>
         </div>
         <div>
             <label class="label" for="webhookUrl">Webhook URL</label>
@@ -37,7 +37,7 @@
             </select>
         </div>
         <div class="flex gap-3">
-            <button type="submit" class="btn-primary">Save changes</button>
+            <button type="submit" class="btn-primary" data-testid="form-submit">Save changes</button>
             <a th:href="@{/admin/consumers}" class="btn-ghost">Cancel</a>
         </div>
     </form>

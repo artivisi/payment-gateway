@@ -20,14 +20,14 @@
             <div>
                 <label for="username" class="block text-sm font-medium text-slate-700">Username</label>
                 <input id="username" name="username" type="text" required autofocus
-                       class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"/>
+                       data-testid="username" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"/>
             </div>
             <div>
                 <label for="password" class="block text-sm font-medium text-slate-700">Password</label>
                 <input id="password" name="password" type="password" required
-                       class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"/>
+                       data-testid="password" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"/>
             </div>
-            <button type="submit" class="btn-primary w-full">Sign in</button>
+            <button type="submit" class="btn-primary w-full" data-testid="login-submit">Sign in</button>
         </form>
     </div>
 </main>

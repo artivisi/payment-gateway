@@ -29,7 +29,7 @@
         <section class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
                 <label class="label">Provider</label>
-                <select th:if="${!structuralLocked}" class="input" name="provider">
+                <select th:if="${!structuralLocked}" class="input" name="provider" data-testid="provider">
                     <option th:each="p : ${ {'maybank','bsi','cimb'} }" th:value="${p}" th:text="${p}"
                             th:selected="${escrow.provider == p}">p</option>
                 </select>

@@ -13,9 +13,9 @@
             <div>
                 <label for="code" class="block text-sm font-medium text-slate-700">6-digit code</label>
                 <input id="code" name="code" type="text" inputmode="numeric" pattern="[0-9]*" required autofocus
-                       class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-mono tracking-widest"/>
+                       data-testid="mfa-code" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-mono tracking-widest"/>
             </div>
-            <button type="submit" class="btn-primary w-full">Verify</button>
+            <button type="submit" class="btn-primary w-full" data-testid="mfa-submit">Verify</button>
         </form>
     </div>
 </main>

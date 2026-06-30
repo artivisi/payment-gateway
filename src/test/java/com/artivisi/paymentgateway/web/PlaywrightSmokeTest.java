@@ -83,12 +83,12 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
 
     private void login(Page page) {
         page.navigate(base() + "/login");
-        page.fill("#username", OPERATOR_USER);
-        page.fill("#password", OPERATOR_PASS);
-        page.click("button[type=submit]");
+        page.getByTestId("username").fill(OPERATOR_USER);
+        page.getByTestId("password").fill(OPERATOR_PASS);
+        page.getByTestId("login-submit").click();
         page.waitForURL("**/mfa");
-        page.fill("#code", currentTotp());
-        page.click("button[type=submit]");
+        page.getByTestId("mfa-code").fill(currentTotp());
+        page.getByTestId("mfa-submit").click();
         page.waitForURL("**/admin");
     }
 
@@ -130,7 +130,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             assertThat(page.url()).endsWith("/admin");
             assertThat(page.title()).isEqualTo("Dashboard · Payment Gateway");
             assertThat(page.getByTestId("dashboard").textContent()).contains("Escrows").contains("Consumers");
-            assertThat(page.locator("header img[alt='ArtiVisi']").count()).isEqualTo(1);
+            assertThat(page.getByTestId("logo").count()).isEqualTo(1);
             browser.close();
         }
     }
@@ -172,7 +172,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             page.navigate(base() + "/admin/escrow-accounts/" + escrow.getId() + "/edit");
             assertThat(page.getByTestId("escrow-edit").count()).isEqualTo(1);
             // unlocked (no VAs) → structural selects rendered (verifies the SpEL T()/list expressions)
-            assertThat(page.locator("select[name=provider]").count()).isEqualTo(1);
+            assertThat(page.getByTestId("provider").count()).isEqualTo(1);
             browser.close();
         }
     }
@@ -186,13 +186,13 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             Page page = browser.newPage();
             login(page);
             page.navigate(base() + "/admin/consumers/new");
-            page.fill("#code", code);
-            page.fill("#name", "UI Test");
-            page.fill("#clientId", "ui-client-" + n);
-            page.fill("#clientSecret", "ui-secret");
-            page.fill("#webhookUrl", "https://hook.example/ui");
-            page.selectOption("#status", "ACTIVE");
-            page.click("main button[type=submit]");   // not the navbar "Sign out" button
+            page.getByTestId("code").fill(code);
+            page.getByTestId("name").fill("UI Test");
+            page.getByTestId("client-id").fill("ui-client-" + n);
+            page.getByTestId("client-secret").fill("ui-secret");
+            page.getByTestId("webhook-url").fill("https://hook.example/ui");
+            page.getByTestId("status").selectOption("ACTIVE");
+            page.getByTestId("form-submit").click();
             assertThat(page.getByTestId("consumer-list").textContent()).contains(code);
             browser.close();
         }
@@ -210,8 +210,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             login(page);
             page.navigate(base() + "/admin/consumers/" + consumer.getId() + "/edit");
             assertThat(page.getByTestId("consumer-edit").count()).isEqualTo(1);
-            page.fill("#name", "Updated Name " + n);
-            page.click("main button[type=submit]");
+            page.getByTestId("name").fill("Updated Name " + n);
+            page.getByTestId("form-submit").click();
             page.waitForURL("**/consumers");
             assertThat(page.getByTestId("consumer-list").textContent()).contains("Updated Name " + n);
             browser.close();
@@ -238,8 +238,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             login(page);
             page.navigate(base() + "/admin/operators/" + saved.getId() + "/edit");
             assertThat(page.getByTestId("operator-edit").count()).isEqualTo(1);
-            page.fill("#fullName", "Updated Full Name " + n);
-            page.click("main button[type=submit]");
+            page.getByTestId("full-name").fill("Updated Full Name " + n);
+            page.getByTestId("form-submit").click();
             page.waitForURL("**/operators");
             assertThat(page.getByTestId("operator-list").textContent()).contains("Updated Full Name " + n);
             browser.close();
@@ -317,13 +317,12 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             Page page = browser.newPage();
             login(page);
             page.navigate(base() + "/admin/reconciliations");
-            assertThat(page.locator("#escrowCode option[value='pw-recon-" + n + "']").count()).isEqualTo(1);
-            page.selectOption("#escrowCode", "pw-recon-" + n);
-            page.fill("#period", "2026-06-25");
-            page.locator("#file").setInputFiles(new FilePayload(
+            page.getByTestId("escrow-code").selectOption("pw-recon-" + n);
+            page.getByTestId("period").fill("2026-06-25");
+            page.getByTestId("settlement-file").setInputFiles(new FilePayload(
                     "settlement.csv", "text/csv",
                     CsvFixtures.bytes("/testdata/reconciliation/settlement-sample.csv")));
-            page.locator("main button[type=submit]").click();
+            page.getByTestId("form-submit").click();
             page.waitForURL("**/reconciliations");
             assertThat(page.getByTestId("reconciliation-list").textContent())
                     .contains("Reconciliation completed:");

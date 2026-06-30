@@ -19,7 +19,7 @@
         </div>
         <div>
             <label class="label" for="fullName">Full name</label>
-            <input class="input" id="fullName" name="fullName" th:value="${operator.fullName}" required/>
+            <input class="input" id="fullName" name="fullName" th:value="${operator.fullName}" required data-testid="full-name"/>
         </div>
         <div>
             <label class="label" for="roleId">Role</label>
@@ -29,7 +29,7 @@
             </select>
         </div>
         <div class="flex gap-3">
-            <button type="submit" class="btn-primary">Save changes</button>
+            <button type="submit" class="btn-primary" data-testid="form-submit">Save changes</button>
             <a th:href="@{/admin/operators}" class="btn-ghost">Cancel</a>
         </div>
     </form>
