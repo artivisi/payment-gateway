@@ -17,21 +17,21 @@
               class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
                 <label class="label" for="escrowCode">Escrow</label>
-                <select class="input" id="escrowCode" name="escrowCode" required>
+                <select class="input" id="escrowCode" name="escrowCode" required data-testid="escrow-code">
                     <option value="">— select —</option>
                     <option th:each="e : ${escrows}" th:value="${e.code}" th:text="${e.code}">code</option>
                 </select>
             </div>
             <div>
                 <label class="label" for="period">Period (date)</label>
-                <input class="input" id="period" name="period" type="date" required/>
+                <input class="input" id="period" name="period" type="date" required data-testid="period"/>
             </div>
             <div>
                 <label class="label" for="file">Settlement CSV</label>
-                <input class="input" id="file" name="file" type="file" accept=".csv,text/csv" required/>
+                <input class="input" id="file" name="file" type="file" accept=".csv,text/csv" required data-testid="settlement-file"/>
             </div>
             <div class="sm:col-span-3">
-                <button type="submit" class="btn-primary">Run</button>
+                <button type="submit" class="btn-primary" data-testid="form-submit">Run</button>
             </div>
         </form>
     </div>
