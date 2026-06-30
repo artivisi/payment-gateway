@@ -1,19 +1,22 @@
 package com.artivisi.paymentgateway.adapter.cimb.xml;
 
-import com.artivisi.paymentgateway.adapter.cimb.CimbProtocol;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
-import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlType;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
 
-/** Inbound CIMB payment notification (bank -> gateway). */
+/**
+ * Inner body of a CIMB payment notification. The bank wraps this inside
+ * {@code <CIMB3rdParty_PaymentRq><PaymentRq>...</PaymentRq></CIMB3rdParty_PaymentRq>}.
+ * See {@link PaymentRqEnvelope} for the root element.
+ */
 @Getter
 @Setter
-@XmlRootElement(name = CimbProtocol.PAYMENT_RQ, namespace = CimbProtocol.NAMESPACE)
+@XmlType(name = "PaymentRq")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class PaymentRq {
 

@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
+import java.util.Locale;
 
 /**
  * BSI proprietary checksum: {@code SHA1(nomorPembayaran + sharedKey + tanggalTransaksi)}, hex.
@@ -29,8 +30,11 @@ public final class BsiChecksum {
         if (expected == null || actual == null) {
             return false;
         }
+        // Normalize to lowercase before constant-time compare: bank implementations (including BSI)
+        // commonly output uppercase hex; our compute() outputs lowercase via HexFormat.
         return MessageDigest.isEqual(
-                expected.getBytes(StandardCharsets.UTF_8), actual.getBytes(StandardCharsets.UTF_8));
+                expected.getBytes(StandardCharsets.UTF_8),
+                actual.toLowerCase(Locale.ROOT).getBytes(StandardCharsets.UTF_8));
     }
 
     private static String nullToEmpty(String value) {

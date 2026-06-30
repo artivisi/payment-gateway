@@ -61,12 +61,14 @@ class CimbAdapterIntegrationTest extends AbstractIntegrationTest {
                 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
                   <soapenv:Body>
                     <m:CIMB3rdParty_InquiryRq xmlns:m="http://CIMB3rdParty/BillPaymentWS">
-                      <TransactionID>TRX-%s</TransactionID>
-                      <ChannelID>01</ChannelID>
-                      <TerminalID>T1</TerminalID>
-                      <TransactionDate>20260625120000</TransactionDate>
-                      <CompanyCode>CC</CompanyCode>
-                      <CustomerKey1>%s</CustomerKey1>
+                      <InquiryRq>
+                        <TransactionID>TRX-%s</TransactionID>
+                        <ChannelID>01</ChannelID>
+                        <TerminalID>T1</TerminalID>
+                        <TransactionDate>20260625120000</TransactionDate>
+                        <CompanyCode>CC</CompanyCode>
+                        <CustomerKey1>%s</CustomerKey1>
+                      </InquiryRq>
                     </m:CIMB3rdParty_InquiryRq>
                   </soapenv:Body>
                 </soapenv:Envelope>""".formatted(va, va);
@@ -77,15 +79,17 @@ class CimbAdapterIntegrationTest extends AbstractIntegrationTest {
                 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
                   <soapenv:Body>
                     <m:CIMB3rdParty_PaymentRq xmlns:m="http://CIMB3rdParty/BillPaymentWS">
-                      <TransactionID>TRX-%s</TransactionID>
-                      <ChannelID>01</ChannelID>
-                      <TerminalID>T1</TerminalID>
-                      <TransactionDate>20260625120000</TransactionDate>
-                      <CompanyCode>CC</CompanyCode>
-                      <CustomerKey1>%s</CustomerKey1>
-                      <Currency>IDR</Currency>
-                      <PaidAmount>%s</PaidAmount>
-                      <ReferenceNumberTransaction>%s</ReferenceNumberTransaction>
+                      <PaymentRq>
+                        <TransactionID>TRX-%s</TransactionID>
+                        <ChannelID>01</ChannelID>
+                        <TerminalID>T1</TerminalID>
+                        <TransactionDate>20260625120000</TransactionDate>
+                        <CompanyCode>CC</CompanyCode>
+                        <CustomerKey1>%s</CustomerKey1>
+                        <Currency>IDR</Currency>
+                        <PaidAmount>%s</PaidAmount>
+                        <ReferenceNumberTransaction>%s</ReferenceNumberTransaction>
+                      </PaymentRq>
                     </m:CIMB3rdParty_PaymentRq>
                   </soapenv:Body>
                 </soapenv:Envelope>""".formatted(va, va, paidAmount, reference);

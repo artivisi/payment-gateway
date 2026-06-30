@@ -1,20 +1,22 @@
 package com.artivisi.paymentgateway.adapter.cimb.xml;
 
-import com.artivisi.paymentgateway.adapter.cimb.CimbProtocol;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
 import jakarta.xml.bind.annotation.XmlElementWrapper;
-import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlType;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.util.List;
 
+/**
+ * Inner body of a CIMB inquiry response. See {@link InquiryRsEnvelope} for the root element.
+ */
 @Getter
 @Setter
-@XmlRootElement(name = "CIMB3rdParty_InquiryRs", namespace = CimbProtocol.NAMESPACE)
+@XmlType(name = "InquiryRs")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class InquiryRs {
 

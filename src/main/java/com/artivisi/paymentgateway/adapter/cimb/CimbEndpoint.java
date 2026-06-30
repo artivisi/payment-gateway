@@ -2,9 +2,13 @@ package com.artivisi.paymentgateway.adapter.cimb;
 
 import com.artivisi.paymentgateway.adapter.cimb.xml.BillDetail;
 import com.artivisi.paymentgateway.adapter.cimb.xml.InquiryRq;
+import com.artivisi.paymentgateway.adapter.cimb.xml.InquiryRqEnvelope;
 import com.artivisi.paymentgateway.adapter.cimb.xml.InquiryRs;
+import com.artivisi.paymentgateway.adapter.cimb.xml.InquiryRsEnvelope;
 import com.artivisi.paymentgateway.adapter.cimb.xml.PaymentRq;
+import com.artivisi.paymentgateway.adapter.cimb.xml.PaymentRqEnvelope;
 import com.artivisi.paymentgateway.adapter.cimb.xml.PaymentRs;
+import com.artivisi.paymentgateway.adapter.cimb.xml.PaymentRsEnvelope;
 import com.artivisi.paymentgateway.dto.InquiryResult;
 import com.artivisi.paymentgateway.entity.Charge;
 import com.artivisi.paymentgateway.entity.ChargeType;
@@ -30,6 +34,11 @@ import java.util.List;
  * notification. Resolves the escrow from CustomerKey1 (the VA number) and drives the core
  * inquiry/payment services, mapping outcomes to CIMB response codes. Auth is HTTPS + IP allowlist
  * at the network layer (no in-message signature).
+ *
+ * <p>Wire format: CIMB wraps the request body inside a named element:
+ * {@code <CIMB3rdParty_InquiryRq><InquiryRq>...</InquiryRq></CIMB3rdParty_InquiryRq>}.
+ * The {@link InquiryRqEnvelope} / {@link PaymentRqEnvelope} classes model this outer wrapper;
+ * the inner body classes carry the actual fields.
  */
 @Endpoint
 public class CimbEndpoint {
@@ -53,8 +62,10 @@ public class CimbEndpoint {
 
     @PayloadRoot(namespace = CimbProtocol.NAMESPACE, localPart = CimbProtocol.INQUIRY_RQ)
     @ResponsePayload
-    public InquiryRs inquiry(@RequestPayload InquiryRq request) {
-        InquiryRs response = new InquiryRs();
+    public InquiryRsEnvelope inquiry(@RequestPayload InquiryRqEnvelope requestEnvelope) {
+        InquiryRq request = requestEnvelope.getInquiryRq();
+        InquiryRsEnvelope responseEnvelope = new InquiryRsEnvelope();
+        InquiryRs response = responseEnvelope.getInquiryRs();
         echo(response, request.getTransactionID(), request.getChannelID(), request.getTerminalID(),
                 request.getTransactionDate(), request.getCompanyCode(), request.getCustomerKey1());
         response.setCurrency(IDR);
@@ -77,13 +88,15 @@ public class CimbEndpoint {
             response.setResponseCode(CimbProtocol.RC_FAILURE);
             response.setResponseDescription(e.getMessage());
         }
-        return response;
+        return responseEnvelope;
     }
 
     @PayloadRoot(namespace = CimbProtocol.NAMESPACE, localPart = CimbProtocol.PAYMENT_RQ)
     @ResponsePayload
-    public PaymentRs payment(@RequestPayload PaymentRq request) {
-        PaymentRs response = new PaymentRs();
+    public PaymentRsEnvelope payment(@RequestPayload PaymentRqEnvelope requestEnvelope) {
+        PaymentRq request = requestEnvelope.getPaymentRq();
+        PaymentRsEnvelope responseEnvelope = new PaymentRsEnvelope();
+        PaymentRs response = responseEnvelope.getPaymentRs();
         response.setTransactionID(request.getTransactionID());
         response.setChannelID(request.getChannelID());
         response.setTerminalID(request.getTerminalID());
@@ -114,7 +127,7 @@ public class CimbEndpoint {
             response.setResponseCode(CimbProtocol.RC_FAILURE);
             response.setResponseDescription(e.getMessage());
         }
-        return response;
+        return responseEnvelope;
     }
 
     private void echo(InquiryRs response, String transactionId, String channelId, String terminalId,
