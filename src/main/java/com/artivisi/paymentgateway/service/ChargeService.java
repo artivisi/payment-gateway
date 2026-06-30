@@ -90,9 +90,10 @@ public class ChargeService {
             }
             numberSpaceValidator.validate(escrow, account.vaNumber());
             if (virtualAccountRepository
-                    .findByEscrowAccountIdAndVaNumber(escrow.getId(), account.vaNumber()).isPresent()) {
+                    .findByEscrowAccountIdAndVaNumberAndStatus(escrow.getId(), account.vaNumber(),
+                            VirtualAccountStatus.ACTIVE).isPresent()) {
                 throw new DuplicateException(
-                        "vaNumber already in use for escrow " + escrow.getCode() + ": " + account.vaNumber());
+                        "vaNumber already active for escrow " + escrow.getCode() + ": " + account.vaNumber());
             }
             VirtualAccount va = new VirtualAccount();
             va.setCharge(savedCharge);
