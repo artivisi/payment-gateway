@@ -54,6 +54,8 @@
                                    class="w-32 rounded border border-slate-300 px-2 py-1 text-xs"/>
                             <button class="text-xs font-medium text-slate-600 hover:underline">Reset pwd</button>
                         </form>
+                        <a th:href="@{/admin/operators/{id}/edit(id=${o.id})}"
+                           class="text-xs font-medium text-primary-700 hover:underline">Edit</a>
                     </div>
                 </td>
             </tr>

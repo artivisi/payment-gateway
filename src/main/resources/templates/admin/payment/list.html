@@ -22,7 +22,10 @@
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="p : ${payments}">
-                <td class="td text-xs text-slate-500" th:text="${p.transactionTime}">time</td>
+                <td class="td text-xs text-slate-500">
+                    <a class="text-primary-700 hover:underline"
+                       th:href="@{/admin/payments/{id}(id=${p.id})}" th:text="${p.transactionTime}">time</a>
+                </td>
                 <td class="td font-mono text-xs" th:text="${p.virtualAccount.vaNumber}">va</td>
                 <td class="td font-mono text-xs" th:text="${p.bankReference}">ref</td>
                 <td class="td font-mono text-xs" th:text="${p.amount}">0</td>

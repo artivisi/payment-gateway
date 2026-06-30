@@ -98,6 +98,19 @@ public class OperatorService {
     }
 
     @Transactional
+    public Operator update(String id, String fullName, String roleId) {
+        Operator op = get(id);
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new NotFoundException("Role not found: " + roleId));
+        op.setFullName(fullName);
+        op.setRole(role);
+        Operator saved = repository.save(op);
+        auditService.record("OPERATOR_UPDATED", "Operator", saved.getId(),
+                "username=" + op.getUsername() + " role=" + role.getName());
+        return saved;
+    }
+
+    @Transactional
     public void setEnabled(String id, boolean enabled) {
         Operator op = get(id);
         op.setEnabled(enabled);
