@@ -2,6 +2,7 @@ package com.artivisi.paymentgateway.service;
 
 import com.artivisi.paymentgateway.dto.ConsumerRequest;
 import com.artivisi.paymentgateway.entity.Consumer;
+import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.exception.DuplicateException;
 import com.artivisi.paymentgateway.exception.NotFoundException;
 import com.artivisi.paymentgateway.repository.ConsumerRepository;
@@ -57,6 +58,17 @@ public class ConsumerService {
     public Consumer get(String id) {
         return repository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Consumer not found: " + id));
+    }
+
+    @Transactional
+    public Consumer update(String id, String name, String webhookUrl, ConsumerStatus status) {
+        Consumer c = get(id);
+        c.setName(name);
+        c.setWebhookUrl(webhookUrl);
+        c.setStatus(status);
+        Consumer saved = repository.save(c);
+        auditService.record("CONSUMER_UPDATED", "Consumer", saved.getId(), "code=" + saved.getCode());
+        return saved;
     }
 
     @Transactional(readOnly = true)

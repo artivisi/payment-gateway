@@ -52,6 +52,27 @@ public class AdminOperatorController {
         }
     }
 
+    @GetMapping("/{id}/edit")
+    public String editForm(@PathVariable String id, Model model) {
+        model.addAttribute("operator", operatorService.get(id));
+        model.addAttribute("roles", roleService.list());
+        return "admin/operator/edit";
+    }
+
+    @PostMapping("/{id}")
+    public String update(@PathVariable String id,
+                         @RequestParam String fullName,
+                         @RequestParam String roleId,
+                         RedirectAttributes redirectAttributes) {
+        try {
+            operatorService.update(id, fullName, roleId);
+            redirectAttributes.addFlashAttribute("message", "Operator updated.");
+        } catch (RuntimeException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+        }
+        return "redirect:/admin/operators";
+    }
+
     @PostMapping("/{id}/enable")
     public String enable(@PathVariable String id, RedirectAttributes ra) {
         operatorService.setEnabled(id, true);

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Payment Detail')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('payment')}"></nav>
+<main class="mx-auto max-w-3xl px-4 py-8" data-testid="payment-detail">
+    <div class="mb-6 flex items-center gap-4">
+        <a th:href="@{/admin/payments}" class="text-sm text-slate-500 hover:underline">← Payments</a>
+        <h1 class="text-2xl font-semibold text-slate-900">Payment</h1>
+        <span th:classappend="${payment.status.name() == 'ACCEPTED'} ? 'badge-ok' : 'badge-muted'"
+              th:text="${payment.status}">ACCEPTED</span>
+    </div>
+
+    <div class="card space-y-6 p-6">
+        <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Transaction</h2>
+            <dl class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                    <dt class="text-slate-400">Time</dt>
+                    <dd class="font-mono" th:text="${payment.transactionTime}">—</dd>
+                </div>
+                <div>
+                    <dt class="text-slate-400">Amount</dt>
+                    <dd class="font-mono font-semibold" th:text="${payment.amount}">0</dd>
+                </div>
+                <div>
+                    <dt class="text-slate-400">Bank reference</dt>
+                    <dd class="font-mono text-xs" th:text="${payment.bankReference}">—</dd>
+                </div>
+                <div>
+                    <dt class="text-slate-400">Recorded at</dt>
+                    <dd class="font-mono text-xs" th:text="${payment.createdAt}">—</dd>
+                </div>
+            </dl>
+        </section>
+
+        <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Virtual account</h2>
+            <dl class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                    <dt class="text-slate-400">VA number</dt>
+                    <dd class="font-mono" th:text="${payment.virtualAccount.vaNumber}">—</dd>
+                </div>
+                <div>
+                    <dt class="text-slate-400">VA status</dt>
+                    <dd><span class="badge-muted" th:text="${payment.virtualAccount.status}">—</span></dd>
+                </div>
+            </dl>
+        </section>
+
+        <section>
+            <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Charge</h2>
+            <dl class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                    <dt class="text-slate-400">Reference</dt>
+                    <dd>
+                        <a class="text-primary-700 hover:underline"
+                           th:href="@{/admin/charges/{id}(id=${payment.charge.id})}"
+                           th:text="${payment.charge.consumerReference}">ref</a>
+                    </dd>
+                </div>
+                <div>
+                    <dt class="text-slate-400">Payer</dt>
+                    <dd th:text="${payment.charge.payerName}">—</dd>
+                </div>
+                <div>
+                    <dt class="text-slate-400">Type</dt>
+                    <dd th:text="${payment.charge.chargeType}">—</dd>
+                </div>
+                <div>
+                    <dt class="text-slate-400">Charge status</dt>
+                    <dd><span class="badge-muted" th:text="${payment.charge.status}">—</span></dd>
+                </div>
+                <div>
+                    <dt class="text-slate-400">Total amount</dt>
+                    <dd class="font-mono" th:text="${payment.charge.amount}">0</dd>
+                </div>
+                <div>
+                    <dt class="text-slate-400">Cumulative paid</dt>
+                    <dd class="font-mono" th:text="${payment.charge.cumulativePaid}">0</dd>
+                </div>
+            </dl>
+        </section>
+    </div>
+</main>
+</body>
+</html>

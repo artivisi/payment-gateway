@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Edit Operator')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('operator')}"></nav>
+<main class="mx-auto max-w-2xl px-4 py-8" data-testid="operator-edit">
+    <div class="mb-6">
+        <h1 class="text-2xl font-semibold text-slate-900">
+            Operator <span class="font-mono" th:text="${operator.username}">username</span>
+        </h1>
+    </div>
+
+    <div th:if="${error}" class="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700" th:text="${error}"></div>
+
+    <form th:action="@{/admin/operators/{id}(id=${operator.id})}" method="post" class="card space-y-4 p-6">
+        <div>
+            <label class="label">Username</label>
+            <input class="input bg-slate-50" type="text" th:value="${operator.username}" readonly/>
+        </div>
+        <div>
+            <label class="label" for="fullName">Full name</label>
+            <input class="input" id="fullName" name="fullName" th:value="${operator.fullName}" required/>
+        </div>
+        <div>
+            <label class="label" for="roleId">Role</label>
+            <select class="input" id="roleId" name="roleId" required>
+                <option th:each="r : ${roles}" th:value="${r.id}" th:text="${r.name}"
+                        th:selected="${operator.role.id == r.id}">role</option>
+            </select>
+        </div>
+        <div class="flex gap-3">
+            <button type="submit" class="btn-primary">Save changes</button>
+            <a th:href="@{/admin/operators}" class="btn-ghost">Cancel</a>
+        </div>
+    </form>
+</main>
+</body>
+</html>

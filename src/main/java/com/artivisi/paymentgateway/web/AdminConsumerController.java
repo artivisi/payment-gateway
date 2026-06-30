@@ -61,6 +61,28 @@ public class AdminConsumerController {
         }
     }
 
+    @GetMapping("/{id}/edit")
+    public String editForm(@PathVariable String id, Model model) {
+        model.addAttribute("consumer", consumerService.get(id));
+        return "admin/consumer/edit";
+    }
+
+    @PostMapping("/{id}")
+    public String update(@PathVariable String id,
+                         @RequestParam String name,
+                         @RequestParam String webhookUrl,
+                         @RequestParam com.artivisi.paymentgateway.entity.ConsumerStatus status,
+                         RedirectAttributes redirectAttributes) {
+        try {
+            consumerService.update(id, name, webhookUrl, status);
+            redirectAttributes.addFlashAttribute("message", "Consumer updated.");
+        } catch (RuntimeException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/admin/consumers/" + id + "/edit";
+        }
+        return "redirect:/admin/consumers";
+    }
+
     @PostMapping("/{id}/webhook/suspend")
     public String suspend(@PathVariable String id, RedirectAttributes redirectAttributes) {
         var c = consumerService.setWebhookSuspended(id, true);
