@@ -1,17 +1,20 @@
 package com.artivisi.paymentgateway.adapter.cimb.xml;
 
-import com.artivisi.paymentgateway.adapter.cimb.CimbProtocol;
 import jakarta.xml.bind.annotation.XmlAccessType;
 import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
-import jakarta.xml.bind.annotation.XmlRootElement;
+import jakarta.xml.bind.annotation.XmlType;
 import lombok.Getter;
 import lombok.Setter;
 
-/** Inbound CIMB inquiry request (bank -> gateway). Children are unqualified per CIMB's format. */
+/**
+ * Inner body of a CIMB inquiry request. The bank wraps this inside
+ * {@code <CIMB3rdParty_InquiryRq><InquiryRq>...</InquiryRq></CIMB3rdParty_InquiryRq>}.
+ * See {@link InquiryRqEnvelope} for the root element.
+ */
 @Getter
 @Setter
-@XmlRootElement(name = CimbProtocol.INQUIRY_RQ, namespace = CimbProtocol.NAMESPACE)
+@XmlType(name = "InquiryRq")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class InquiryRq {
 
