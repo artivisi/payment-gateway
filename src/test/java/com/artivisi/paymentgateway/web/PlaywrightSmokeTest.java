@@ -22,6 +22,24 @@ import com.artivisi.paymentgateway.service.ConsumerService;
 import com.artivisi.paymentgateway.service.EscrowAccountService;
 import com.artivisi.paymentgateway.service.PaymentApplicationService;
 import com.artivisi.paymentgateway.service.TotpService;
+import com.artivisi.paymentgateway.web.pages.LoginPage;
+import com.artivisi.paymentgateway.web.pages.admin.AuditListPage;
+import com.artivisi.paymentgateway.web.pages.admin.BankIpListPage;
+import com.artivisi.paymentgateway.web.pages.admin.ChargeDetailPage;
+import com.artivisi.paymentgateway.web.pages.admin.ChargeListPage;
+import com.artivisi.paymentgateway.web.pages.admin.ConsumerEditPage;
+import com.artivisi.paymentgateway.web.pages.admin.ConsumerFormPage;
+import com.artivisi.paymentgateway.web.pages.admin.ConsumerListPage;
+import com.artivisi.paymentgateway.web.pages.admin.DashboardPage;
+import com.artivisi.paymentgateway.web.pages.admin.EscrowEditPage;
+import com.artivisi.paymentgateway.web.pages.admin.EscrowListPage;
+import com.artivisi.paymentgateway.web.pages.admin.OperatorEditPage;
+import com.artivisi.paymentgateway.web.pages.admin.OperatorListPage;
+import com.artivisi.paymentgateway.web.pages.admin.PaymentDetailPage;
+import com.artivisi.paymentgateway.web.pages.admin.PaymentListPage;
+import com.artivisi.paymentgateway.web.pages.admin.ReconciliationPage;
+import com.artivisi.paymentgateway.web.pages.admin.RoleListPage;
+import com.artivisi.paymentgateway.web.pages.admin.WebhookListPage;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
@@ -37,7 +55,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -81,15 +98,10 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         return "http://localhost:" + port;
     }
 
-    private void login(Page page) {
-        page.navigate(base() + "/login");
-        page.getByTestId("username").fill(OPERATOR_USER);
-        page.getByTestId("password").fill(OPERATOR_PASS);
-        page.getByTestId("login-submit").click();
-        page.waitForURL("**/mfa");
-        page.getByTestId("mfa-code").fill(currentTotp());
-        page.getByTestId("mfa-submit").click();
-        page.waitForURL("**/admin");
+    private DashboardPage login(Page page) {
+        return LoginPage.open(page, base())
+                .login(OPERATOR_USER, OPERATOR_PASS)
+                .verify(currentTotp());
     }
 
     private String currentTotp() {
@@ -114,8 +126,9 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
             page.navigate(base() + "/admin");
+            LoginPage loginPage = new LoginPage(page, base());
             assertThat(page.url()).contains("/login");
-            assertThat(page.getByTestId("login-page").count()).isEqualTo(1);
+            assertThat(loginPage.root().count()).isEqualTo(1);
             browser.close();
         }
     }
@@ -125,54 +138,46 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
-            login(page);
+            DashboardPage dashboard = login(page);
             page.navigate(base() + "/");   // redirects to /admin
             assertThat(page.url()).endsWith("/admin");
             assertThat(page.title()).isEqualTo("Dashboard · Payment Gateway");
-            assertThat(page.getByTestId("dashboard").textContent()).contains("Escrows").contains("Consumers");
-            assertThat(page.getByTestId("logo").count()).isEqualTo(1);
+            assertThat(dashboard.root().textContent()).contains("Escrows").contains("Consumers");
+            assertThat(dashboard.logo().count()).isEqualTo(1);
             browser.close();
         }
     }
 
     @Test
     void browseSectionsRender() {
-        Map<String, String> sections = Map.of(
-                "/admin/escrow-accounts", "escrow-list",
-                "/admin/charges", "charge-list",
-                "/admin/payments", "payment-list",
-                "/admin/reconciliations", "reconciliation-list",
-                "/admin/webhooks", "webhook-list",
-                "/admin/operators", "operator-list",
-                "/admin/roles", "role-list",
-                "/admin/bank-ip-rules", "bank-ip-rule-list",
-                "/admin/audit", "audit-list");
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
             login(page);
-            sections.forEach((path, testId) -> {
-                page.navigate(base() + path);
-                assertThat(page.getByTestId(testId).count()).as(path).isEqualTo(1);
-            });
+            assertThat(EscrowListPage.open(page, base()).root().count()).as("escrow-list").isEqualTo(1);
+            assertThat(ChargeListPage.open(page, base()).root().count()).as("charge-list").isEqualTo(1);
+            assertThat(PaymentListPage.open(page, base()).root().count()).as("payment-list").isEqualTo(1);
+            assertThat(ReconciliationPage.open(page, base()).root().count()).as("reconciliation-list").isEqualTo(1);
+            assertThat(WebhookListPage.open(page, base()).root().count()).as("webhook-list").isEqualTo(1);
+            assertThat(OperatorListPage.open(page, base()).root().count()).as("operator-list").isEqualTo(1);
+            assertThat(RoleListPage.open(page, base()).root().count()).as("role-list").isEqualTo(1);
+            assertThat(BankIpListPage.open(page, base()).root().count()).as("bank-ip-rule-list").isEqualTo(1);
+            assertThat(AuditListPage.open(page, base()).root().count()).as("audit-list").isEqualTo(1);
             browser.close();
         }
     }
 
     @Test
     void escrowEditPageRenders() {
-        var escrow = escrowAccountService.create(new EscrowAccountRequest(
-                "pw-escrow-" + SEQ.incrementAndGet(), "bsi", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
-                AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
-                "900900111", "Settle", "90099", "900", 10, null, null));
+        EscrowAccount escrow = escrowAccountService.create(escrowRequest("pw-escrow-" + SEQ.incrementAndGet()));
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
             login(page);
-            page.navigate(base() + "/admin/escrow-accounts/" + escrow.getId() + "/edit");
-            assertThat(page.getByTestId("escrow-edit").count()).isEqualTo(1);
+            EscrowEditPage editPage = EscrowEditPage.open(page, base(), escrow.getId());
+            assertThat(editPage.root().count()).isEqualTo(1);
             // unlocked (no VAs) → structural selects rendered (verifies the SpEL T()/list expressions)
-            assertThat(page.getByTestId("provider").count()).isEqualTo(1);
+            assertThat(editPage.providerSelect().count()).isEqualTo(1);
             browser.close();
         }
     }
@@ -185,15 +190,15 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
             login(page);
-            page.navigate(base() + "/admin/consumers/new");
-            page.getByTestId("code").fill(code);
-            page.getByTestId("name").fill("UI Test");
-            page.getByTestId("client-id").fill("ui-client-" + n);
-            page.getByTestId("client-secret").fill("ui-secret");
-            page.getByTestId("webhook-url").fill("https://hook.example/ui");
-            page.getByTestId("status").selectOption("ACTIVE");
-            page.getByTestId("form-submit").click();
-            assertThat(page.getByTestId("consumer-list").textContent()).contains(code);
+            ConsumerListPage list = ConsumerFormPage.open(page, base())
+                    .fillCode(code)
+                    .fillName("UI Test")
+                    .fillClientId("ui-client-" + n)
+                    .fillClientSecret("ui-secret")
+                    .fillWebhookUrl("https://hook.example/ui")
+                    .selectStatus("ACTIVE")
+                    .submit();
+            assertThat(list.root().textContent()).contains(code);
             browser.close();
         }
     }
@@ -208,12 +213,10 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
             login(page);
-            page.navigate(base() + "/admin/consumers/" + consumer.getId() + "/edit");
-            assertThat(page.getByTestId("consumer-edit").count()).isEqualTo(1);
-            page.getByTestId("name").fill("Updated Name " + n);
-            page.getByTestId("form-submit").click();
-            page.waitForURL("**/consumers");
-            assertThat(page.getByTestId("consumer-list").textContent()).contains("Updated Name " + n);
+            ConsumerListPage list = ConsumerEditPage.open(page, base(), consumer.getId())
+                    .fillName("Updated Name " + n)
+                    .submit();
+            assertThat(list.root().textContent()).contains("Updated Name " + n);
             browser.close();
         }
     }
@@ -236,12 +239,10 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
             login(page);
-            page.navigate(base() + "/admin/operators/" + saved.getId() + "/edit");
-            assertThat(page.getByTestId("operator-edit").count()).isEqualTo(1);
-            page.getByTestId("full-name").fill("Updated Full Name " + n);
-            page.getByTestId("form-submit").click();
-            page.waitForURL("**/operators");
-            assertThat(page.getByTestId("operator-list").textContent()).contains("Updated Full Name " + n);
+            OperatorListPage list = OperatorEditPage.open(page, base(), saved.getId())
+                    .fillFullName("Updated Full Name " + n)
+                    .submit();
+            assertThat(list.root().textContent()).contains("Updated Full Name " + n);
             browser.close();
         }
     }
@@ -263,9 +264,9 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
             login(page);
-            page.navigate(base() + "/admin/charges/" + chargeId);
-            assertThat(page.getByTestId("charge-detail").count()).isEqualTo(1);
-            assertThat(page.getByTestId("charge-detail").textContent())
+            ChargeDetailPage detailPage = ChargeDetailPage.open(page, base(), chargeId);
+            assertThat(detailPage.root().count()).isEqualTo(1);
+            assertThat(detailPage.root().textContent())
                     .contains("CHR-REF-" + n)
                     .contains("CLOSED")
                     .contains(vaNumber);
@@ -293,9 +294,9 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
             login(page);
-            page.navigate(base() + "/admin/payments/" + paymentId);
-            assertThat(page.getByTestId("payment-detail").count()).isEqualTo(1);
-            assertThat(page.getByTestId("payment-detail").textContent())
+            PaymentDetailPage detailPage = PaymentDetailPage.open(page, base(), paymentId);
+            assertThat(detailPage.root().count()).isEqualTo(1);
+            assertThat(detailPage.root().textContent())
                     .contains(bankRef)
                     .contains(vaNumber)
                     .contains("PAY-REF-" + n);
@@ -316,16 +317,13 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
             login(page);
-            page.navigate(base() + "/admin/reconciliations");
-            page.getByTestId("escrow-code").selectOption("pw-recon-" + n);
-            page.getByTestId("period").fill("2026-06-25");
-            page.getByTestId("settlement-file").setInputFiles(new FilePayload(
-                    "settlement.csv", "text/csv",
-                    CsvFixtures.bytes("/testdata/reconciliation/settlement-sample.csv")));
-            page.getByTestId("form-submit").click();
-            page.waitForURL("**/reconciliations");
-            assertThat(page.getByTestId("reconciliation-list").textContent())
-                    .contains("Reconciliation completed:");
+            ReconciliationPage recon = ReconciliationPage.open(page, base())
+                    .selectEscrow("pw-recon-" + n)
+                    .fillPeriod("2026-06-25")
+                    .uploadSettlement(new FilePayload("settlement.csv", "text/csv",
+                            CsvFixtures.bytes("/testdata/reconciliation/settlement-sample.csv")))
+                    .submit();
+            assertThat(recon.root().textContent()).contains("Reconciliation completed:");
             browser.close();
         }
     }
