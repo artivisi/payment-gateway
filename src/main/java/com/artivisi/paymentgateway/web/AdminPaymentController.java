@@ -33,7 +33,7 @@ public class AdminPaymentController {
 
     @GetMapping("/{id}")
     public String detail(@PathVariable String id, Model model) {
-        model.addAttribute("payment", paymentRepository.findById(id)
+        model.addAttribute("payment", paymentRepository.findByIdWithVaAndCharge(id)
                 .orElseThrow(() -> new NotFoundException("Payment not found: " + id)));
         return "admin/payment/detail";
     }
