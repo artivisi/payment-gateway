@@ -22,6 +22,7 @@
                 <th class="th">Webhook URL</th>
                 <th class="th">Status</th>
                 <th class="th">Delivery</th>
+                <th class="th"></th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
@@ -56,9 +57,13 @@
                         </form>
                     </div>
                 </td>
+                <td class="td">
+                    <a th:href="@{/admin/consumers/{id}/edit(id=${c.id})}"
+                       class="text-xs font-medium text-primary-700 hover:underline">Edit</a>
+                </td>
             </tr>
             <tr th:if="${#lists.isEmpty(consumers)}">
-                <td class="td text-slate-400" colspan="6">No consumers yet.</td>
+                <td class="td text-slate-400" colspan="7">No consumers yet.</td>
             </tr>
             </tbody>
         </table>

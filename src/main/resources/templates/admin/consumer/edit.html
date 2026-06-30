@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Edit Consumer')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('consumer')}"></nav>
+<main class="mx-auto max-w-2xl px-4 py-8" data-testid="consumer-edit">
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold text-slate-900">
+            Consumer <span class="font-mono" th:text="${consumer.code}">code</span>
+        </h1>
+    </div>
+
+    <div th:if="${error}" class="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700" th:text="${error}"></div>
+
+    <form th:action="@{/admin/consumers/{id}(id=${consumer.id})}" method="post" class="card space-y-4 p-6">
+        <div>
+            <label class="label">Code</label>
+            <input class="input bg-slate-50" type="text" th:value="${consumer.code}" readonly/>
+        </div>
+        <div>
+            <label class="label">Client ID</label>
+            <input class="input bg-slate-50" type="text" th:value="${consumer.clientId}" readonly/>
+        </div>
+        <div>
+            <label class="label" for="name">Name</label>
+            <input class="input" id="name" name="name" th:value="${consumer.name}" required/>
+        </div>
+        <div>
+            <label class="label" for="webhookUrl">Webhook URL</label>
+            <input class="input" id="webhookUrl" name="webhookUrl" type="url" th:value="${consumer.webhookUrl}" required/>
+        </div>
+        <div>
+            <label class="label" for="status">Status</label>
+            <select class="input" id="status" name="status">
+                <option th:each="s : ${T(com.artivisi.paymentgateway.entity.ConsumerStatus).values()}"
+                        th:value="${s}" th:text="${s}" th:selected="${consumer.status == s}">s</option>
+            </select>
+        </div>
+        <div class="flex gap-3">
+            <button type="submit" class="btn-primary">Save changes</button>
+            <a th:href="@{/admin/consumers}" class="btn-ghost">Cancel</a>
+        </div>
+    </form>
+</main>
+</body>
+</html>
