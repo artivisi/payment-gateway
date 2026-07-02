@@ -146,6 +146,31 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void recoveryFailure_isFlaggedLoudNotSilentlyAccepted() {
+        // The consumer cancelled the charge, but the bank still settled a credit for its VA.
+        createCharge("9300000040", "600000");
+        Charge charge = chargeRepository
+                .findByConsumerIdAndConsumerReference(consumer.getId(), "recon-ref-9300000040").orElseThrow();
+        chargeService.cancel(consumer, charge.getId());
+
+        ReconciliationRun run = reconciliationService.reconcile(escrow, PERIOD,
+                List.of(credit("9300000040", "R40", "600000")));
+
+        assertThat(run.getMatchedCount()).isZero();
+        assertThat(run.getRecoveredCount()).isZero();
+        assertThat(run.getDiscrepancyCount()).isEqualTo(1);
+        var discrepancies = discrepancyRepository.findByReconciliationRunIdOrderByCreatedAtAsc(run.getId());
+        assertThat(discrepancies).hasSize(1);
+        assertThat(discrepancies.getFirst().getType()).isEqualTo(DiscrepancyType.RECOVERY_FAILED);
+        assertThat(discrepancies.getFirst().getDetail()).contains("cancelled");
+
+        // The unrecoverable credit was never applied to the charge.
+        Charge reloaded = chargeRepository.findById(charge.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(ChargeStatus.CANCELLED);
+        assertThat(reloaded.getCumulativePaid()).isEqualByComparingTo("0");
+    }
+
+    @Test
     void cleanReconciliation_hasNoDiscrepancies() {
         createCharge("9300000020", "150000");
         paymentService.apply(escrow, "9300000020", new BigDecimal("150000"), "R20", TX_TIME);
