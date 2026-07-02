@@ -14,7 +14,10 @@ import com.artivisi.paymentgateway.repository.ReconciliationDiscrepancyRepositor
 import com.artivisi.paymentgateway.repository.ReconciliationRunRepository;
 import com.artivisi.paymentgateway.repository.VirtualAccountRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -41,19 +44,26 @@ public class ReconciliationService {
     private final PaymentRepository paymentRepository;
     private final PaymentApplicationService paymentApplicationService;
     private final AuditService auditService;
+    private final TransactionTemplate recoveryTransaction;
 
     public ReconciliationService(ReconciliationRunRepository runRepository,
                                  ReconciliationDiscrepancyRepository discrepancyRepository,
                                  VirtualAccountRepository virtualAccountRepository,
                                  PaymentRepository paymentRepository,
                                  PaymentApplicationService paymentApplicationService,
-                                 AuditService auditService) {
+                                 AuditService auditService,
+                                 PlatformTransactionManager transactionManager) {
         this.runRepository = runRepository;
         this.discrepancyRepository = discrepancyRepository;
         this.virtualAccountRepository = virtualAccountRepository;
         this.paymentRepository = paymentRepository;
         this.paymentApplicationService = paymentApplicationService;
         this.auditService = auditService;
+        // Recovery must run in its own transaction: if apply() joined the run's transaction and
+        // threw, the run would be marked rollback-only and one bad credit would abort the whole
+        // reconciliation instead of being flagged as RECOVERY_FAILED.
+        this.recoveryTransaction = new TransactionTemplate(transactionManager);
+        this.recoveryTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @Transactional
@@ -102,8 +112,9 @@ public class ReconciliationService {
                 }
             } else {
                 try {
-                    Payment recoveredPayment = paymentApplicationService.apply(escrow, credit.vaNumber(),
-                            credit.amount(), credit.bankReference(), credit.transactionTime());
+                    Payment recoveredPayment = recoveryTransaction.execute(status ->
+                            paymentApplicationService.apply(escrow, credit.vaNumber(),
+                                    credit.amount(), credit.bankReference(), credit.transactionTime()));
                     settledPaymentKeys.add(key(recoveredPayment));
                     recovered++;
                     discrepancies.add(fromCredit(run, DiscrepancyType.PAID_NOT_NOTIFIED_RECOVERED, credit,

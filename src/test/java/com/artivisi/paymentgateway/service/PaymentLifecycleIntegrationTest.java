@@ -71,8 +71,12 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     }
 
     private Charge createCharge(ChargeType type, BigDecimal amount) {
+        return createCharge(type, amount, null);
+    }
+
+    private Charge createCharge(ChargeType type, BigDecimal amount, Instant expiresAt) {
         var outcome = chargeService.create(consumer, new CreateChargeRequest(
-                "ref-" + SEQ.get(), "Student", null, null, type, amount, null,
+                "ref-" + SEQ.get(), "Student", null, null, type, amount, expiresAt,
                 List.of(new ChargeAccountRequest(bank_a.getCode(), bank_aVa),
                         new ChargeAccountRequest(bank_b.getCode(), bank_bVa))));
         return chargeRepository.findById(outcome.response().id()).orElseThrow();
@@ -159,6 +163,23 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
         assertThat(reloaded.getCumulativePaid()).isEqualByComparingTo("120000");
         assertThat(reloaded.getStatus()).isEqualTo(ChargeStatus.ACTIVE);
         assertThat(vaStatus(bank_b.getId(), bank_bVa)).isEqualTo(VirtualAccountStatus.ACTIVE);
+    }
+
+    @Test
+    void payment_pastExpiryIsRejectedBeforeReaperRuns() {
+        // expiresAt is in the past but the reaper has not swept yet: charge and VA are still ACTIVE.
+        createCharge(ChargeType.CLOSED, new BigDecimal("1000000"), Instant.now().minusSeconds(60));
+        assertThatThrownBy(() -> paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", Instant.now()))
+                .isInstanceOf(InvalidPaymentException.class)
+                .hasMessageContaining("expired");
+    }
+
+    @Test
+    void inquiry_pastExpiryIsNotFound() {
+        createCharge(ChargeType.CLOSED, new BigDecimal("1000000"), Instant.now().minusSeconds(60));
+        assertThatThrownBy(() -> inquiryService.inquire(bank_a, bank_aVa))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("expired");
     }
 
     @Test
