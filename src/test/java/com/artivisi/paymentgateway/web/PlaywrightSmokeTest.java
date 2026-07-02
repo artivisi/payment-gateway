@@ -142,7 +142,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             page.navigate(base() + "/");   // redirects to /admin
             assertThat(page.url()).endsWith("/admin");
             assertThat(page.title()).isEqualTo("Dashboard · Payment Gateway");
-            assertThat(dashboard.root().textContent()).contains("Escrows").contains("Consumers");
+            assertThat(dashboard.root().textContent()).contains("Escrow accounts").contains("Consumers");
             assertThat(dashboard.logo().count()).isEqualTo(1);
             browser.close();
         }

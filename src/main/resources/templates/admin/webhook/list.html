@@ -4,26 +4,28 @@
 <body class="bg-slate-50 text-slate-800">
 <nav th:replace="~{fragments :: navbar('webhook')}"></nav>
 <main class="mx-auto max-w-7xl px-4 py-8" data-testid="webhook-list">
-    <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-slate-900">Webhook deliveries</h1>
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h1 class="page-title">Webhook deliveries</h1>
+            <p class="page-sub">Payment notifications forwarded to consumer applications.</p>
+        </div>
         <span th:if="${consumer}" class="text-sm text-slate-500">
             consumer: <span class="font-mono" th:text="${consumer}">code</span>
             <a th:href="@{/admin/webhooks(status=${selected})}" class="ml-2 text-primary-700 hover:underline">clear</a>
         </span>
     </div>
 
-    <div th:if="${message}" class="mb-4 rounded-md bg-accent-50 px-4 py-3 text-sm text-accent-800"
-         th:text="${message}"></div>
+    <div th:if="${message}" class="flash-ok" th:text="${message}"></div>
 
-    <div class="mb-4 flex gap-1 text-sm">
+    <div class="mb-4 flex flex-wrap gap-1 text-sm">
         <a th:each="s : ${statuses}"
            th:href="@{/admin/webhooks(status=${s}, consumer=${consumer})}"
-           th:classappend="${s == selected} ? 'bg-primary-600 text-white' : 'bg-white text-slate-600'"
-           class="rounded border border-slate-200 px-3 py-1.5 hover:bg-primary-50"
+           th:classappend="${s == selected} ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-slate-600 hover:bg-slate-50'"
+           class="rounded-lg border border-slate-200 px-3 py-1.5 font-medium"
            th:text="${s}">FAILED</a>
     </div>
 
-    <div class="card overflow-hidden">
+    <div class="card overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
             <tr>
@@ -39,7 +41,7 @@
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-            <tr th:each="d : ${deliveries}">
+            <tr th:each="d : ${deliveries}" class="hover:bg-slate-50">
                 <td class="td text-xs text-slate-500" th:text="${d.updatedAt}">time</td>
                 <td class="td font-medium text-slate-900" th:text="${d.consumer.code}">consumer</td>
                 <td class="td font-mono text-xs" th:text="${d.charge.consumerReference}">ref</td>
@@ -55,7 +57,7 @@
                           th:action="@{/admin/webhooks/{id}/replay(id=${d.id})}">
                         <input type="hidden" name="status" th:value="${selected}"/>
                         <input type="hidden" name="consumer" th:value="${consumer}"/>
-                        <button type="submit" class="text-xs font-medium text-primary-700 hover:underline">Replay</button>
+                        <button type="submit" class="action-link">Replay</button>
                     </form>
                 </td>
             </tr>
@@ -67,5 +69,6 @@
     </div>
     <p class="mt-3 text-xs text-slate-400">Showing up to 200, newest attempt first.</p>
 </main>
+<footer th:replace="~{fragments :: footer}"></footer>
 </body>
 </html>
