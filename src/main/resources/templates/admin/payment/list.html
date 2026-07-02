@@ -3,32 +3,35 @@
 <head th:replace="~{fragments :: head('Payments')}"></head>
 <body class="bg-slate-50 text-slate-800">
 <nav th:replace="~{fragments :: navbar('payment')}"></nav>
-<main class="mx-auto max-w-6xl px-4 py-8" data-testid="payment-list">
-    <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-slate-900">Payments</h1>
+<main class="mx-auto max-w-7xl px-4 py-8" data-testid="payment-list">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h1 class="page-title">Payments</h1>
+            <p class="page-sub">Transactions received from the banks, newest first.</p>
+        </div>
         <div th:replace="~{fragments :: searchBox(${q}, '/admin/payments')}"></div>
     </div>
-    <div class="card overflow-hidden">
+    <div class="card overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
             <tr>
                 <th class="th">Time</th>
                 <th class="th">VA number</th>
                 <th class="th">Bank reference</th>
-                <th class="th">Amount</th>
+                <th class="th text-right">Amount</th>
                 <th class="th">Status</th>
                 <th class="th">Charge</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-            <tr th:each="p : ${payments}">
+            <tr th:each="p : ${payments}" class="hover:bg-slate-50">
                 <td class="td text-xs text-slate-500">
                     <a class="text-primary-700 hover:underline"
                        th:href="@{/admin/payments/{id}(id=${p.id})}" th:text="${p.transactionTime}">time</a>
                 </td>
                 <td class="td font-mono text-xs" th:text="${p.virtualAccount.vaNumber}">va</td>
                 <td class="td font-mono text-xs" th:text="${p.bankReference}">ref</td>
-                <td class="td font-mono text-xs" th:text="${p.amount}">0</td>
+                <td class="td text-right font-mono text-xs" th:text="${p.amount}">0</td>
                 <td class="td">
                     <span th:classappend="${p.status.name() == 'ACCEPTED'} ? 'badge-ok' : 'badge-muted'"
                           th:text="${p.status}">ACCEPTED</span>
@@ -46,5 +49,6 @@
     </div>
     <div th:replace="~{fragments :: pagination(${payments}, ${q}, '/admin/payments')}"></div>
 </main>
+<footer th:replace="~{fragments :: footer}"></footer>
 </body>
 </html>

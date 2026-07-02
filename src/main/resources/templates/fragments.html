@@ -5,64 +5,132 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <title th:text="${title} + ' · Payment Gateway'">Payment Gateway</title>
-    <link rel="icon" type="image/svg+xml" th:href="@{/img/logo-artivisi.svg}"/>
+    <link rel="icon" type="image/svg+xml" th:href="@{/img/logo.svg}"/>
     <link rel="stylesheet" th:href="@{/css/app.css}"/>
+    <!-- Deployment branding hook: an external static location may shadow this file
+         (and /img/logo.svg) to re-theme without rebuilding. -->
+    <link rel="stylesheet" th:href="@{/css/branding.css}"/>
     <script defer th:src="@{/js/htmx.min.js}"></script>
 </head>
 <body>
-<header th:fragment="navbar(active)" class="bg-primary-600 text-white">
-    <div class="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
-        <a th:href="@{/admin}" class="flex items-center gap-2">
-            <img th:src="@{/img/logo-artivisi-white.svg}" alt="ArtiVisi" class="h-7 w-auto" data-testid="logo"/>
-            <span class="text-sm font-semibold tracking-wide">Payment Gateway</span>
+<header th:fragment="navbar(active)"
+        th:with="opsActive=${active == 'charge' or active == 'payment' or active == 'webhook'},
+                 setupActive=${active == 'escrow' or active == 'consumer'},
+                 securityActive=${active == 'operator' or active == 'role' or active == 'bankip' or active == 'audit'}"
+        class="sticky top-0 z-40 border-b border-slate-200 bg-white">
+    <div class="mx-auto flex h-16 max-w-7xl items-center gap-6 px-4">
+        <a th:href="@{/admin}" class="flex shrink-0 items-center gap-3">
+            <img th:src="@{/img/logo.svg}" alt="Payment Gateway" class="h-9 w-auto" data-testid="logo"/>
+            <span class="hidden border-l border-slate-200 pl-3 text-sm font-semibold tracking-wide text-slate-700 sm:inline">Payment Gateway</span>
         </a>
-        <nav class="flex items-center gap-1 text-sm">
-            <a th:href="@{/admin}" th:classappend="${active == 'dashboard'} ? 'bg-primary-700' : ''"
-               class="rounded px-3 py-1.5 hover:bg-primary-700">Dashboard</a>
-            <a sec:authorize="hasAuthority('ESCROW_VIEW')" th:href="@{/admin/escrow-accounts}"
-               th:classappend="${active == 'escrow'} ? 'bg-primary-700' : ''"
-               class="rounded px-3 py-1.5 hover:bg-primary-700">Escrows</a>
-            <a sec:authorize="hasAuthority('CONSUMER_VIEW')" th:href="@{/admin/consumers}"
-               th:classappend="${active == 'consumer'} ? 'bg-primary-700' : ''"
-               class="rounded px-3 py-1.5 hover:bg-primary-700">Consumers</a>
-            <a sec:authorize="hasAuthority('CHARGE_VIEW')" th:href="@{/admin/charges}"
-               th:classappend="${active == 'charge'} ? 'bg-primary-700' : ''"
-               class="rounded px-3 py-1.5 hover:bg-primary-700">Charges</a>
-            <a sec:authorize="hasAuthority('PAYMENT_VIEW')" th:href="@{/admin/payments}"
-               th:classappend="${active == 'payment'} ? 'bg-primary-700' : ''"
-               class="rounded px-3 py-1.5 hover:bg-primary-700">Payments</a>
+
+        <nav class="hidden items-center gap-1 md:flex" data-testid="nav">
+            <a th:href="@{/admin}" class="nav-link" th:classappend="${active == 'dashboard'} ? 'nav-link-active'">Dashboard</a>
+
+            <details class="nav-group relative" sec:authorize="hasAnyAuthority('CHARGE_VIEW','PAYMENT_VIEW','WEBHOOK_VIEW')">
+                <summary class="nav-link list-none [&::-webkit-details-marker]:hidden" th:classappend="${opsActive} ? 'nav-link-active'">
+                    Operations
+                    <svg class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                </summary>
+                <div class="nav-menu">
+                    <a sec:authorize="hasAuthority('CHARGE_VIEW')" th:href="@{/admin/charges}"
+                       class="nav-menu-link" th:classappend="${active == 'charge'} ? 'nav-menu-link-active'">Charges</a>
+                    <a sec:authorize="hasAuthority('PAYMENT_VIEW')" th:href="@{/admin/payments}"
+                       class="nav-menu-link" th:classappend="${active == 'payment'} ? 'nav-menu-link-active'">Payments</a>
+                    <a sec:authorize="hasAuthority('WEBHOOK_VIEW')" th:href="@{/admin/webhooks}"
+                       class="nav-menu-link" th:classappend="${active == 'webhook'} ? 'nav-menu-link-active'">Webhooks</a>
+                </div>
+            </details>
+
             <a sec:authorize="hasAuthority('RECONCILIATION_VIEW')" th:href="@{/admin/reconciliations}"
-               th:classappend="${active == 'reconciliation'} ? 'bg-primary-700' : ''"
-               class="rounded px-3 py-1.5 hover:bg-primary-700">Reconciliation</a>
-            <a sec:authorize="hasAuthority('WEBHOOK_VIEW')" th:href="@{/admin/webhooks}"
-               th:classappend="${active == 'webhook'} ? 'bg-primary-700' : ''"
-               class="rounded px-3 py-1.5 hover:bg-primary-700">Webhooks</a>
-            <a sec:authorize="hasAuthority('AUDIT_VIEW')" th:href="@{/admin/audit}"
-               th:classappend="${active == 'audit'} ? 'bg-primary-700' : ''"
-               class="rounded px-3 py-1.5 hover:bg-primary-700">Audit</a>
-            <a sec:authorize="hasAuthority('OPERATOR_MANAGE')" th:href="@{/admin/operators}"
-               th:classappend="${active == 'operator'} ? 'bg-primary-700' : ''"
-               class="rounded px-3 py-1.5 hover:bg-primary-700">Operators</a>
-            <a sec:authorize="hasAuthority('ROLE_MANAGE')" th:href="@{/admin/roles}"
-               th:classappend="${active == 'role'} ? 'bg-primary-700' : ''"
-               class="rounded px-3 py-1.5 hover:bg-primary-700">Roles</a>
-            <a sec:authorize="hasAuthority('BANK_IP_MANAGE')" th:href="@{/admin/bank-ip-rules}"
-               th:classappend="${active == 'bankip'} ? 'bg-primary-700' : ''"
-               class="rounded px-3 py-1.5 hover:bg-primary-700">Bank IP</a>
+               class="nav-link" th:classappend="${active == 'reconciliation'} ? 'nav-link-active'">Reconciliation</a>
+
+            <details class="nav-group relative" sec:authorize="hasAnyAuthority('ESCROW_VIEW','CONSUMER_VIEW')">
+                <summary class="nav-link list-none [&::-webkit-details-marker]:hidden" th:classappend="${setupActive} ? 'nav-link-active'">
+                    Setup
+                    <svg class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                </summary>
+                <div class="nav-menu">
+                    <a sec:authorize="hasAuthority('ESCROW_VIEW')" th:href="@{/admin/escrow-accounts}"
+                       class="nav-menu-link" th:classappend="${active == 'escrow'} ? 'nav-menu-link-active'">Escrow accounts</a>
+                    <a sec:authorize="hasAuthority('CONSUMER_VIEW')" th:href="@{/admin/consumers}"
+                       class="nav-menu-link" th:classappend="${active == 'consumer'} ? 'nav-menu-link-active'">Consumers</a>
+                </div>
+            </details>
+
+            <details class="nav-group relative" sec:authorize="hasAnyAuthority('OPERATOR_MANAGE','ROLE_MANAGE','BANK_IP_MANAGE','AUDIT_VIEW')">
+                <summary class="nav-link list-none [&::-webkit-details-marker]:hidden" th:classappend="${securityActive} ? 'nav-link-active'">
+                    Security
+                    <svg class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+                </summary>
+                <div class="nav-menu">
+                    <a sec:authorize="hasAuthority('OPERATOR_MANAGE')" th:href="@{/admin/operators}"
+                       class="nav-menu-link" th:classappend="${active == 'operator'} ? 'nav-menu-link-active'">Operators</a>
+                    <a sec:authorize="hasAuthority('ROLE_MANAGE')" th:href="@{/admin/roles}"
+                       class="nav-menu-link" th:classappend="${active == 'role'} ? 'nav-menu-link-active'">Roles</a>
+                    <a sec:authorize="hasAuthority('BANK_IP_MANAGE')" th:href="@{/admin/bank-ip-rules}"
+                       class="nav-menu-link" th:classappend="${active == 'bankip'} ? 'nav-menu-link-active'">Bank IP allowlist</a>
+                    <a sec:authorize="hasAuthority('AUDIT_VIEW')" th:href="@{/admin/audit}"
+                       class="nav-menu-link" th:classappend="${active == 'audit'} ? 'nav-menu-link-active'">Audit log</a>
+                </div>
+            </details>
         </nav>
-        <div class="ml-auto flex items-center gap-3 text-sm">
-            <span class="opacity-90" sec:authentication="name">user</span>
+
+        <!-- Small screens: the same links in one menu -->
+        <details class="nav-group relative md:hidden">
+            <summary class="nav-link list-none [&::-webkit-details-marker]:hidden">
+                Menu
+                <svg class="h-4 w-4 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/></svg>
+            </summary>
+            <div class="nav-menu">
+                <a th:href="@{/admin}" class="nav-menu-link">Dashboard</a>
+                <a sec:authorize="hasAuthority('CHARGE_VIEW')" th:href="@{/admin/charges}" class="nav-menu-link">Charges</a>
+                <a sec:authorize="hasAuthority('PAYMENT_VIEW')" th:href="@{/admin/payments}" class="nav-menu-link">Payments</a>
+                <a sec:authorize="hasAuthority('WEBHOOK_VIEW')" th:href="@{/admin/webhooks}" class="nav-menu-link">Webhooks</a>
+                <a sec:authorize="hasAuthority('RECONCILIATION_VIEW')" th:href="@{/admin/reconciliations}" class="nav-menu-link">Reconciliation</a>
+                <a sec:authorize="hasAuthority('ESCROW_VIEW')" th:href="@{/admin/escrow-accounts}" class="nav-menu-link">Escrow accounts</a>
+                <a sec:authorize="hasAuthority('CONSUMER_VIEW')" th:href="@{/admin/consumers}" class="nav-menu-link">Consumers</a>
+                <a sec:authorize="hasAuthority('OPERATOR_MANAGE')" th:href="@{/admin/operators}" class="nav-menu-link">Operators</a>
+                <a sec:authorize="hasAuthority('ROLE_MANAGE')" th:href="@{/admin/roles}" class="nav-menu-link">Roles</a>
+                <a sec:authorize="hasAuthority('BANK_IP_MANAGE')" th:href="@{/admin/bank-ip-rules}" class="nav-menu-link">Bank IP allowlist</a>
+                <a sec:authorize="hasAuthority('AUDIT_VIEW')" th:href="@{/admin/audit}" class="nav-menu-link">Audit log</a>
+            </div>
+        </details>
+
+        <div class="ml-auto flex items-center gap-3">
+            <span class="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-xs font-semibold uppercase text-primary-700"
+                  th:text="${#strings.substring(#authentication.name, 0, 1)}">u</span>
+            <span class="hidden text-sm text-slate-600 sm:inline" sec:authentication="name">user</span>
             <form th:action="@{/logout}" method="post">
-                <button type="submit" class="rounded bg-primary-700 px-3 py-1.5 hover:bg-primary-800">Sign out</button>
+                <button type="submit" class="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900">Sign out</button>
             </form>
         </div>
     </div>
+    <script>
+        // One dropdown open at a time; any outside click closes it.
+        document.addEventListener('click', function (e) {
+            document.querySelectorAll('details.nav-group[open]').forEach(function (d) {
+                if (!d.contains(e.target)) d.removeAttribute('open');
+            });
+        });
+        document.querySelectorAll('details.nav-group').forEach(function (d) {
+            d.addEventListener('toggle', function () {
+                if (!d.open) return;
+                document.querySelectorAll('details.nav-group[open]').forEach(function (o) {
+                    if (o !== d) o.removeAttribute('open');
+                });
+            });
+        });
+    </script>
 </header>
 
+<footer th:fragment="footer" class="mx-auto max-w-7xl px-4 pb-8 pt-4">
+    <p class="text-xs text-slate-400">Powered by ArtiVisi Payment Gateway</p>
+</footer>
+
 <form th:fragment="searchBox(q, path)" method="get" th:action="@{${path}}" class="flex gap-2">
-    <input type="text" name="q" th:value="${q}" placeholder="Search…"
-           class="rounded-md border border-slate-300 px-3 py-1.5 text-sm"/>
-    <button type="submit" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">Search</button>
+    <input type="text" name="q" th:value="${q}" placeholder="Search…" class="input w-56"/>
+    <button type="submit" class="btn-ghost">Search</button>
 </form>
 
 <div th:fragment="pagination(page, q, path)" th:if="${page.totalPages > 1}"
@@ -71,9 +139,9 @@
           th:text="'Page ' + (${page.number} + 1) + ' / ' + ${page.totalPages} + ' · ' + ${page.totalElements} + ' total'">Page</span>
     <div class="flex gap-2">
         <a th:if="${page.hasPrevious()}" th:href="@{${path}(page=${page.number - 1}, q=${q})}"
-           class="rounded border border-slate-300 px-3 py-1 hover:bg-slate-50">Prev</a>
+           class="btn-ghost px-3 py-1">Prev</a>
         <a th:if="${page.hasNext()}" th:href="@{${path}(page=${page.number + 1}, q=${q})}"
-           class="rounded border border-slate-300 px-3 py-1 hover:bg-slate-50">Next</a>
+           class="btn-ghost px-3 py-1">Next</a>
     </div>
 </div>
 </body>

@@ -12,3 +12,6 @@ docs/snap/sources/
 
 # Tailwind standalone CLI binary (downloaded, not committed)
 .tools/
+
+# Local credentials (Cloudflare API token etc.) — never committed
+.secrets/
