@@ -3,71 +3,71 @@
 <head th:replace="~{fragments :: head('Consumers')}"></head>
 <body class="bg-slate-50 text-slate-800">
 <nav th:replace="~{fragments :: navbar('consumer')}"></nav>
-<main class="mx-auto max-w-6xl px-4 py-8" data-testid="consumer-list">
-    <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-slate-900">Consumers</h1>
-        <a th:href="@{/admin/consumers/new}" class="btn-primary">New consumer</a>
+<main class="mx-auto max-w-7xl px-4 py-8" data-testid="consumer-list">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h1 class="page-title">Consumers</h1>
+            <p class="page-sub">Client applications that create charges and receive payment webhooks.</p>
+        </div>
+        <a th:href="@{/admin/consumers/new}" class="btn-primary shrink-0">New consumer</a>
     </div>
 
-    <div th:if="${message}" class="mb-4 rounded-md bg-accent-50 px-4 py-3 text-sm text-accent-800"
-         th:text="${message}"></div>
+    <div th:if="${message}" class="flash-ok" th:text="${message}"></div>
 
-    <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-slate-200">
-            <thead class="bg-slate-50">
-            <tr>
-                <th class="th">Code</th>
-                <th class="th">Name</th>
-                <th class="th">Client ID</th>
-                <th class="th">Webhook URL</th>
-                <th class="th">Status</th>
-                <th class="th">Delivery</th>
-                <th class="th"></th>
-            </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-            <tr th:each="c : ${consumers}">
-                <td class="td font-medium text-slate-900" th:text="${c.code}">code</td>
-                <td class="td" th:text="${c.name}">name</td>
-                <td class="td font-mono text-xs" th:text="${c.clientId}">client</td>
-                <td class="td text-xs text-slate-500" th:text="${c.webhookUrl}">url</td>
-                <td class="td">
-                    <span th:classappend="${c.status.name() == 'ACTIVE'} ? 'badge-ok' : 'badge-muted'"
-                          th:text="${c.status}">ACTIVE</span>
-                </td>
-                <td class="td">
-                    <div class="flex items-center gap-2">
-                        <span th:if="${c.webhookSuspended}" class="badge-muted">Suspended</span>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div th:each="c : ${consumers}" class="item-card"
+             th:classappend="${c.status.name() == 'ACTIVE'} ? (${c.webhookSuspended} ? 'item-card-warn' : 'item-card-on') : 'item-card-off'">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <p class="text-base font-semibold text-slate-900" th:text="${c.name}">name</p>
+                    <p class="text-sm text-slate-500" th:text="${c.code}">code</p>
+                </div>
+                <span th:classappend="${c.status.name() == 'ACTIVE'} ? 'badge-ok' : 'badge-muted'"
+                      th:text="${c.status}">ACTIVE</span>
+            </div>
+            <div class="mt-4 space-y-2">
+                <div class="meta-row">
+                    <span class="meta-key">Client ID</span>
+                    <span class="truncate font-mono text-xs" th:text="${c.clientId}">client</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-key">Webhook</span>
+                    <span class="truncate text-xs text-slate-500" th:title="${c.webhookUrl}" th:text="${c.webhookUrl}">url</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-key">Delivery</span>
+                    <span class="flex flex-wrap justify-end gap-1">
+                        <span th:if="${c.webhookSuspended}" class="badge-warn">Suspended</span>
                         <span th:unless="${c.webhookSuspended}" class="badge-ok">Active</span>
-                        <form th:if="${c.webhookSuspended}" method="post"
-                              th:action="@{/admin/consumers/{id}/webhook/resume(id=${c.id})}">
-                            <button type="submit" class="text-xs font-medium text-primary-700 hover:underline">Resume</button>
-                        </form>
-                        <form th:unless="${c.webhookSuspended}" method="post"
-                              th:action="@{/admin/consumers/{id}/webhook/suspend(id=${c.id})}">
-                            <button type="submit" class="text-xs font-medium text-amber-700 hover:underline">Suspend</button>
-                        </form>
                         <a th:if="${failedCounts.get(c.id) > 0}"
                            th:href="@{/admin/webhooks(status='FAILED', consumer=${c.code})}"
-                           class="badge-muted text-rose-700 hover:underline"
+                           class="badge-danger hover:underline"
                            th:text="${failedCounts.get(c.id)} + ' failed'">3 failed</a>
-                        <form th:if="${failedCounts.get(c.id) > 0}" method="post"
-                              th:action="@{/admin/consumers/{id}/webhook/replay(id=${c.id})}">
-                            <button type="submit" class="text-xs font-medium text-slate-600 hover:underline">Replay all</button>
-                        </form>
-                    </div>
-                </td>
-                <td class="td">
-                    <a th:href="@{/admin/consumers/{id}/edit(id=${c.id})}"
-                       class="text-xs font-medium text-primary-700 hover:underline">Edit</a>
-                </td>
-            </tr>
-            <tr th:if="${#lists.isEmpty(consumers)}">
-                <td class="td text-slate-400" colspan="7">No consumers yet.</td>
-            </tr>
-            </tbody>
-        </table>
+                    </span>
+                </div>
+            </div>
+            <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-3">
+                <a th:href="@{/admin/consumers/{id}/edit(id=${c.id})}" class="action-link">Edit</a>
+                <form th:if="${c.webhookSuspended}" method="post"
+                      th:action="@{/admin/consumers/{id}/webhook/resume(id=${c.id})}">
+                    <button type="submit" class="action-link">Resume webhooks</button>
+                </form>
+                <form th:unless="${c.webhookSuspended}" method="post"
+                      th:action="@{/admin/consumers/{id}/webhook/suspend(id=${c.id})}">
+                    <button type="submit" class="action-link-warn">Suspend webhooks</button>
+                </form>
+                <form th:if="${failedCounts.get(c.id) > 0}" method="post"
+                      th:action="@{/admin/consumers/{id}/webhook/replay(id=${c.id})}">
+                    <button type="submit" class="action-link">Replay failed</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div th:if="${#lists.isEmpty(consumers)}" class="empty-state">
+        No consumers yet. Register the first client application with “New consumer”.
     </div>
 </main>
+<footer th:replace="~{fragments :: footer}"></footer>
 </body>
 </html>

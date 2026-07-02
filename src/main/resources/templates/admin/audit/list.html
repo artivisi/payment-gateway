@@ -3,12 +3,15 @@
 <head th:replace="~{fragments :: head('Audit log')}"></head>
 <body class="bg-slate-50 text-slate-800">
 <nav th:replace="~{fragments :: navbar('audit')}"></nav>
-<main class="mx-auto max-w-6xl px-4 py-8" data-testid="audit-list">
-    <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-slate-900">Audit log</h1>
+<main class="mx-auto max-w-7xl px-4 py-8" data-testid="audit-list">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h1 class="page-title">Audit log</h1>
+            <p class="page-sub">Every state-changing action, with its authenticated actor.</p>
+        </div>
         <div th:replace="~{fragments :: searchBox(${q}, '/admin/audit')}"></div>
     </div>
-    <div class="card overflow-hidden">
+    <div class="card overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
             <tr>
@@ -21,7 +24,7 @@
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-            <tr th:each="e : ${events}">
+            <tr th:each="e : ${events}" class="hover:bg-slate-50">
                 <td class="td text-xs text-slate-500" th:text="${e.createdAt}">time</td>
                 <td class="td text-xs" th:text="${e.actor} ?: '—'">actor</td>
                 <td class="td" th:text="${e.eventType}">event</td>
@@ -37,5 +40,6 @@
     </div>
     <div th:replace="~{fragments :: pagination(${events}, ${q}, '/admin/audit')}"></div>
 </main>
+<footer th:replace="~{fragments :: footer}"></footer>
 </body>
 </html>

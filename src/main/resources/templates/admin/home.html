@@ -3,31 +3,56 @@
 <head th:replace="~{fragments :: head('Dashboard')}"></head>
 <body class="bg-slate-50 text-slate-800">
 <nav th:replace="~{fragments :: navbar('dashboard')}"></nav>
-<main class="mx-auto max-w-6xl px-4 py-8" data-testid="dashboard">
-    <h1 class="mb-6 text-2xl font-semibold text-slate-900">Dashboard</h1>
-    <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <div class="card p-5">
-            <p class="text-sm text-slate-500">Escrows</p>
-            <p class="mt-1 text-3xl font-semibold text-primary-700" th:text="${escrowCount}">0</p>
-        </div>
-        <div class="card p-5">
-            <p class="text-sm text-slate-500">Consumers</p>
-            <p class="mt-1 text-3xl font-semibold text-primary-700" th:text="${consumerCount}">0</p>
-        </div>
-        <div class="card p-5">
-            <p class="text-sm text-slate-500">Charges</p>
-            <p class="mt-1 text-3xl font-semibold text-primary-700" th:text="${chargeCount}">0</p>
-        </div>
-        <div class="card p-5">
-            <p class="text-sm text-slate-500">Payments</p>
-            <p class="mt-1 text-3xl font-semibold text-accent-600" th:text="${paymentCount}">0</p>
-        </div>
+<main class="mx-auto max-w-7xl px-4 py-8" data-testid="dashboard">
+    <div class="mb-6">
+        <h1 class="page-title">Dashboard</h1>
+        <p class="page-sub">Collection status across banks, at a glance.</p>
     </div>
 
-    <div class="mt-8 flex gap-3">
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <a th:href="@{/admin/escrow-accounts}" class="stat-card">
+            <div>
+                <p class="text-sm text-slate-500">Escrow accounts</p>
+                <p class="mt-1 text-3xl font-semibold tracking-tight text-slate-900" th:text="${escrowCount}">0</p>
+            </div>
+            <span class="stat-icon">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 10h16M5 10v11m14-11v11M9 21v-6h6v6M12 3l8 4H4l8-4z"/></svg>
+            </span>
+        </a>
+        <a th:href="@{/admin/consumers}" class="stat-card">
+            <div>
+                <p class="text-sm text-slate-500">Consumers</p>
+                <p class="mt-1 text-3xl font-semibold tracking-tight text-slate-900" th:text="${consumerCount}">0</p>
+            </div>
+            <span class="stat-icon">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 3.13a4 4 0 010 7.75M12 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            </span>
+        </a>
+        <a th:href="@{/admin/charges}" class="stat-card">
+            <div>
+                <p class="text-sm text-slate-500">Charges</p>
+                <p class="mt-1 text-3xl font-semibold tracking-tight text-slate-900" th:text="${chargeCount}">0</p>
+            </div>
+            <span class="stat-icon">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M9 8h6M5 3h14v18l-2-1.5L15 21l-3-1.5L9 21l-2-1.5L5 21V3z"/></svg>
+            </span>
+        </a>
+        <a th:href="@{/admin/payments}" class="stat-card">
+            <div>
+                <p class="text-sm text-slate-500">Payments</p>
+                <p class="mt-1 text-3xl font-semibold tracking-tight text-accent-600" th:text="${paymentCount}">0</p>
+            </div>
+            <span class="stat-icon bg-accent-50 text-accent-600">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8h18M3 12h18M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2zm2 11h4"/></svg>
+            </span>
+        </a>
+    </div>
+
+    <div class="mt-8 flex flex-wrap gap-3">
         <a th:href="@{/admin/escrow-accounts/new}" class="btn-primary">New escrow account</a>
         <a th:href="@{/admin/consumers/new}" class="btn-ghost">New consumer</a>
     </div>
 </main>
+<footer th:replace="~{fragments :: footer}"></footer>
 </body>
 </html>

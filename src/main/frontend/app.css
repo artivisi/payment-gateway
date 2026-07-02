@@ -1,8 +1,10 @@
 @import "tailwindcss";
 
 /*
- * ArtiVisi brand palette. Primary indigo #2e3192 and accent green #58c034
- * are taken from the logo (see ~/workspace/website/artivisi.github.io).
+ * Product palette (repo default). Deployments re-theme WITHOUT rebuilding by
+ * serving an overriding /css/branding.css from an external static location
+ * (spring.web.resources.static-locations) that redefines the --color-primary-*
+ * / --color-accent-* variables — all utilities reference the variables.
  * Rebuild: ./.tools/tailwindcss -i src/main/frontend/app.css -o src/main/resources/static/css/app.css --minify
  */
 @theme {
@@ -34,19 +36,19 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-primary-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
   }
   .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
   }
   .card {
-    @apply rounded-lg border border-slate-200 bg-white shadow-sm;
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
   }
   .label {
     @apply mb-1 block text-sm font-medium text-slate-700;
   }
   .input {
-    @apply block w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500;
+    @apply block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500;
   }
   .badge-ok {
     @apply inline-flex items-center rounded-full bg-accent-100 px-2.5 py-0.5 text-xs font-medium text-accent-800;
@@ -54,10 +56,95 @@
   .badge-muted {
     @apply inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600;
   }
+  .badge-warn {
+    @apply inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800;
+  }
+  .badge-danger {
+    @apply inline-flex items-center rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-700;
+  }
   .th {
     @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500;
   }
   .td {
     @apply whitespace-nowrap px-4 py-3 text-sm text-slate-700;
+  }
+
+  /* Page scaffolding */
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight text-slate-900;
+  }
+  .page-sub {
+    @apply mt-1 text-sm text-slate-500;
+  }
+  .flash-ok {
+    @apply mb-4 rounded-lg border border-accent-200 bg-accent-50 px-4 py-3 text-sm text-accent-800;
+  }
+  .flash-error {
+    @apply mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700;
+  }
+  .empty-state {
+    @apply rounded-xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-400;
+  }
+
+  /* Navbar */
+  .nav-link {
+    @apply flex cursor-pointer select-none items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900;
+  }
+  .nav-link-active {
+    @apply bg-primary-50 text-primary-700;
+  }
+  .nav-menu {
+    @apply absolute left-0 top-full z-30 mt-1 w-56 rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg;
+  }
+  .nav-menu-link {
+    @apply block rounded-lg px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+  .nav-menu-link-active {
+    @apply bg-primary-50 font-medium text-primary-700;
+  }
+
+  /* Registry item cards — the status rail on the left edge encodes state at a glance. */
+  .item-card {
+    @apply relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md;
+  }
+  .item-card::before {
+    content: "";
+    @apply absolute inset-y-0 left-0 w-1 bg-slate-200;
+  }
+  .item-card-on::before {
+    @apply bg-accent-500;
+  }
+  .item-card-off::before {
+    @apply bg-slate-300;
+  }
+  .item-card-warn::before {
+    @apply bg-amber-400;
+  }
+
+  /* Stat cards */
+  .stat-card {
+    @apply flex items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm transition-shadow hover:shadow-md;
+  }
+  .stat-icon {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary-50 text-primary-600;
+  }
+
+  /* Inline row actions */
+  .action-link {
+    @apply text-xs font-medium text-primary-700 hover:underline;
+  }
+  .action-link-warn {
+    @apply text-xs font-medium text-amber-700 hover:underline;
+  }
+  .action-link-danger {
+    @apply text-xs font-medium text-rose-700 hover:underline;
+  }
+
+  /* Definition rows inside cards */
+  .meta-row {
+    @apply flex items-baseline justify-between gap-3 text-sm;
+  }
+  .meta-key {
+    @apply text-xs uppercase tracking-wide text-slate-400;
   }
 }

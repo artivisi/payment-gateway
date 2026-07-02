@@ -4,32 +4,33 @@
 <body class="bg-slate-100 text-slate-800">
 <main class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4" data-testid="login-page">
     <div class="card p-8">
-        <div class="mb-6 flex items-center gap-2">
-            <img th:src="@{/img/logo-artivisi.svg}" alt="ArtiVisi" class="h-8 w-auto"/>
+        <div class="mb-6 flex flex-col items-center gap-3">
+            <img th:src="@{/img/logo.svg}" alt="Payment Gateway" class="h-14 w-auto"/>
             <span class="text-lg font-semibold text-slate-900">Payment Gateway</span>
         </div>
 
-        <div th:if="${param.error}" class="mb-4 rounded-md bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div th:if="${param.error}" class="flash-error">
             Invalid credentials, or the account is locked or disabled.
         </div>
-        <div th:if="${param.logout}" class="mb-4 rounded-md bg-accent-50 px-4 py-3 text-sm text-accent-800">
+        <div th:if="${param.logout}" class="flash-ok">
             You have been signed out.
         </div>
 
         <form th:action="@{/login}" method="post" class="space-y-4">
             <div>
-                <label for="username" class="block text-sm font-medium text-slate-700">Username</label>
+                <label for="username" class="label">Username</label>
                 <input id="username" name="username" type="text" required autofocus
-                       data-testid="username" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"/>
+                       data-testid="username" class="input"/>
             </div>
             <div>
-                <label for="password" class="block text-sm font-medium text-slate-700">Password</label>
+                <label for="password" class="label">Password</label>
                 <input id="password" name="password" type="password" required
-                       data-testid="password" class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"/>
+                       data-testid="password" class="input"/>
             </div>
             <button type="submit" class="btn-primary w-full" data-testid="login-submit">Sign in</button>
         </form>
     </div>
+    <p class="mt-4 text-center text-xs text-slate-400">Powered by ArtiVisi Payment Gateway</p>
 </main>
 </body>
 </html>

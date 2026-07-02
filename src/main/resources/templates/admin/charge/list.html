@@ -3,12 +3,15 @@
 <head th:replace="~{fragments :: head('Charges')}"></head>
 <body class="bg-slate-50 text-slate-800">
 <nav th:replace="~{fragments :: navbar('charge')}"></nav>
-<main class="mx-auto max-w-6xl px-4 py-8" data-testid="charge-list">
-    <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-slate-900">Charges</h1>
+<main class="mx-auto max-w-7xl px-4 py-8" data-testid="charge-list">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h1 class="page-title">Charges</h1>
+            <p class="page-sub">Debts created by consumers, payable through one or more bank VAs.</p>
+        </div>
         <div th:replace="~{fragments :: searchBox(${q}, '/admin/charges')}"></div>
     </div>
-    <div class="card overflow-hidden">
+    <div class="card overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
             <tr>
@@ -16,14 +19,14 @@
                 <th class="th">Consumer</th>
                 <th class="th">Payer</th>
                 <th class="th">Type</th>
-                <th class="th">Amount</th>
-                <th class="th">Paid</th>
+                <th class="th text-right">Amount</th>
+                <th class="th text-right">Paid</th>
                 <th class="th">Status</th>
                 <th class="th">Created</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-            <tr th:each="c : ${charges}">
+            <tr th:each="c : ${charges}" class="hover:bg-slate-50">
                 <td class="td">
                     <a class="font-medium text-primary-700 hover:underline"
                        th:href="@{/admin/charges/{id}(id=${c.id})}" th:text="${c.consumerReference}">ref</a>
@@ -31,8 +34,8 @@
                 <td class="td" th:text="${c.consumer.code}">consumer</td>
                 <td class="td" th:text="${c.payerName}">payer</td>
                 <td class="td"><span class="badge-muted" th:text="${c.chargeType}">CLOSED</span></td>
-                <td class="td font-mono text-xs" th:text="${c.amount}">0</td>
-                <td class="td font-mono text-xs" th:text="${c.cumulativePaid}">0</td>
+                <td class="td text-right font-mono text-xs" th:text="${c.amount}">0</td>
+                <td class="td text-right font-mono text-xs" th:text="${c.cumulativePaid}">0</td>
                 <td class="td">
                     <span th:classappend="${c.status.name() == 'PAID'} ? 'badge-ok' : 'badge-muted'"
                           th:text="${c.status}">ACTIVE</span>
@@ -47,5 +50,6 @@
     </div>
     <div th:replace="~{fragments :: pagination(${charges}, ${q}, '/admin/charges')}"></div>
 </main>
+<footer th:replace="~{fragments :: footer}"></footer>
 </body>
 </html>

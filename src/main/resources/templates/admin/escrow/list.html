@@ -3,62 +3,66 @@
 <head th:replace="~{fragments :: head('Escrow Accounts')}"></head>
 <body class="bg-slate-50 text-slate-800">
 <nav th:replace="~{fragments :: navbar('escrow')}"></nav>
-<main class="mx-auto max-w-6xl px-4 py-8" data-testid="escrow-list">
-    <div class="mb-6 flex items-center justify-between">
-        <h1 class="text-2xl font-semibold text-slate-900">Escrow Accounts</h1>
-        <a th:href="@{/admin/escrow-accounts/new}" class="btn-primary">New escrow</a>
+<main class="mx-auto max-w-7xl px-4 py-8" data-testid="escrow-list">
+    <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h1 class="page-title">Escrow Accounts</h1>
+            <p class="page-sub">One bank biller each, with its own credentials, VA number space, and settlement account.</p>
+        </div>
+        <a th:href="@{/admin/escrow-accounts/new}" class="btn-primary shrink-0">New escrow</a>
     </div>
 
-    <div th:if="${message}" class="mb-4 rounded-md bg-accent-50 px-4 py-3 text-sm text-accent-800"
-         th:text="${message}"></div>
+    <div th:if="${message}" class="flash-ok" th:text="${message}"></div>
 
-    <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-slate-200">
-            <thead class="bg-slate-50">
-            <tr>
-                <th class="th">Code</th>
-                <th class="th">Provider</th>
-                <th class="th">Hosting</th>
-                <th class="th">Transport · Auth</th>
-                <th class="th">Environment</th>
-                <th class="th">VA space</th>
-                <th class="th">Institution</th>
-                <th class="th">Status</th>
-                <th class="th">Actions</th>
-            </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-            <tr th:each="e : ${escrows}">
-                <td class="td font-medium text-slate-900" th:text="${e.code}">code</td>
-                <td class="td" th:text="${e.provider}">provider</td>
-                <td class="td"><span class="badge-muted" th:text="${e.hostingModel}">SELF_HOSTED</span></td>
-                <td class="td" th:text="${e.transport} + ' · ' + ${e.authScheme}">REST_JSON</td>
-                <td class="td" th:text="${e.activeEnvironment}">SANDBOX</td>
-                <td class="td font-mono text-xs" th:text="${e.vaPrefix} + ' / ' + ${e.vaDigitLength} + 'd'">900 / 10d</td>
-                <td class="td" th:text="${e.institutionTag} ?: '—'">—</td>
-                <td class="td">
-                    <span th:classappend="${e.enabled} ? 'badge-ok' : 'badge-muted'"
-                          th:text="${e.enabled} ? 'Enabled' : 'Disabled'">Enabled</span>
-                </td>
-                <td class="td">
-                    <div class="flex items-center gap-2">
-                        <a th:href="@{/admin/escrow-accounts/{id}/edit(id=${e.id})}"
-                           class="text-xs font-medium text-primary-700 hover:underline">Edit</a>
-                        <form th:if="${e.enabled}" method="post" th:action="@{/admin/escrow-accounts/{id}/disable(id=${e.id})}">
-                            <button class="text-xs font-medium text-amber-700 hover:underline">Disable</button>
-                        </form>
-                        <form th:unless="${e.enabled}" method="post" th:action="@{/admin/escrow-accounts/{id}/enable(id=${e.id})}">
-                            <button class="text-xs font-medium text-primary-700 hover:underline">Enable</button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
-            <tr th:if="${#lists.isEmpty(escrows)}">
-                <td class="td text-slate-400" colspan="9">No escrow accounts yet.</td>
-            </tr>
-            </tbody>
-        </table>
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div th:each="e : ${escrows}" class="item-card"
+             th:classappend="${e.enabled} ? 'item-card-on' : 'item-card-off'">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <p class="text-base font-semibold text-slate-900" th:text="${e.code}">code</p>
+                    <p class="text-sm text-slate-500" th:text="${e.provider}">provider</p>
+                </div>
+                <span th:classappend="${e.enabled} ? 'badge-ok' : 'badge-muted'"
+                      th:text="${e.enabled} ? 'Enabled' : 'Disabled'">Enabled</span>
+            </div>
+            <div class="mt-4 space-y-2">
+                <div class="meta-row">
+                    <span class="meta-key">Model</span>
+                    <span class="flex flex-wrap justify-end gap-1">
+                        <span class="badge-muted" th:text="${e.hostingModel}">SELF_HOSTED</span>
+                        <span class="badge-muted" th:text="${e.transport}">REST_JSON</span>
+                        <span class="badge-muted" th:text="${e.authScheme}">SNAP</span>
+                    </span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-key">Environment</span>
+                    <span th:text="${e.activeEnvironment}">SANDBOX</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-key">VA space</span>
+                    <span class="font-mono text-xs" th:text="${e.vaPrefix} + ' / ' + ${e.vaDigitLength} + ' digits'">900 / 10 digits</span>
+                </div>
+                <div class="meta-row">
+                    <span class="meta-key">Institution</span>
+                    <span th:text="${e.institutionTag} ?: '—'">—</span>
+                </div>
+            </div>
+            <div class="mt-4 flex items-center gap-3 border-t border-slate-100 pt-3">
+                <a th:href="@{/admin/escrow-accounts/{id}/edit(id=${e.id})}" class="action-link">Edit</a>
+                <form th:if="${e.enabled}" method="post" th:action="@{/admin/escrow-accounts/{id}/disable(id=${e.id})}">
+                    <button class="action-link-warn">Disable</button>
+                </form>
+                <form th:unless="${e.enabled}" method="post" th:action="@{/admin/escrow-accounts/{id}/enable(id=${e.id})}">
+                    <button class="action-link">Enable</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div th:if="${#lists.isEmpty(escrows)}" class="empty-state">
+        No escrow accounts yet. Register the first bank biller with “New escrow”.
     </div>
 </main>
+<footer th:replace="~{fragments :: footer}"></footer>
 </body>
 </html>
