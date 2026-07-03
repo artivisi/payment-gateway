@@ -42,7 +42,7 @@ public class EscrowResolver {
         }
         return candidates.stream()
                 .filter(e -> virtualAccountRepository
-                        .findByEscrowAccountIdAndVaNumber(e.getId(), vaNumber).isPresent())
+                        .existsByEscrowAccountIdAndVaNumber(e.getId(), vaNumber))
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException(
                         "ambiguous " + provider + " escrow for VA number " + vaNumber));
