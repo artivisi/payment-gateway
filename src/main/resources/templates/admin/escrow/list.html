@@ -40,7 +40,8 @@
                 </div>
                 <div class="meta-row">
                     <span class="meta-key">VA space</span>
-                    <span class="font-mono text-xs" th:text="${e.vaPrefix} + ' / ' + ${e.vaDigitLength} + ' digits'">900 / 10 digits</span>
+                    <span class="font-mono text-xs"
+                          th:text="${#strings.isEmpty(e.vaPrefix)} ? ${e.vaDigitLength} + ' digits, any prefix' : ${e.vaPrefix} + ' / ' + ${e.vaDigitLength} + ' digits'">900 / 10 digits</span>
                 </div>
                 <div class="meta-row">
                     <span class="meta-key">Institution</span>
