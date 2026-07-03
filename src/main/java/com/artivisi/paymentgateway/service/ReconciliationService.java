@@ -92,15 +92,19 @@ public class ReconciliationService {
                         "duplicate settlement reference"));
                 continue;
             }
-            Optional<VirtualAccount> va = virtualAccountRepository
-                    .findByEscrowAccountIdAndVaNumber(escrow.getId(), credit.vaNumber());
-            if (va.isEmpty()) {
+            // Numbers are reusable: the settled payment may sit on any generation of the number.
+            List<VirtualAccount> generations = virtualAccountRepository
+                    .findByEscrowAccountIdAndVaNumberOrderByCreatedAtDesc(escrow.getId(), credit.vaNumber());
+            if (generations.isEmpty()) {
                 discrepancies.add(fromCredit(run, DiscrepancyType.UNMATCHED_CREDIT, credit, null,
                         "no virtual account for credit"));
                 continue;
             }
-            Optional<Payment> payment = paymentRepository
-                    .findByVirtualAccountIdAndBankReference(va.get().getId(), credit.bankReference());
+            Optional<Payment> payment = generations.stream()
+                    .map(g -> paymentRepository
+                            .findByVirtualAccountIdAndBankReference(g.getId(), credit.bankReference()))
+                    .flatMap(Optional::stream)
+                    .findFirst();
             if (payment.isPresent()) {
                 Payment existing = payment.get();
                 settledPaymentKeys.add(key(existing));

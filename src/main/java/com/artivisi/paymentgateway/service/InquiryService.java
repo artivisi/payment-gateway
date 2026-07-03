@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Resolves a VA inquiry for an escrow (the bank-&gt;gateway path). Anything not currently
@@ -30,12 +31,16 @@ public class InquiryService {
 
     @Transactional(readOnly = true)
     public InquiryResult inquire(EscrowAccount escrow, String vaNumber) {
-        VirtualAccount va = virtualAccountRepository
-                .findByEscrowAccountIdAndVaNumber(escrow.getId(), vaNumber)
-                .orElseThrow(() -> new NotFoundException("VA not found: " + vaNumber));
-        if (va.getStatus() != VirtualAccountStatus.ACTIVE) {
-            throw new NotFoundException("VA not active: " + vaNumber);
+        // Numbers are reusable: prefer the ACTIVE generation; a retired-only number is not payable.
+        List<VirtualAccount> generations = virtualAccountRepository
+                .findByEscrowAccountIdAndVaNumberOrderByCreatedAtDesc(escrow.getId(), vaNumber);
+        if (generations.isEmpty()) {
+            throw new NotFoundException("VA not found: " + vaNumber);
         }
+        VirtualAccount va = generations.stream()
+                .filter(g -> g.getStatus() == VirtualAccountStatus.ACTIVE)
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("VA not active: " + vaNumber));
         Charge charge = va.getCharge();
         if (charge.getStatus() == ChargeStatus.CANCELLED
                 || charge.getStatus() == ChargeStatus.PAID

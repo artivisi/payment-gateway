@@ -83,8 +83,8 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     }
 
     private VirtualAccountStatus vaStatus(String escrowId, String vaNumber) {
-        return virtualAccountRepository.findByEscrowAccountIdAndVaNumber(escrowId, vaNumber)
-                .orElseThrow().getStatus();
+        return virtualAccountRepository.findByEscrowAccountIdAndVaNumberOrderByCreatedAtDesc(escrowId, vaNumber)
+                .getFirst().getStatus();
     }
 
     @Test

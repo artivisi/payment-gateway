@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -56,17 +57,28 @@ public class PaymentApplicationService {
     @Transactional
     public Payment apply(EscrowAccount escrow, String vaNumber, BigDecimal amount,
                          String bankReference, Instant transactionTime) {
-        VirtualAccount va = virtualAccountRepository
-                .findByEscrowAccountIdAndVaNumber(escrow.getId(), vaNumber)
-                .orElseThrow(() -> new NotFoundException(
-                        "VA not found in escrow " + escrow.getCode() + ": " + vaNumber));
-
-        // Idempotency: a replayed notification returns the already-recorded payment.
-        Optional<Payment> existing =
-                paymentRepository.findByVirtualAccountIdAndBankReference(va.getId(), bankReference);
-        if (existing.isPresent()) {
-            return existing.get();
+        // Numbers are reusable: several generations may exist, at most one ACTIVE.
+        List<VirtualAccount> generations = virtualAccountRepository
+                .findByEscrowAccountIdAndVaNumberOrderByCreatedAtDesc(escrow.getId(), vaNumber);
+        if (generations.isEmpty()) {
+            throw new NotFoundException("VA not found in escrow " + escrow.getCode() + ": " + vaNumber);
         }
+
+        // Idempotency: a replayed notification (against any generation) returns the recorded payment.
+        for (VirtualAccount generation : generations) {
+            Optional<Payment> existing = paymentRepository
+                    .findByVirtualAccountIdAndBankReference(generation.getId(), bankReference);
+            if (existing.isPresent()) {
+                return existing.get();
+            }
+        }
+
+        // Prefer the ACTIVE generation; otherwise the newest one carries the failure semantics
+        // (paid/cancelled/expired) reported back to the bank.
+        VirtualAccount va = generations.stream()
+                .filter(g -> g.getStatus() == VirtualAccountStatus.ACTIVE)
+                .findFirst()
+                .orElse(generations.getFirst());
 
         // Pessimistic lock on the charge serializes sibling payments.
         Charge charge = chargeRepository.lockById(va.getCharge().getId())
@@ -120,14 +132,19 @@ public class PaymentApplicationService {
     @Transactional
     public Payment reverse(EscrowAccount escrow, String vaNumber, String bankReference,
                            BigDecimal amount, Instant reversalTime) {
-        VirtualAccount va = virtualAccountRepository
-                .findByEscrowAccountIdAndVaNumber(escrow.getId(), vaNumber)
-                .orElseThrow(() -> new NotFoundException(
-                        "VA not found in escrow " + escrow.getCode() + ": " + vaNumber));
-        Payment payment = paymentRepository
-                .findByVirtualAccountIdAndBankReference(va.getId(), bankReference)
+        // The referenced payment may sit on any generation of a reused number.
+        List<VirtualAccount> generations = virtualAccountRepository
+                .findByEscrowAccountIdAndVaNumberOrderByCreatedAtDesc(escrow.getId(), vaNumber);
+        if (generations.isEmpty()) {
+            throw new NotFoundException("VA not found in escrow " + escrow.getCode() + ": " + vaNumber);
+        }
+        Payment payment = generations.stream()
+                .map(g -> paymentRepository.findByVirtualAccountIdAndBankReference(g.getId(), bankReference))
+                .flatMap(Optional::stream)
+                .findFirst()
                 .orElseThrow(() -> new NotFoundException(
                         "no payment to reverse for reference " + bankReference));
+        VirtualAccount va = payment.getVirtualAccount();
 
         if (payment.getStatus() == PaymentStatus.REVERSED) {
             return payment;
