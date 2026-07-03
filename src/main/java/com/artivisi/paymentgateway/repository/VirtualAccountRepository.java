@@ -11,7 +11,11 @@ import java.util.Optional;
 
 public interface VirtualAccountRepository extends JpaRepository<VirtualAccount, String> {
 
-    Optional<VirtualAccount> findByEscrowAccountIdAndVaNumber(String escrowAccountId, String vaNumber);
+    /** All generations of a (reusable) number, newest first — at most one is ACTIVE. */
+    List<VirtualAccount> findByEscrowAccountIdAndVaNumberOrderByCreatedAtDesc(
+            String escrowAccountId, String vaNumber);
+
+    boolean existsByEscrowAccountIdAndVaNumber(String escrowAccountId, String vaNumber);
 
     Optional<VirtualAccount> findByEscrowAccountIdAndVaNumberAndStatus(
             String escrowAccountId, String vaNumber, VirtualAccountStatus status);
