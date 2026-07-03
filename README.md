@@ -122,11 +122,33 @@ flowchart TD
 
 ## Stack
 
-Spring Boot 4 · Java 25 · PostgreSQL 18 + Flyway · Spring WebClient · Spring Security (operator auth, TOTP MFA) · Thymeleaf + HTMX + Tailwind (admin) · Testcontainers + RestAssured + Playwright + [snap-provider-simulator](https://github.com/artivisi/snap-provider-simulator) (tests).
+- Spring Boot 4 · Java 25
+- PostgreSQL 18 + Flyway
+- Spring WebClient
+- Spring Security (operator auth, TOTP MFA)
+- Thymeleaf + HTMX + Tailwind (admin)
+- Testcontainers + RestAssured + Playwright + [snap-provider-simulator](https://github.com/artivisi/snap-provider-simulator) (tests)
 
 ## Status
 
-Active development. Implemented: charge + sibling-VA lifecycle and Consumer API; webhook delivery (signed, retried, per-consumer isolation); the three launch adapters (Maybank SNAP, BSI REST, CIMB SOAP); reconciliation with CSV import; the admin UI with operator auth, RBAC and MFA. Open: per-bank reconciliation CSV mappings, expiry sweep, outbound settlement pull (only if a bank offers it), bank-hosted (Model 2) adapters. See [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md).
+Active development.
+
+Implemented:
+
+- charge + sibling-VA lifecycle and Consumer API
+- webhook delivery (signed, retried, per-consumer isolation)
+- the three launch adapters (Maybank SNAP, BSI REST, CIMB SOAP)
+- reconciliation with CSV import
+- admin UI with operator auth, RBAC and MFA
+
+Open:
+
+- per-bank reconciliation CSV mappings
+- expiry sweep
+- outbound settlement pull (only if a bank offers it)
+- bank-hosted (Model 2) adapters
+
+See [`IMPLEMENTATION-PLAN.md`](IMPLEMENTATION-PLAN.md).
 
 ## License
 
