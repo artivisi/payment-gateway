@@ -87,10 +87,13 @@ The admin UI is at `/admin`. On first login the bootstrap admin must change its 
 
 ## Architecture
 
+The gateway's consumer is typically not an end application but a receivables system — e.g. the sibling [account-receivable](../account-receivable) subledger — which fronts the source systems, opens a charge per receivable, and applies the collected cash. Any application can also consume the API directly.
+
 ```mermaid
 flowchart TD
-  C1[Client app: registration]
-  C2[Client app: academic]
+  S1[Source system: registration]
+  S2[Source system: academic]
+  AR[account-receivable<br/>receivables subledger · gateway consumer]
   subgraph GW[payment-gateway]
     API[Unified API<br/>create / inquiry / cancel]
     CORE[VA registry · validation · lifecycle<br/>open / closed / installment]
@@ -102,8 +105,9 @@ flowchart TD
   B1[Maybank<br/>SNAP/REST]
   B2[BSI<br/>REST/JSON]
   B3[CIMB<br/>SOAP/XML]
-  C1 -->|create VA| API
-  C2 -->|create VA| API
+  S1 -->|raise receivable| AR
+  S2 -->|raise receivable| AR
+  AR -->|create charge + VAs| API
   API --> CORE --> ADP
   ADP --> B1
   ADP --> B2
@@ -112,8 +116,7 @@ flowchart TD
   B2 -->|inquiry / payment| ADP
   B3 -->|inquiry / payment| ADP
   ADP --> NOTIF
-  NOTIF --> C1
-  NOTIF --> C2
+  NOTIF -->|payment webhook| AR
   ADP --> RECON
 ```
 
