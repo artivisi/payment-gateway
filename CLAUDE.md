@@ -73,6 +73,8 @@ One webhook is emitted per received payment (carrying cumulative + remaining); t
 
 Consumers compute the number; the gateway validates it (within the escrow's company-id / prefix / digit space, and available) and registers it. A charge supplies **one `vaNumber` per target escrow**. **The gateway does not generate numbers.**
 
+**VA numbers are reusable.** A number may back several `VirtualAccount`s over time (one per successive charge), but at most **one ACTIVE** per escrow+number (enforced by `uq_va_escrow_number_active`); the rest are retired (PAID/CANCELLED/EXPIRED). Every lookup is therefore **generation-aware**: inquiry resolves the ACTIVE generation; payment/reversal/reconciliation prefer the ACTIVE generation and check idempotency across all generations of the number. Never assume a `(escrow, vaNumber)` maps to a single VA row.
+
 ## Reconciliation
 
 End-of-day, per escrow account: ingest the bank's settlement, match credits to payments, recover paid-not-notified payments (mark paid + forward webhook), and flag notified-not-settled, amount mismatch, duplicate, and unmatched credit. Report per escrow and per institution.
