@@ -46,6 +46,7 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
     private String escrowCode;
     private String vaNumber;
     private String chargeReference;
+    private String billNumber;
 
     private static EscrowAccountRequest escrowRequest(String code) {
         return new EscrowAccountRequest(code, "bsi", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
@@ -62,10 +63,11 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
                 "bsiadp-consumer-" + n, "Academic", "bsiadp-client-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
         chargeReference = "bsiadp-ref-" + n;
+        billNumber = "2026070900" + String.format("%06d", n);
         escrowService.create(escrowRequest(escrowCode));
         chargeService.create(consumer, new CreateChargeRequest(
                 chargeReference, "Student", null, null, ChargeType.CLOSED, new BigDecimal("1000000"), null,
-                List.of(new ChargeAccountRequest(escrowCode, vaNumber)), "SPP Semester Ganjil"));
+                List.of(new ChargeAccountRequest(escrowCode, vaNumber)), "SPP Semester Ganjil", billNumber));
     }
 
     private static String checksum(String nomorPembayaran) {
@@ -100,7 +102,7 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
                 .body("responseMessage", equalTo("OK"))
                 .body("nama", equalTo("Student"))
                 .body("keterangan", equalTo("SPP Semester Ganjil"))
-                .body("nomorInvoice", equalTo(chargeReference))
+                .body("nomorInvoice", equalTo(billNumber))
                 .body("jenisAkun", equalTo("CLOSED"))
                 .body("tagihanTotal", comparesEqualTo(new BigDecimal("1000000")))
                 .body("tagihanEfektif", comparesEqualTo(new BigDecimal("1000000")));

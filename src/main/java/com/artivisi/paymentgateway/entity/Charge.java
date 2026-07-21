@@ -39,6 +39,9 @@ public class Charge {
     /** The consumer's own bill id; unique per consumer (idempotency key). */
     private String consumerReference;
 
+    /** Human-meaningful bill/invoice number for finance + payer display (BSI {@code nomorInvoice}). */
+    private String billNumber;
+
     private String payerName;
 
     private String payerEmail;
