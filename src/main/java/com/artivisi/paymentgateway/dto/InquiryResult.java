@@ -10,7 +10,9 @@ import java.math.BigDecimal;
  */
 public record InquiryResult(
         String vaNumber,
+        String consumerReference,
         String payerName,
+        String description,
         ChargeType chargeType,
         BigDecimal totalAmount,
         BigDecimal remainingAmount
