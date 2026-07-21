@@ -4,13 +4,14 @@
 <body class="bg-slate-50 text-slate-800">
 <nav th:replace="~{fragments :: navbar('audit')}"></nav>
 <main class="mx-auto max-w-7xl px-4 py-8" data-testid="audit-list">
-    <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
             <h1 class="page-title">Audit log</h1>
             <p class="page-sub">Every state-changing action, with its authenticated actor.</p>
         </div>
-        <div th:replace="~{fragments :: searchBox(${q}, '/admin/audit')}"></div>
+        <div th:replace="~{fragments :: searchBox(${q}, '/admin/audit', 'category', ${category})}"></div>
     </div>
+    <div th:replace="~{fragments :: chips(${chips})}"></div>
     <div class="card overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
@@ -19,26 +20,40 @@
                 <th class="th">Actor</th>
                 <th class="th">Event</th>
                 <th class="th">Entity</th>
-                <th class="th">Entity ID</th>
                 <th class="th">Detail</th>
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-            <tr th:each="e : ${events}" class="hover:bg-slate-50">
-                <td class="td text-xs text-slate-500" th:text="${e.createdAt}">time</td>
-                <td class="td text-xs" th:text="${e.actor} ?: '—'">actor</td>
-                <td class="td" th:text="${e.eventType}">event</td>
-                <td class="td" th:text="${e.entityType}">entity</td>
-                <td class="td font-mono text-xs" th:text="${e.entityId} ?: '—'">id</td>
-                <td class="td text-xs text-slate-500" th:text="${e.detail}">detail</td>
+            <tr th:each="r : ${rows}" class="hover:bg-slate-50">
+                <td class="td" th:title="${r.iso}">
+                    <div class="text-[12.5px] font-medium text-slate-900" th:text="${r.day}">Today</div>
+                    <div class="text-[11.5px] text-slate-400" th:text="${r.time} + ' WIB'">10:00 WIB</div>
+                </td>
+                <td class="td"><span th:classappend="${r.actorClass}" class="rounded-md px-2 py-0.5 text-[11.5px] font-medium" th:text="${r.actor}">actor</span></td>
+                <td class="td"><span th:classappend="${r.eventClass}" th:text="${r.event}">event</span></td>
+                <td class="td">
+                    <div class="text-xs text-slate-600" th:text="${r.entityType}">entity</div>
+                    <div class="font-mono text-[11.5px] text-slate-400" th:title="${r.entityIdFull}" th:text="${r.entityIdShort}">id</div>
+                </td>
+                <td class="td max-w-xs overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[11.5px] text-slate-500"
+                    th:title="${r.detailFull}" th:text="${r.detail}">detail</td>
             </tr>
-            <tr th:if="${events.isEmpty()}">
-                <td class="td text-slate-400" colspan="6">No audit events found.</td>
+            <tr th:if="${rows.isEmpty()}">
+                <td class="td text-slate-400" colspan="5">No audit events found.</td>
             </tr>
             </tbody>
         </table>
     </div>
-    <div th:replace="~{fragments :: pagination(${events}, ${q}, '/admin/audit')}"></div>
+    <div th:if="${events.totalPages > 1}" class="mt-4 flex items-center justify-between text-sm">
+        <span class="text-slate-500"
+              th:text="'Page ' + (${events.number} + 1) + ' / ' + ${events.totalPages} + ' &middot; ' + ${events.totalElements} + ' total'">Page</span>
+        <div class="flex gap-2">
+            <a th:if="${events.hasPrevious()}" th:href="@{/admin/audit(page=${events.number - 1}, q=${q}, category=${category})}"
+               class="btn-ghost px-3 py-1">Prev</a>
+            <a th:if="${events.hasNext()}" th:href="@{/admin/audit(page=${events.number + 1}, q=${q}, category=${category})}"
+               class="btn-ghost px-3 py-1">Next</a>
+        </div>
+    </div>
 </main>
 <footer th:replace="~{fragments :: footer}"></footer>
 </body>

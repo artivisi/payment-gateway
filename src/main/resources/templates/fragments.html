@@ -128,21 +128,17 @@
     <p class="text-xs text-slate-400">Powered by ArtiVisi Payment Gateway</p>
 </footer>
 
-<form th:fragment="searchBox(q, path)" method="get" th:action="@{${path}}" class="flex gap-2">
+<form th:fragment="searchBox(q, path, extraName, extraValue)" method="get" th:action="@{${path}}" class="flex gap-2">
+    <input type="hidden" th:if="${extraValue != null}" th:name="${extraName}" th:value="${extraValue}"/>
     <input type="text" name="q" th:value="${q}" placeholder="Search…" class="input w-56"/>
     <button type="submit" class="btn-ghost">Search</button>
 </form>
 
-<div th:fragment="pagination(page, q, path)" th:if="${page.totalPages > 1}"
-     class="mt-4 flex items-center justify-between text-sm">
-    <span class="text-slate-500"
-          th:text="'Page ' + (${page.number} + 1) + ' / ' + ${page.totalPages} + ' · ' + ${page.totalElements} + ' total'">Page</span>
-    <div class="flex gap-2">
-        <a th:if="${page.hasPrevious()}" th:href="@{${path}(page=${page.number - 1}, q=${q})}"
-           class="btn-ghost px-3 py-1">Prev</a>
-        <a th:if="${page.hasNext()}" th:href="@{${path}(page=${page.number + 1}, q=${q})}"
-           class="btn-ghost px-3 py-1">Next</a>
-    </div>
+<div th:fragment="chips(items)" class="mb-4 flex flex-wrap gap-2">
+    <a th:each="c : ${items}" th:href="@{${c.href}}" class="chip" th:classappend="${c.active} ? 'chip-active'">
+        <span th:text="${c.label}">Label</span>
+        <span class="chip-count" th:text="${c.count}">0</span>
+    </a>
 </div>
 </body>
 </html>

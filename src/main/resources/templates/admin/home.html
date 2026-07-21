@@ -4,53 +4,74 @@
 <body class="bg-slate-50 text-slate-800">
 <nav th:replace="~{fragments :: navbar('dashboard')}"></nav>
 <main class="mx-auto max-w-7xl px-4 py-8" data-testid="dashboard">
-    <div class="mb-6">
-        <h1 class="page-title">Dashboard</h1>
-        <p class="page-sub">Collection status across banks, at a glance.</p>
+    <div class="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-sub">Collection across banks.</p>
+        </div>
+        <div class="flex gap-3">
+            <a th:href="@{/admin/escrow-accounts/new}" class="btn-primary">New escrow account</a>
+            <a th:href="@{/admin/consumers/new}" class="btn-ghost">New consumer</a>
+        </div>
     </div>
 
-    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <a th:href="@{/admin/escrow-accounts}" class="stat-card">
-            <div>
-                <p class="text-sm text-slate-500">Escrow accounts</p>
-                <p class="mt-1 text-3xl font-semibold tracking-tight text-slate-900" th:text="${escrowCount}">0</p>
+    <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div class="kpi-card" th:each="k : ${kpis}">
+            <div class="flex items-center justify-between gap-2">
+                <span class="kpi-label" th:text="${k.label}">Label</span>
+                <span class="h-2 w-2 shrink-0 rounded-full" th:classappend="${k.dotClass}"></span>
             </div>
-            <span class="stat-icon">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 10h16M5 10v11m14-11v11M9 21v-6h6v6M12 3l8 4H4l8-4z"/></svg>
-            </span>
-        </a>
-        <a th:href="@{/admin/consumers}" class="stat-card">
-            <div>
-                <p class="text-sm text-slate-500">Consumers</p>
-                <p class="mt-1 text-3xl font-semibold tracking-tight text-slate-900" th:text="${consumerCount}">0</p>
-            </div>
-            <span class="stat-icon">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87M16 3.13a4 4 0 010 7.75M12 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-            </span>
-        </a>
-        <a th:href="@{/admin/charges}" class="stat-card">
-            <div>
-                <p class="text-sm text-slate-500">Charges</p>
-                <p class="mt-1 text-3xl font-semibold tracking-tight text-slate-900" th:text="${chargeCount}">0</p>
-            </div>
-            <span class="stat-icon">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M9 8h6M5 3h14v18l-2-1.5L15 21l-3-1.5L9 21l-2-1.5L5 21V3z"/></svg>
-            </span>
-        </a>
-        <a th:href="@{/admin/payments}" class="stat-card">
-            <div>
-                <p class="text-sm text-slate-500">Payments</p>
-                <p class="mt-1 text-3xl font-semibold tracking-tight text-accent-600" th:text="${paymentCount}">0</p>
-            </div>
-            <span class="stat-icon bg-accent-50 text-accent-600">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8h18M3 12h18M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2zm2 11h4"/></svg>
-            </span>
-        </a>
+            <p class="kpi-value" th:text="${k.value}">0</p>
+            <p class="kpi-sub" th:text="${k.sub}">sub</p>
+        </div>
     </div>
 
-    <div class="mt-8 flex flex-wrap gap-3">
-        <a th:href="@{/admin/escrow-accounts/new}" class="btn-primary">New escrow account</a>
-        <a th:href="@{/admin/consumers/new}" class="btn-ghost">New consumer</a>
+    <div class="mt-3.5 grid grid-cols-1 gap-3.5 lg:grid-cols-3">
+        <div class="card p-5 lg:col-span-2">
+            <div class="mb-3.5 flex items-baseline justify-between gap-3">
+                <span class="text-sm font-semibold text-slate-900">Collections &mdash; last 14 days</span>
+            </div>
+            <div class="flex h-32 items-end gap-2">
+                <div th:each="b : ${trend}" class="flex h-full flex-1 flex-col items-stretch justify-end gap-1.5"
+                     th:title="${b.tooltip}">
+                    <div class="trend-bar" th:classappend="${b.highlight} ? 'trend-bar-current'"
+                         th:style="'height:' + ${b.heightPx} + 'px'"></div>
+                    <span class="text-center text-[10.5px] text-slate-400" th:text="${b.label}">1</span>
+                </div>
+            </div>
+        </div>
+        <div class="card flex flex-col p-5">
+            <span class="text-sm font-semibold text-slate-900">Needs attention</span>
+            <div class="mt-2.5 flex flex-col gap-1">
+                <a th:each="a : ${attention}" th:href="@{${a.href}}" class="attention-item">
+                    <span class="mt-1.5 h-2 w-2 shrink-0 rounded-full" th:classappend="${a.dotClass}"></span>
+                    <span class="flex-1 text-[13px] leading-snug text-slate-700" th:text="${a.text}">text</span>
+                </a>
+                <p th:if="${attention.isEmpty()}" class="text-[13px] text-slate-400">Nothing needs attention right now.</p>
+            </div>
+            <div class="mt-auto flex gap-4 border-t border-slate-100 pt-3">
+                <span class="text-xs text-slate-500">Escrow accounts <strong class="font-semibold text-slate-900" th:text="${escrowCount}">0</strong></span>
+                <span class="text-xs text-slate-500">Consumers <strong class="font-semibold text-slate-900" th:text="${consumerCount}">0</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-3.5 overflow-hidden">
+        <div class="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+            <span class="text-sm font-semibold text-slate-900">Latest payments</span>
+            <a th:href="@{/admin/payments}" class="text-xs font-medium text-primary-700 hover:underline">View all &rarr;</a>
+        </div>
+        <div class="flex flex-col">
+            <div th:each="p : ${recentPayments}"
+                 class="grid grid-cols-[130px_1fr_auto] items-center gap-3.5 border-b border-slate-50 px-5 py-2.5 last:border-b-0">
+                <span class="text-xs text-slate-500" th:text="${p.when}">when</span>
+                <span class="font-mono text-xs text-slate-600">VA <span th:text="${p.va}">va</span> &rarr;
+                    <a th:href="@{${p.chargeHref}}" class="text-primary-700 hover:underline" th:text="${p.chargeShort}">charge</a>
+                </span>
+                <span class="whitespace-nowrap text-right font-mono text-[12.5px] font-medium text-slate-900" th:text="${p.amount}">0</span>
+            </div>
+            <p th:if="${recentPayments.isEmpty()}" class="px-5 py-8 text-center text-sm text-slate-400">No payments yet.</p>
+        </div>
     </div>
 </main>
 <footer th:replace="~{fragments :: footer}"></footer>
