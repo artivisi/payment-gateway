@@ -4,18 +4,21 @@
 <body class="bg-slate-50 text-slate-800">
 <nav th:replace="~{fragments :: navbar('payment')}"></nav>
 <main class="mx-auto max-w-7xl px-4 py-8" data-testid="payment-list">
-    <div class="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
             <h1 class="page-title">Payments</h1>
             <p class="page-sub">Transactions received from the banks, newest first.</p>
         </div>
-        <div th:replace="~{fragments :: searchBox(${q}, '/admin/payments')}"></div>
+        <div th:replace="~{fragments :: searchBox(${q}, '/admin/payments', 'range', ${range})}"></div>
     </div>
+    <div th:replace="~{fragments :: chips(${chips})}"></div>
     <div class="card overflow-x-auto">
         <table class="min-w-full divide-y divide-slate-200">
             <thead class="bg-slate-50">
             <tr>
-                <th class="th">Time</th>
+                <th class="th">Received</th>
+                <th class="th">Payer</th>
+                <th class="th">Bank</th>
                 <th class="th">VA number</th>
                 <th class="th">Bank reference</th>
                 <th class="th text-right">Amount</th>
@@ -24,30 +27,37 @@
             </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-            <tr th:each="p : ${payments}" class="hover:bg-slate-50">
-                <td class="td text-xs text-slate-500">
-                    <a class="text-primary-700 hover:underline"
-                       th:href="@{/admin/payments/{id}(id=${p.id})}" th:text="${p.transactionTime}">time</a>
+            <tr th:each="r : ${rows}" class="hover:bg-slate-50">
+                <td class="td" th:title="${r.iso}">
+                    <a th:href="@{/admin/payments/{id}(id=${r.id})}" class="hover:underline">
+                        <div class="text-[13px] font-medium text-slate-900" th:text="${r.day}">Today</div>
+                        <div class="text-[11.5px] text-slate-400" th:text="${r.time} + ' WIB'">10:00 WIB</div>
+                    </a>
                 </td>
-                <td class="td font-mono text-xs" th:text="${p.virtualAccount.vaNumber}">va</td>
-                <td class="td font-mono text-xs" th:text="${p.bankReference}">ref</td>
-                <td class="td text-right font-mono text-xs" th:text="${p.amount}">0</td>
-                <td class="td">
-                    <span th:classappend="${p.status.name() == 'ACCEPTED'} ? 'badge-ok' : 'badge-muted'"
-                          th:text="${p.status}">ACCEPTED</span>
-                </td>
-                <td class="td">
-                    <a class="text-primary-700 hover:underline"
-                       th:href="@{/admin/charges/{id}(id=${p.charge.id})}" th:text="${p.charge.consumerReference}">ref</a>
-                </td>
+                <td class="td text-[12.5px] font-medium text-slate-900" th:text="${r.payer}">payer</td>
+                <td class="td text-xs text-slate-600" th:text="${r.bank}">bank</td>
+                <td class="td font-mono text-xs" th:text="${r.va}">va</td>
+                <td class="td font-mono text-[11.5px] text-slate-400" th:text="${r.bankReference}">ref</td>
+                <td class="td text-right font-mono text-xs font-medium" th:text="${r.amount}">0</td>
+                <td class="td"><span th:classappend="${r.statusClass}" th:text="${r.statusLabel}">ACCEPTED</span></td>
+                <td class="td"><a th:href="@{${r.chargeHref}}" class="font-mono text-xs text-primary-700 hover:underline" th:text="${r.chargeShort}">ref</a></td>
             </tr>
-            <tr th:if="${payments.isEmpty()}">
-                <td class="td text-slate-400" colspan="6">No payments found.</td>
+            <tr th:if="${rows.isEmpty()}">
+                <td class="td text-slate-400" colspan="8">No payments found.</td>
             </tr>
             </tbody>
         </table>
     </div>
-    <div th:replace="~{fragments :: pagination(${payments}, ${q}, '/admin/payments')}"></div>
+    <div th:if="${payments.totalPages > 1}" class="mt-4 flex items-center justify-between text-sm">
+        <span class="text-slate-500"
+              th:text="'Page ' + (${payments.number} + 1) + ' / ' + ${payments.totalPages} + ' &middot; ' + ${payments.totalElements} + ' total'">Page</span>
+        <div class="flex gap-2">
+            <a th:if="${payments.hasPrevious()}" th:href="@{/admin/payments(page=${payments.number - 1}, q=${q}, range=${range})}"
+               class="btn-ghost px-3 py-1">Prev</a>
+            <a th:if="${payments.hasNext()}" th:href="@{/admin/payments(page=${payments.number + 1}, q=${q}, range=${range})}"
+               class="btn-ghost px-3 py-1">Next</a>
+        </div>
+    </div>
 </main>
 <footer th:replace="~{fragments :: footer}"></footer>
 </body>

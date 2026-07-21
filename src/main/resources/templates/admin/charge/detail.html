@@ -14,8 +14,8 @@
         <div><p class="text-xs text-slate-500">Payer</p><p th:text="${charge.payerName}">p</p></div>
         <div><p class="text-xs text-slate-500">Type</p><p th:text="${charge.chargeType}">CLOSED</p></div>
         <div><p class="text-xs text-slate-500">Status</p><p th:text="${charge.status}">ACTIVE</p></div>
-        <div><p class="text-xs text-slate-500">Amount</p><p class="font-mono" th:text="${charge.amount}">0</p></div>
-        <div><p class="text-xs text-slate-500">Cumulative paid</p><p class="font-mono" th:text="${charge.cumulativePaid}">0</p></div>
+        <div><p class="text-xs text-slate-500">Amount</p><p class="font-mono" th:text="${T(com.artivisi.paymentgateway.web.viewmodel.ViewFormats).rupiah(charge.amount)}">0</p></div>
+        <div><p class="text-xs text-slate-500">Cumulative paid</p><p class="font-mono" th:text="${T(com.artivisi.paymentgateway.web.viewmodel.ViewFormats).rupiah(charge.cumulativePaid)}">0</p></div>
         <div><p class="text-xs text-slate-500">Expires</p><p class="text-sm" th:text="${charge.expiresAt} ?: '—'">—</p></div>
         <div><p class="text-xs text-slate-500">Created</p><p class="text-sm" th:text="${charge.createdAt}">t</p></div>
     </div>
@@ -43,7 +43,7 @@
                 <td class="td text-xs text-slate-500" th:text="${p.transactionTime}">t</td>
                 <td class="td font-mono text-xs" th:text="${p.virtualAccount.vaNumber}">va</td>
                 <td class="td font-mono text-xs" th:text="${p.bankReference}">ref</td>
-                <td class="td font-mono text-xs" th:text="${p.amount}">0</td>
+                <td class="td font-mono text-xs" th:text="${T(com.artivisi.paymentgateway.web.viewmodel.ViewFormats).rupiah(p.amount)}">0</td>
                 <td class="td"><span class="badge-muted" th:text="${p.status}">ACCEPTED</span></td>
             </tr>
             <tr th:if="${#lists.isEmpty(payments)}"><td class="td text-slate-400" colspan="5">No payments.</td></tr>

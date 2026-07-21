@@ -21,7 +21,7 @@
                 </div>
                 <div>
                     <dt class="text-slate-400">Amount</dt>
-                    <dd class="font-mono font-semibold" th:text="${payment.amount}">0</dd>
+                    <dd class="font-mono font-semibold" th:text="${T(com.artivisi.paymentgateway.web.viewmodel.ViewFormats).rupiah(payment.amount)}">0</dd>
                 </div>
                 <div>
                     <dt class="text-slate-400">Bank reference</dt>
