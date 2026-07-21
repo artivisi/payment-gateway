@@ -13,6 +13,7 @@ import java.util.List;
 public record ChargeResponse(
         String id,
         String consumerReference,
+        String billNumber,
         String payerName,
         String payerEmail,
         String payerPhone,
@@ -33,8 +34,8 @@ public record ChargeResponse(
                 .map(va -> new Account(va.getEscrowAccount().getCode(), va.getVaNumber(), va.getStatus()))
                 .toList();
         return new ChargeResponse(
-                c.getId(), c.getConsumerReference(), c.getPayerName(), c.getPayerEmail(), c.getPayerPhone(),
-                c.getDescription(), c.getChargeType(), c.getAmount(), c.getCumulativePaid(), c.getStatus(),
-                c.getExpiresAt(), accounts, c.getCreatedAt());
+                c.getId(), c.getConsumerReference(), c.getBillNumber(), c.getPayerName(), c.getPayerEmail(),
+                c.getPayerPhone(), c.getDescription(), c.getChargeType(), c.getAmount(), c.getCumulativePaid(),
+                c.getStatus(), c.getExpiresAt(), accounts, c.getCreatedAt());
     }
 }
