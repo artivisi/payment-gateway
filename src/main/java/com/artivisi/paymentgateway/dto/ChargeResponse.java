@@ -16,6 +16,7 @@ public record ChargeResponse(
         String payerName,
         String payerEmail,
         String payerPhone,
+        String description,
         ChargeType chargeType,
         BigDecimal amount,
         BigDecimal cumulativePaid,
@@ -33,7 +34,7 @@ public record ChargeResponse(
                 .toList();
         return new ChargeResponse(
                 c.getId(), c.getConsumerReference(), c.getPayerName(), c.getPayerEmail(), c.getPayerPhone(),
-                c.getChargeType(), c.getAmount(), c.getCumulativePaid(), c.getStatus(), c.getExpiresAt(),
-                accounts, c.getCreatedAt());
+                c.getDescription(), c.getChargeType(), c.getAmount(), c.getCumulativePaid(), c.getStatus(),
+                c.getExpiresAt(), accounts, c.getCreatedAt());
     }
 }

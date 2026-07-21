@@ -45,6 +45,9 @@ public class Charge {
 
     private String payerPhone;
 
+    /** Bill description shown to the payer (BSI {@code keterangan}); optional. */
+    private String description;
+
     @Enumerated(EnumType.STRING)
     private ChargeType chargeType;
 
