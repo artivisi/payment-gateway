@@ -20,12 +20,13 @@ public record CreateChargeRequest(
         @NotNull @Positive BigDecimal amount,
         Instant expiresAt,
         @NotEmpty List<@Valid ChargeAccountRequest> accounts,
-        String description
+        String description,
+        String billNumber
 ) {
-    /** Source-compatibility overload for callers predating the {@code description} field (defaults null). */
+    /** Source-compatibility overload for callers predating {@code description}/{@code billNumber} (default null). */
     public CreateChargeRequest(String consumerReference, String payerName, String payerEmail, String payerPhone,
                                ChargeType chargeType, BigDecimal amount, Instant expiresAt,
                                List<ChargeAccountRequest> accounts) {
-        this(consumerReference, payerName, payerEmail, payerPhone, chargeType, amount, expiresAt, accounts, null);
+        this(consumerReference, payerName, payerEmail, payerPhone, chargeType, amount, expiresAt, accounts, null, null);
     }
 }

@@ -51,7 +51,7 @@ public class InquiryService {
             throw new NotFoundException("charge expired: " + vaNumber);
         }
         BigDecimal remaining = charge.getAmount().subtract(charge.getCumulativePaid());
-        return new InquiryResult(vaNumber, charge.getConsumerReference(), charge.getPayerName(),
+        return new InquiryResult(vaNumber, charge.getBillNumber(), charge.getPayerName(),
                 charge.getDescription(), charge.getChargeType(), charge.getAmount(), remaining);
     }
 }

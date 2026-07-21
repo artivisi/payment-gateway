@@ -71,6 +71,7 @@ public class ChargeService {
         charge.setPayerEmail(request.payerEmail());
         charge.setPayerPhone(request.payerPhone());
         charge.setDescription(request.description());
+        charge.setBillNumber(request.billNumber());
         charge.setChargeType(request.chargeType());
         charge.setAmount(request.amount());
         charge.setCumulativePaid(BigDecimal.ZERO);
