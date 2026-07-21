@@ -26,4 +26,9 @@ public interface VirtualAccountRepository extends JpaRepository<VirtualAccount, 
 
     @Query("select v from VirtualAccount v join fetch v.escrowAccount where v.charge.id = :chargeId")
     List<VirtualAccount> findByChargeIdWithEscrow(@Param("chargeId") String chargeId);
+
+    @Query("select v from VirtualAccount v join fetch v.escrowAccount "
+            + "where v.charge.id in :chargeIds and v.status = :status")
+    List<VirtualAccount> findByChargeIdInAndStatusWithEscrow(@Param("chargeIds") List<String> chargeIds,
+                                                              @Param("status") VirtualAccountStatus status);
 }
