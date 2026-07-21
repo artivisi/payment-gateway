@@ -70,6 +70,7 @@ public class ChargeService {
         charge.setPayerName(request.payerName());
         charge.setPayerEmail(request.payerEmail());
         charge.setPayerPhone(request.payerPhone());
+        charge.setDescription(request.description());
         charge.setChargeType(request.chargeType());
         charge.setAmount(request.amount());
         charge.setCumulativePaid(BigDecimal.ZERO);

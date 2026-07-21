@@ -45,6 +45,7 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
 
     private String escrowCode;
     private String vaNumber;
+    private String chargeReference;
 
     private static EscrowAccountRequest escrowRequest(String code) {
         return new EscrowAccountRequest(code, "bsi", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
@@ -60,10 +61,11 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
         Consumer consumer = consumerService.create(new ConsumerRequest(
                 "bsiadp-consumer-" + n, "Academic", "bsiadp-client-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
+        chargeReference = "bsiadp-ref-" + n;
         escrowService.create(escrowRequest(escrowCode));
         chargeService.create(consumer, new CreateChargeRequest(
-                "bsiadp-ref-" + n, "Student", null, null, ChargeType.CLOSED, new BigDecimal("1000000"), null,
-                List.of(new ChargeAccountRequest(escrowCode, vaNumber))));
+                chargeReference, "Student", null, null, ChargeType.CLOSED, new BigDecimal("1000000"), null,
+                List.of(new ChargeAccountRequest(escrowCode, vaNumber)), "SPP Semester Ganjil"));
     }
 
     private static String checksum(String nomorPembayaran) {
@@ -95,10 +97,27 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
         post(body("inquiry", vaNumber, checksum(vaNumber), null))
                 .then().statusCode(200)
                 .body("responseCode", equalTo("00"))
+                .body("responseMessage", equalTo("OK"))
                 .body("nama", equalTo("Student"))
+                .body("keterangan", equalTo("SPP Semester Ganjil"))
+                .body("nomorInvoice", equalTo(chargeReference))
                 .body("jenisAkun", equalTo("CLOSED"))
                 .body("tagihanTotal", comparesEqualTo(new BigDecimal("1000000")))
                 .body("tagihanEfektif", comparesEqualTo(new BigDecimal("1000000")));
+    }
+
+    @Test
+    void inquiry_echoesRequestChannelFields() {
+        Map<String, Object> b = body("inquiry", vaNumber, checksum(vaNumber), null);
+        b.put("kodeBank", "451");
+        b.put("kodeChannel", "6014");
+        b.put("kodeTerminal", "ATM001");
+        post(b).then().statusCode(200)
+                .body("responseCode", equalTo("00"))
+                .body("kodeBank", equalTo("451"))
+                .body("kodeChannel", equalTo("6014"))
+                .body("kodeTerminal", equalTo("ATM001"))
+                .body("idTransaksi", equalTo("TRX-" + vaNumber));
     }
 
     @Test
@@ -146,10 +165,12 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
         post(body("payment", vaNumber, checksum(vaNumber), new BigDecimal("1000000")))
                 .then().body("responseCode", equalTo("00"));
 
+        // bsm-makara's reversal reply carries no amount fields (only refs); parity is verified by the
+        // subsequent inquiry showing the charge reopened.
         post(body("reversal", vaNumber, checksum(vaNumber), new BigDecimal("1000000")))
                 .then().statusCode(200)
                 .body("responseCode", equalTo("00"))
-                .body("akumulasiPembayaran", comparesEqualTo(new BigDecimal("0")));
+                .body("referensiPembayaran", org.hamcrest.Matchers.notNullValue());
 
         // Reversed charge is payable again.
         post(body("inquiry", vaNumber, checksum(vaNumber), null))
