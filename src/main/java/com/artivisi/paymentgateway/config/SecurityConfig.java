@@ -15,6 +15,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 
 /**
@@ -84,9 +86,16 @@ public class SecurityConfig {
                 // Bank callbacks / Consumer API are not browser forms and carry no CSRF token.
                 // An API caller with no/blank credentials must get 401, not a 302 to the HTML login
                 // page — a CLI cannot follow that, and a redirect reads as "endpoint moved".
-                .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
-                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                        request -> request.getRequestURI().startsWith("/api/")))
+                // The second mapping is NOT redundant: with only the /api/ mapping registered,
+                // DelegatingAuthenticationEntryPoint falls back to the FIRST registered entry point
+                // for everything else, which sent browsers a bare 401 instead of the login page.
+                .exceptionHandling(ex -> ex
+                        .defaultAuthenticationEntryPointFor(
+                                new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+                                request -> request.getRequestURI().startsWith("/api/"))
+                        .defaultAuthenticationEntryPointFor(
+                                new LoginUrlAuthenticationEntryPoint("/login"),
+                                AnyRequestMatcher.INSTANCE))
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/ws/**"))
                 // Bearer tokens are stateless: resolve one before the session filter so an API call
                 // never depends on a session, and a browser session never grants API access.
