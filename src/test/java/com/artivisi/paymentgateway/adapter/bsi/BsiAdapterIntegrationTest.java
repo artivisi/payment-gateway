@@ -39,6 +39,7 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
     private static final String SHARED_KEY = "bsi-shared-key";
     private static final String TGL = "2026-06-24T10:00:00";
 
+    @Autowired com.artivisi.paymentgateway.repository.PaymentRepository paymentRepository;
     @Autowired EscrowAccountService escrowService;
     @Autowired ConsumerService consumerService;
     @Autowired ChargeService chargeService;
@@ -178,5 +179,39 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
         post(body("inquiry", vaNumber, checksum(vaNumber), null))
                 .then().body("responseCode", equalTo("00"))
                 .body("tagihanEfektif", comparesEqualTo(new BigDecimal("1000000")));
+    }
+
+    /**
+     * transaction_time must be the BANK's clock, not ours: reconciliation selects payments by period
+     * and matches them against a settlement file the bank builds on its own clock, so a payment
+     * transacted at 23:58 and processed at 00:03 would otherwise land in the wrong settlement day.
+     * createdAt still records when we processed it.
+     */
+    @Test
+    void payment_storesTheBankTransactionTimeNotOurs() {
+        String tgl = "20260624100000";   // the form BSI's terminals actually send
+        Map<String, Object> payment = body("payment", vaNumber,
+                BsiChecksum.compute(vaNumber, SHARED_KEY, tgl), new BigDecimal("1000000"));
+        payment.put("tanggalTransaksi", tgl);
+        post(payment).then().statusCode(200).body("responseCode", equalTo("00"));
+
+        // filter on the scalar bankReference: open-in-view is off, so touching the lazy VA
+        // association outside a session would fail
+        var stored = paymentRepository.findAll().stream()
+                .filter(p -> ("TRX-" + vaNumber).equals(p.getBankReference()))
+                .findFirst().orElseThrow();
+        java.time.Instant expected = java.time.LocalDateTime.of(2026, 6, 24, 10, 0, 0)
+                .atZone(java.time.ZoneId.of("Asia/Jakarta")).toInstant();
+        org.assertj.core.api.Assertions.assertThat(stored.getTransactionTime()).isEqualTo(expected);
+        org.assertj.core.api.Assertions.assertThat(stored.getCreatedAt()).isNotEqualTo(expected);
+    }
+
+    /** No falling back to now(): a silent substitution is how the bank's clock got discarded before. */
+    @Test
+    void payment_withUnparsableTimestamp_isRejected() {
+        Map<String, Object> payment = body("payment", vaNumber,
+                BsiChecksum.compute(vaNumber, SHARED_KEY, "not-a-timestamp"), new BigDecimal("1000000"));
+        payment.put("tanggalTransaksi", "not-a-timestamp");
+        post(payment).then().statusCode(200).body("responseCode", equalTo("30"));
     }
 }
