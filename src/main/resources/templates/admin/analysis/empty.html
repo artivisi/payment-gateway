@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Analysis')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('analysis')}"></nav>
+<main class="mx-auto max-w-4xl px-4 py-10" data-testid="analysis-empty">
+    <h1 class="page-title">Analysis</h1>
+    <p class="page-sub">
+        No analysis has been uploaded yet. Reports are computed outside the gateway — the source data
+        often lives elsewhere — and posted in, so the app keeps the series and renders it.
+    </p>
+    <div class="card mt-6 p-6 text-sm">
+        <p class="mb-3 font-medium">To publish one:</p>
+        <pre class="overflow-x-auto rounded bg-slate-900 p-4 text-xs text-slate-100">./analyze-bill-aging.py --publish https://pay.example/</pre>
+        <p class="mt-3 text-slate-600">
+            The first run asks you to approve the device in this browser, then remembers its token.
+        </p>
+    </div>
+</main>
+</body>
+</html>

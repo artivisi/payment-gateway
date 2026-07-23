@@ -7,11 +7,14 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 
 /**
@@ -29,13 +32,19 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, OperatorRepository operatorRepository)
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, OperatorRepository operatorRepository,
+                                                   DeviceTokenAuthenticationFilter deviceTokenFilter)
             throws Exception {
         AdminAccessGuardFilter guard = new AdminAccessGuardFilter(operatorRepository);
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/css/**", "/js/**", "/img/**", "/favicon.ico").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // Device flow: how a CLI OBTAINS a token, so it cannot itself require one.
+                        .requestMatchers("/api/device/**").permitAll()
+                        // Operator-facing API, authenticated by a device token (RFC 8628) carrying the
+                        // owning operator's permissions.
+                        .requestMatchers("/api/analysis-reports/**").hasAuthority("ANALYSIS_VIEW")
                         // Bank callbacks + Consumer API authenticate themselves (signature / client key / IP).
                         .requestMatchers("/api/**", "/ws/**").permitAll()
                         // Post-login step-up pages: any authenticated operator (incl. pre-MFA).
@@ -55,6 +64,10 @@ public class SecurityConfig {
                         .requestMatchers("/admin/payments/**").hasAuthority("PAYMENT_VIEW")
                         .requestMatchers("/admin/reconciliations/**").hasAuthority("RECONCILIATION_VIEW")
                         .requestMatchers("/admin/audit/**").hasAuthority("AUDIT_VIEW")
+                        .requestMatchers("/admin/analysis/**").hasAuthority("ANALYSIS_VIEW")
+                        // Approving a device is a normal operator action; the token it mints inherits
+                        // that operator's permissions and no more.
+                        .requestMatchers("/device", "/device/**").authenticated()
                         // Dashboard + any other admin path: just an authenticated operator.
                         .requestMatchers("/admin", "/admin/").authenticated()
                         .requestMatchers("/admin/**").authenticated()
@@ -69,7 +82,15 @@ public class SecurityConfig {
                         .logoutSuccessUrl("/login?logout")
                         .permitAll())
                 // Bank callbacks / Consumer API are not browser forms and carry no CSRF token.
+                // An API caller with no/blank credentials must get 401, not a 302 to the HTML login
+                // page — a CLI cannot follow that, and a redirect reads as "endpoint moved".
+                .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
+                        new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
+                        request -> request.getRequestURI().startsWith("/api/")))
                 .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**", "/ws/**"))
+                // Bearer tokens are stateless: resolve one before the session filter so an API call
+                // never depends on a session, and a browser session never grants API access.
+                .addFilterBefore(deviceTokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(guard, AuthorizationFilter.class);
         return http.build();
     }
