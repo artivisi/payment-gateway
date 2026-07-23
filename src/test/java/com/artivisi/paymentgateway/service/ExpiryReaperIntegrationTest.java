@@ -41,6 +41,8 @@ class ExpiryReaperIntegrationTest extends AbstractIntegrationTest {
     @Autowired ChargeRepository chargeRepository;
     @Autowired VirtualAccountRepository vaRepository;
     @Autowired AuditEventRepository auditRepository;
+    @Autowired InquiryService inquiryService;
+    @Autowired com.artivisi.paymentgateway.repository.EscrowAccountRepository escrowRepository;
 
     private Consumer consumer;
     private String escrowCode;
@@ -70,13 +72,16 @@ class ExpiryReaperIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void sweep_expiresActiveChargeAndCancelsVas() {
+    void sweep_retiresVasButLeavesTheChargeStatusAlone() {
         String chargeId = createCharge("ref-exp-1", Instant.now().minusSeconds(60), "9009000001");
 
         reaper.sweep();
 
         var charge = chargeRepository.findById(chargeId).orElseThrow();
-        assertThat(charge.getStatus()).isEqualTo(ChargeStatus.EXPIRED);
+        // Soft expiry: the debt is still owed and still reportable. Flipping the status would make
+        // this charge invisible to collection-aging analysis, which is precisely the population such
+        // analysis exists to measure.
+        assertThat(charge.getStatus()).isEqualTo(ChargeStatus.ACTIVE);
 
         var vas = vaRepository.findByChargeId(chargeId);
         assertThat(vas).allMatch(va -> va.getStatus() == VirtualAccountStatus.EXPIRED);
@@ -92,7 +97,7 @@ class ExpiryReaperIntegrationTest extends AbstractIntegrationTest {
         long auditsAfter = auditRepository.count();
         assertThat(auditsAfter).isGreaterThan(auditsBefore);
         boolean found = auditRepository.findAll().stream()
-                .anyMatch(e -> "CHARGE_EXPIRED".equals(e.getEventType())
+                .anyMatch(e -> "CHARGE_VA_RETIRED_ON_EXPIRY".equals(e.getEventType())
                         && "system".equals(e.getActor()));
         assertThat(found).isTrue();
     }
@@ -119,5 +124,24 @@ class ExpiryReaperIntegrationTest extends AbstractIntegrationTest {
 
         var updated = chargeRepository.findById(chargeId).orElseThrow();
         assertThat(updated.getStatus()).isEqualTo(ChargeStatus.PAID);
+    }
+
+    /**
+     * The point of soft expiry: the charge is refused at the wire, but the row still says a debt is
+     * outstanding, so an aging study can see it — and extending the deadline needs no status unwind.
+     */
+    @Test
+    void expiredCharge_isRefusedAtInquiry_yetRemainsVisibleAsOutstanding() {
+        String chargeId = createCharge("ref-exp-soft", Instant.now().minusSeconds(60), "9009000009");
+        reaper.sweep();
+
+        var charge = chargeRepository.findById(chargeId).orElseThrow();
+        assertThat(charge.getStatus()).isEqualTo(ChargeStatus.ACTIVE);
+        assertThat(charge.getCumulativePaid()).isEqualByComparingTo(java.math.BigDecimal.ZERO);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> inquiryService.inquire(
+                                escrowRepository.findByCode(escrowCode).orElseThrow(), "9009000009"))
+                .isInstanceOf(com.artivisi.paymentgateway.exception.NotFoundException.class);
     }
 }
