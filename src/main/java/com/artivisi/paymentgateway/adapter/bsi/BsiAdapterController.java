@@ -21,6 +21,8 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -42,6 +44,17 @@ public class BsiAdapterController {
     private static final String PROVIDER = "bsi";
     /** bsm-makara runs in Asia/Jakarta and formats transaction times as a local ISO date-time. */
     private static final ZoneId ZONE = ZoneId.of("Asia/Jakarta");
+
+    /**
+     * Accepted {@code tanggalTransaksi} forms, all WIB and all without an offset. A closed set, not a
+     * guess: {@code yyyyMMddHHmmss} is what BSI's terminals send; the other two are what our own
+     * replay tooling sends when re-applying a payment captured from the legacy Kafka stream. Anything
+     * else is rejected — the point is to stop discarding the bank's clock, not to accept any string.
+     */
+    private static final List<DateTimeFormatter> BSI_TIMESTAMPS = List.of(
+            DateTimeFormatter.ofPattern("yyyyMMddHHmmss"),
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
+            DateTimeFormatter.ISO_LOCAL_DATE_TIME);
 
     private final EscrowResolver escrowResolver;
     private final InquiryService inquiryService;
@@ -106,10 +119,17 @@ public class BsiAdapterController {
     }
 
     private BsiResponse handlePayment(EscrowAccount escrow, BsiRequest request) {
+        Instant transactionTime;
+        try {
+            transactionTime = bankTransactionTime(request);
+        } catch (DateTimeParseException | NullPointerException e) {
+            return BsiResponse.error(BsiResponseCode.INVALID_REQUEST_FORMAT,
+                    "tanggalTransaksi tidak valid: " + request.tanggalTransaksi());
+        }
         Payment payment;
         try {
             payment = paymentApplicationService.apply(escrow, request.nomorPembayaran(),
-                    request.nilai(), request.idTransaksi(), Instant.now());
+                    request.nilai(), request.idTransaksi(), transactionTime);
         } catch (NotFoundException e) {
             return BsiResponse.error(BsiResponseCode.INVALID_ACCOUNT, e.getMessage());
         } catch (InvalidPaymentException e) {
@@ -128,15 +148,27 @@ public class BsiAdapterController {
                 .tagihanEfektif(open ? charge.getAmount() : charge.getAmount().subtract(charge.getCumulativePaid()))
                 .akumulasiPembayaran(open ? null : charge.getCumulativePaid())
                 .referensiPembayaran(payment.getId())
-                .tanggalTransaksi(isoDateTime(payment.getTransactionTime()))
+                // The bank's own moment is now stored in transactionTime, so the response echoes
+                // createdAt — OUR apply moment, which is what bsm-makara returns here and what the
+                // wire-parity shadow has been comparing against.
+                .tanggalTransaksi(isoDateTime(payment.getCreatedAt()))
                 .build();
     }
 
     private BsiResponse handleReversal(EscrowAccount escrow, BsiRequest request) {
+        Instant reversalTime;
+        try {
+            reversalTime = bankTransactionTime(request);
+        } catch (DateTimeParseException | NullPointerException e) {
+            return BsiResponse.error(BsiResponseCode.INVALID_REQUEST_FORMAT,
+                    "tanggalTransaksi tidak valid: " + request.tanggalTransaksi());
+        }
         Payment payment;
         try {
+            // Bank clock on both sides of the window check: the reversal window runs from the
+            // payer's transaction to the payer's reversal, not from when we happened to see either.
             payment = paymentApplicationService.reverse(escrow, request.nomorPembayaran(),
-                    request.idTransaksi(), request.nilai(), Instant.now());
+                    request.idTransaksi(), request.nilai(), reversalTime);
         } catch (NotFoundException e) {
             return BsiResponse.error(BsiResponseCode.INVALID_ACCOUNT, e.getMessage());
         } catch (InvalidPaymentException e) {
@@ -161,6 +193,31 @@ public class BsiAdapterController {
                 .kodeChannel(request.kodeChannel())
                 .kodeTerminal(request.kodeTerminal())
                 .idTransaksi(request.idTransaksi());
+    }
+
+    /**
+     * The payment's time at the BANK, parsed from {@code tanggalTransaksi}.
+     *
+     * <p>Reconciliation selects payments by period and matches them against a settlement file the
+     * bank builds on its own clock, so storing our processing moment here puts every late-evening
+     * payment in the wrong settlement day. {@code createdAt} already records when we processed it.
+     *
+     * <p>Deliberately throws rather than falling back to {@code now()}: a silent substitution is how
+     * the bank's timestamp came to be discarded in the first place.
+     */
+    private static Instant bankTransactionTime(BsiRequest request) {
+        String raw = request.tanggalTransaksi();
+        if (raw == null || raw.isBlank()) {
+            throw new DateTimeParseException("tanggalTransaksi is missing", String.valueOf(raw), 0);
+        }
+        for (DateTimeFormatter format : BSI_TIMESTAMPS) {
+            try {
+                return LocalDateTime.parse(raw, format).atZone(ZONE).toInstant();
+            } catch (DateTimeParseException ignored) {
+                // try the next known form
+            }
+        }
+        throw new DateTimeParseException("unrecognised tanggalTransaksi format", raw, 0);
     }
 
     private static String isoDateTime(Instant instant) {
