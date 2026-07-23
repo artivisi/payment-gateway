@@ -16,6 +16,7 @@ public enum Permission {
     WEBHOOK_VIEW,
     WEBHOOK_MANAGE,
     AUDIT_VIEW,
+    ANALYSIS_VIEW,
     OPERATOR_MANAGE,
     ROLE_MANAGE,
     BANK_IP_MANAGE

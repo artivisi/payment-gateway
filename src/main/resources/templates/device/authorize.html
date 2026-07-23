@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Authorize device')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('')}"></nav>
+<main class="mx-auto max-w-2xl px-4 py-10" data-testid="device-authorize">
+    <h1 class="page-title">Authorize a device</h1>
+    <p class="page-sub">
+        A command-line tool is asking to act as you. It will receive a token carrying
+        <strong>your</strong> permissions — no more — which you can revoke at any time.
+        Only continue if the code below matches the one your tool is showing.
+    </p>
+
+    <div th:if="${message}" class="flash-ok" th:text="${message}"></div>
+    <div th:if="${error}" class="flash-error" th:text="${error}"></div>
+
+    <form th:if="${pending == null}" method="get" th:action="@{/device}" class="card mt-6 flex items-end gap-3 p-5">
+        <div class="flex-1">
+            <label for="code" class="label">Code shown by your tool</label>
+            <input id="code" name="code" th:value="${code}" required autofocus autocomplete="off"
+                   placeholder="WDJB-MJHT" class="input font-mono text-lg tracking-widest uppercase"/>
+        </div>
+        <button type="submit" class="btn-primary">Continue</button>
+    </form>
+
+    <div th:if="${pending != null}" class="card mt-6 p-6" data-testid="device-confirm">
+        <dl class="grid grid-cols-3 gap-3 text-sm">
+            <dt class="text-slate-500">Code</dt>
+            <dd class="col-span-2 font-mono text-lg tracking-widest" th:text="${pending.userCode}"></dd>
+            <dt class="text-slate-500">Client</dt>
+            <dd class="col-span-2" th:text="${pending.clientId}"></dd>
+            <dt class="text-slate-500">Device</dt>
+            <dd class="col-span-2" th:text="${pending.deviceName}"></dd>
+            <dt class="text-slate-500">Requested</dt>
+            <dd class="col-span-2" th:text="${#temporals.format(pending.createdAt, 'dd MMM yyyy HH:mm')}"></dd>
+        </dl>
+        <div class="mt-6 flex gap-3">
+            <form th:action="@{/device/authorize}" method="post">
+                <input type="hidden" name="code" th:value="${pending.userCode}"/>
+                <button type="submit" class="btn-primary" data-testid="approve">Authorize this device</button>
+            </form>
+            <form th:action="@{/device/deny}" method="post">
+                <input type="hidden" name="code" th:value="${pending.userCode}"/>
+                <button type="submit" class="btn-secondary">Deny</button>
+            </form>
+        </div>
+        <p class="mt-4 text-xs text-slate-500">
+            Codes expire 15 minutes after the tool requests them. Approving mints a token valid for 30 days.
+        </p>
+    </div>
+</main>
+</body>
+</html>
