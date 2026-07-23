@@ -45,6 +45,9 @@
             <a sec:authorize="hasAuthority('RECONCILIATION_VIEW')" th:href="@{/admin/reconciliations}"
                class="nav-link" th:classappend="${active == 'reconciliation'} ? 'nav-link-active'">Reconciliation</a>
 
+            <a sec:authorize="hasAuthority('ANALYSIS_VIEW')" th:href="@{/admin/analysis}"
+               class="nav-link" th:classappend="${active == 'analysis'} ? 'nav-link-active'">Analysis</a>
+
             <details class="nav-group relative" sec:authorize="hasAnyAuthority('ESCROW_VIEW','CONSUMER_VIEW')">
                 <summary class="nav-link list-none [&::-webkit-details-marker]:hidden" th:classappend="${setupActive} ? 'nav-link-active'">
                     Setup
@@ -70,8 +73,6 @@
                        class="nav-menu-link" th:classappend="${active == 'role'} ? 'nav-menu-link-active'">Roles</a>
                     <a sec:authorize="hasAuthority('BANK_IP_MANAGE')" th:href="@{/admin/bank-ip-rules}"
                        class="nav-menu-link" th:classappend="${active == 'bankip'} ? 'nav-menu-link-active'">Bank IP allowlist</a>
-                    <a sec:authorize="hasAuthority('ANALYSIS_VIEW')" th:href="@{/admin/analysis}"
-                       class="nav-menu-link">Analysis</a>
                     <a sec:authorize="hasAuthority('AUDIT_VIEW')" th:href="@{/admin/audit}"
                        class="nav-menu-link" th:classappend="${active == 'audit'} ? 'nav-menu-link-active'">Audit log</a>
                 </div>
@@ -90,6 +91,7 @@
                 <a sec:authorize="hasAuthority('PAYMENT_VIEW')" th:href="@{/admin/payments}" class="nav-menu-link">Payments</a>
                 <a sec:authorize="hasAuthority('WEBHOOK_VIEW')" th:href="@{/admin/webhooks}" class="nav-menu-link">Webhooks</a>
                 <a sec:authorize="hasAuthority('RECONCILIATION_VIEW')" th:href="@{/admin/reconciliations}" class="nav-menu-link">Reconciliation</a>
+                <a sec:authorize="hasAuthority('ANALYSIS_VIEW')" th:href="@{/admin/analysis}" class="nav-menu-link">Analysis</a>
                 <a sec:authorize="hasAuthority('ESCROW_VIEW')" th:href="@{/admin/escrow-accounts}" class="nav-menu-link">Escrow accounts</a>
                 <a sec:authorize="hasAuthority('CONSUMER_VIEW')" th:href="@{/admin/consumers}" class="nav-menu-link">Consumers</a>
                 <a sec:authorize="hasAuthority('OPERATOR_MANAGE')" th:href="@{/admin/operators}" class="nav-menu-link">Operators</a>

@@ -87,4 +87,20 @@ class DeviceAuthIntegrationTest extends AbstractIntegrationTest {
                 .when().post("/api/analysis-reports")
                 .then().statusCode(401);
     }
+
+    /**
+     * Regression: adding the API's 401 entry point made it the fallback for EVERY unauthenticated
+     * request, so browsers got a bare 401 instead of the login page and the admin UI became
+     * unreachable. Both behaviours have to hold at once.
+     */
+    @Test
+    void browserGetsTheLoginPage_whileApiGets401() {
+        given().redirects().follow(false)
+                .when().get("/admin/charges")
+                .then().statusCode(302).header("Location", org.hamcrest.Matchers.containsString("/login"));
+
+        given().contentType(ContentType.JSON).body(REPORT)
+                .when().post("/api/analysis-reports")
+                .then().statusCode(401);
+    }
 }
