@@ -16,8 +16,21 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Scheduled sweep that marks charges past their {@code expiresAt} as EXPIRED and cancels
- * their remaining active VAs. Runs on a config-driven interval (gateway.reaper.interval-ms).
+ * Scheduled sweep that retires the VAs of charges past their {@code expiresAt}.
+ *
+ * <p><b>Expiry is soft: the charge keeps its status.</b> Payability is already decided at read time —
+ * {@code InquiryService} refuses a charge past {@code expiresAt}, and the payment path refuses it
+ * too — so flipping the charge to EXPIRED adds no enforcement. What it does add is data loss: an
+ * EXPIRED charge can never afterwards be observed as "eventually paid", which silently biases every
+ * collection-aging study against exactly the aged bills such a study exists to measure. It also
+ * diverges from the bank adapters this replaces, which derive expiry at read time and leave the
+ * bill's own state alone.
+ *
+ * <p>Extending a deadline is therefore just moving {@code expiresAt} — no status to unwind, and the
+ * charge remains payable the moment the new date is in the future.
+ *
+ * <p>The VA is still retired, because a VA number is a scarce resource that must be free for reuse
+ * by the next bill; that is a separate concern from whether the debt is still owed.
  */
 @Service
 public class ExpiryReaper {
@@ -45,7 +58,7 @@ public class ExpiryReaper {
         if (expired.isEmpty()) {
             return;
         }
-        log.info("ExpiryReaper: expiring {} charge(s)", expired.size());
+        log.info("ExpiryReaper: retiring VAs for {} expired charge(s)", expired.size());
         for (Charge charge : expired) {
             expireOne(charge.getId());
         }
@@ -65,11 +78,12 @@ public class ExpiryReaper {
                     virtualAccountRepository.save(va);
                 }
             }
-            charge.setStatus(ChargeStatus.EXPIRED);
-            chargeRepository.save(charge);
-            auditService.recordAs("system", "CHARGE_EXPIRED", "Charge", chargeId,
+            // Deliberately NOT charge.setStatus(EXPIRED) — see the class javadoc. The debt is still
+            // owed and still reportable; it simply cannot be collected on this VA any more.
+            auditService.recordAs("system", "CHARGE_VA_RETIRED_ON_EXPIRY", "Charge", chargeId,
                     "consumerReference=" + charge.getConsumerReference()
-                            + " expiresAt=" + charge.getExpiresAt());
+                            + " expiresAt=" + charge.getExpiresAt()
+                            + " chargeStatus=" + charge.getStatus() + " (unchanged)");
         });
     }
 }

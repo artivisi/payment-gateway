@@ -25,7 +25,7 @@ Spring Boot 4 · Java 25 · PostgreSQL 18 + Flyway · Spring WebClient · Thymel
 
 Other entities:
 
-- `Charge` — the unit of money owed, created by a `Consumer`. Carries `payer`, `type` (`OPEN` | `CLOSED` | `INSTALLMENT`), `amount` (target), `cumulativePaid`, `status`, `expiry`, and `consumerReference` (the consumer's own bill id; unique per consumer — idempotency key). A charge is payable through **one or more** sibling `VirtualAccount`s across different escrows (pay-via-any-bank). Type and amount live here, not on the VA, because they describe one debt regardless of which bank rail settles it. One escrow hosts all three charge types simultaneously.
+- `Charge` — the unit of money owed, created by a `Consumer`. Carries `payer`, `type` (`OPEN` | `CLOSED` | `INSTALLMENT`), `amount` (target), `cumulativePaid`, `status`, `expiresAt` (**soft** — see below), and `consumerReference` (the consumer's own bill id; unique per consumer — idempotency key). A charge is payable through **one or more** sibling `VirtualAccount`s across different escrows (pay-via-any-bank). Type and amount live here, not on the VA, because they describe one debt regardless of which bank rail settles it. One escrow hosts all three charge types simultaneously.
 - `VirtualAccount` — one bank payment instrument for a charge: `charge` + `escrowAccount` (selects the adapter) + consumer-supplied `vaNumber` (validated within the escrow's number space) + `status`. The effective amount answered on inquiry is `charge.amount − charge.cumulativePaid`. A single-bank charge is just a charge with one VA.
 - `Payment` — one received transaction, against a `VirtualAccount` (and its `charge`). One settles a CLOSED charge; many accumulate for OPEN/INSTALLMENT.
 - `Consumer` — a client application (registration, academic, …): client id/secret + webhook URL. Creates charges, receives notifications.
@@ -68,6 +68,19 @@ A `Charge` is payable through 1..N sibling `VirtualAccount`s, one per target esc
 - `BANK_HOSTED` siblings make a cancel race a bank-side payment in flight; resolved through reconciliation recovery (paid-not-notified / notified-not-settled). Defer until a bank-hosted deal lands.
 
 One webhook is emitted per received payment (carrying cumulative + remaining); the charge reaching `PAID` is a terminal event.
+
+## Expiry is soft
+
+`expiresAt` is enforced **at read time**: inquiry and payment both refuse a charge past its date. The
+sweep retires the charge's VAs — a VA number is scarce and must be free for the next bill — but
+**never changes the charge's status**. The debt is still owed, and a charge whose status was flipped
+to EXPIRED could never afterwards be observed as "eventually paid", which silently biases collection
+analysis against exactly the aged bills such analysis exists to measure. Extending a deadline is
+therefore just moving the date; there is no status to unwind.
+
+This also matches the systems being replaced: the self-hosted adapters derive expiry at read time and
+leave the bill's own state alone, while a `BANK_HOSTED` bank (BNI) is *sent* the expiry at VA creation
+and enforces it itself — so the field is required there regardless of our own policy.
 
 ## VA number allocation
 
