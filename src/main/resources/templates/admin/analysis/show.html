@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Analysis')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('analysis')}"></nav>
+<main class="mx-auto max-w-7xl px-4 py-8" data-testid="analysis-show">
+
+    <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+            <h1 class="page-title" th:text="${report.title}">Analysis</h1>
+            <p class="page-sub">
+                <span th:text="${report.source}">source</span>
+                · generated <span th:text="${#temporals.format(report.generatedAt, 'dd MMM yyyy HH:mm')}"></span>
+                <span th:if="${report.periodLabel}" th:text="'· ' + ${report.periodLabel}"></span>
+            </p>
+        </div>
+        <form method="get" th:if="${history.size() > 1}">
+            <label for="run" class="label">Run</label>
+            <select id="run" name="run" class="input" onchange="location.href='/admin/analysis/' + this.value">
+                <option th:each="h : ${history}" th:value="${h.id}" th:selected="${h.id == selectedId}"
+                        th:text="${#temporals.format(h.generatedAt, 'dd MMM yyyy')} + (${h.periodLabel} ? ' — ' + ${h.periodLabel} : '')"></option>
+            </select>
+        </form>
+    </div>
+
+    <!-- Does a bill of this type ever get paid at all? -->
+    <section class="card mb-6 p-6">
+        <h2 class="section-title">Ever paid, by bill type</h2>
+        <p class="mb-6 text-sm text-slate-600">
+            Share of bills that were eventually paid, among those old enough to have had a fair chance.
+            Bars under 25% are flagged — that is the signature of a bill nobody intends to pay.
+        </p>
+        <div class="flex items-end gap-4 overflow-x-auto pb-2" style="min-height: 200px">
+            <div th:each="b : ${cohortBars}" class="flex min-w-24 flex-1 flex-col items-center gap-2">
+                <span class="text-xs font-semibold" th:text="${b.paidPercent}">0%</span>
+                <div class="w-full rounded-t"
+                     th:classappend="${b.lowPayer} ? 'bg-rose-400' : 'bg-emerald-400'"
+                     th:style="'height:' + ${b.heightPx} + 'px'"
+                     th:title="${b.paid} + ' of ' + ${b.bills} + ' bills paid'"></div>
+                <span class="text-center text-xs text-slate-600" th:text="${b.label}">type</span>
+                <span class="text-center text-[11px] text-slate-400"
+                      th:text="${b.paid} + '/' + ${b.bills} + (${b.medianDaysToPay} != null ? ' · med ' + ${b.medianDaysToPay} + 'd' : '')"></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- The question that decides expiry policy. -->
+    <section class="card mb-6 p-6" th:if="${!curves.isEmpty()}">
+        <h2 class="section-title">If it is still unpaid at day N, does it ever get paid?</h2>
+        <p class="mb-4 text-sm text-slate-600">
+            Read down: of the bills still outstanding at each checkpoint, the share that was eventually
+            paid. A curve that collapses early means waiting longer collects nothing — expiring those
+            bills costs little. A curve that stays high means the opposite.
+        </p>
+        <svg th:attr="viewBox='0 0 ' + ${svgWidth} + ' ' + ${svgHeight}"
+             class="w-full" style="max-height: 260px" role="img" aria-label="Eventual payment by age">
+            <line th:each="g : ${#numbers.sequence(0, 4)}"
+                  x1="44" th:attr="y1=${18 + g * 46}, y2=${18 + g * 46}" th:x2="${svgWidth - 10}"
+                  stroke="#e2e8f0" stroke-width="1"/>
+            <text th:each="g : ${#numbers.sequence(0, 4)}" x="8" th:attr="y=${22 + g * 46}"
+                  class="fill-slate-400" style="font-size: 11px" th:text="${(4 - g) * 25} + '%'"></text>
+            <g th:each="c : ${curves}">
+                <polyline th:points="${c.polyline}" fill="none" stroke-width="2.5"
+                          th:attr="stroke=${c.colourClass == 'curve-primary'} ? '#e11d48' : (${c.colourClass == 'curve-secondary'} ? '#0284c7' : '#7c3aed')"/>
+                <g th:each="d : ${c.dots}">
+                    <circle th:attr="cx=${d.x}, cy=${d.y}, fill=${c.colourClass == 'curve-primary'} ? '#e11d48' : (${c.colourClass == 'curve-secondary'} ? '#0284c7' : '#7c3aed')" r="4">
+                        <title th:text="${c.label} + ' — day ' + ${d.day} + ': ' + ${d.percent} + ' (' + ${d.laterPaid} + ' of ' + ${d.stillUnpaid} + ')'"></title>
+                    </circle>
+                </g>
+            </g>
+            <text th:each="d : ${curves[0].dots}" th:attr="x=${d.x}" th:y="${svgHeight - 2}"
+                  text-anchor="middle" class="fill-slate-500" style="font-size: 11px"
+                  th:text="'d' + ${d.day}"></text>
+        </svg>
+        <div class="mt-4 flex flex-wrap gap-4 text-sm">
+            <span th:each="c : ${curves}" class="inline-flex items-center gap-2">
+                <span class="inline-block h-3 w-3 rounded-full"
+                      th:style="'background:' + (${c.colourClass == 'curve-primary'} ? '#e11d48' : (${c.colourClass == 'curve-secondary'} ? '#0284c7' : '#7c3aed'))"></span>
+                <span th:text="${c.label}"></span>
+            </span>
+        </div>
+    </section>
+
+    <!-- The number that actually decides the policy: money still collectible after each checkpoint. -->
+    <section class="card mb-6 p-6" th:if="${report.survival != null and !report.survival.isEmpty()}">
+        <h2 class="section-title">Money still collected after each checkpoint</h2>
+        <p class="mb-4 text-sm text-slate-600">
+            What expiring at day N would have forfeited, historically. This is the cost side of an
+            expiry policy — the curve above is the odds, this is the amount.
+        </p>
+        <div class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+                <thead>
+                <tr class="border-b text-left text-slate-500">
+                    <th class="py-2 pr-4">Cohort</th>
+                    <th class="py-2 pr-4" th:each="p : ${report.survival[0].points}" th:text="'day ' + ${p.day}"></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="s : ${report.survival}" class="border-b last:border-0">
+                    <td class="py-2 pr-4 font-medium" th:text="${s.label}"></td>
+                    <td class="py-2 pr-4 tabular-nums" th:each="p : ${s.points}"
+                        th:text="${p.amountLaterPaid != null} ? ${#numbers.formatInteger(p.amountLaterPaid, 0, 'POINT')} : '—'"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card p-6" th:if="${report.notes != null and !report.notes.isEmpty()}">
+        <h2 class="section-title">Notes from the run</h2>
+        <ul class="list-disc space-y-1 pl-5 text-sm text-slate-700">
+            <li th:each="n : ${report.notes}" th:text="${n}"></li>
+        </ul>
+    </section>
+</main>
+</body>
+</html>

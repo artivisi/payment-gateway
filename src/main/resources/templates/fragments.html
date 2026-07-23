@@ -70,6 +70,8 @@
                        class="nav-menu-link" th:classappend="${active == 'role'} ? 'nav-menu-link-active'">Roles</a>
                     <a sec:authorize="hasAuthority('BANK_IP_MANAGE')" th:href="@{/admin/bank-ip-rules}"
                        class="nav-menu-link" th:classappend="${active == 'bankip'} ? 'nav-menu-link-active'">Bank IP allowlist</a>
+                    <a sec:authorize="hasAuthority('ANALYSIS_VIEW')" th:href="@{/admin/analysis}"
+                       class="nav-menu-link">Analysis</a>
                     <a sec:authorize="hasAuthority('AUDIT_VIEW')" th:href="@{/admin/audit}"
                        class="nav-menu-link" th:classappend="${active == 'audit'} ? 'nav-menu-link-active'">Audit log</a>
                 </div>
