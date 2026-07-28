@@ -3,7 +3,7 @@
 ## Executive Summary & Architectural Selection
 
 > [!IMPORTANT]
-> **Design Selection:** **Option A (Modular Monolith with PostgreSQL RDBMS)** is selected over **Option B (Event-Driven Microservices with Apache Kafka)** as the initial architecture for `payment-gateway`.
+> **Design Selection:** **Option A (Modular Monolith with PostgreSQL RDBMS)** is selected over **Option B (Event-Sourced/CQRS with Apache Kafka)** as the initial architecture for `payment-gateway`. Both options are evaluated as single-JVM monoliths — the distinguishing choice is the state model (relational/synchronous vs. event log + local state store), not application topology.
 >
 > Prior to implementation, an architectural trade-off analysis was conducted to compare a monolithic RDBMS-centric design against a high-throughput event-streaming microservices architecture. Option A was selected because its synchronous, ACID-compliant, low-operational-footprint model natively aligns with Virtual Account collection requirements, whereas Option B introduces unnecessary distributed state management complexity and network latency for this application's domain.
 
