@@ -121,6 +121,13 @@ flowchart TD
   NotifSvc -->|Async Callback| AR
 ```
 
+> [!NOTE]
+> This is the generic reference architecture evaluated *before* either option was built — not a
+> depiction of any implementation. The comparison implementation later built for benchmarking
+> (`payment-gateway-evtsrc`) has none of the Fraud/Clearing/Settlement microservice split or Redis
+> shown above; see "What was actually built" in the Post-Selection Validation section for its real
+> architecture diagram.
+
 ---
 
 ## Architectural Trade-off Matrix
@@ -175,6 +182,43 @@ This selection was made before either option was built, based on the reasoning a
 A comparison implementation was later built: [`payment-gateway-evtsrc`](https://github.com/artivisi/payment-gateway-evtsrc), a single-JVM (not microservices) variant using Apache Kafka + embedded RocksDB as the write-side source of truth and PostgreSQL as an async CQRS read projection. It is lighter than the "Option B" reference architecture above — one Spring Boot binary, no Redis, no separate fraud/clearing/settlement services, KRaft instead of ZooKeeper — but still represents the same core trade-off this document evaluated (event log + local state store vs. a single relational transaction).
 
 Full methodology, hardware details, and per-system numbers are in [`payment-gateway-evtsrc/scenarios/perf_benchmark_report.md`](https://github.com/artivisi/payment-gateway-evtsrc/blob/main/scenarios/perf_benchmark_report.md) (section 8). A short summary and this repo's own results are in [`docs/benchmark-report.md`](benchmark-report.md).
+
+### What was actually built
+
+No separate Fraud/Clearing/Settlement services, no Redis, no microservices fleet — one Spring Boot process with an embedded Kafka Streams engine, talking to one Kafka broker and one Postgres instance:
+
+```mermaid
+flowchart TD
+  Client[Client App] -->|POST /charges| ChargeApi[Charge API]
+  Bank[BSI Bank] -->|POST /api/bank/bsi<br/>checksum verified| BsiAdapter[BSI Adapter]
+
+  subgraph JVM [Single Spring Boot Process]
+    ChargeApi --> KafkaProducer1[Kafka Producer]
+    BsiAdapter --> PreValidate[Pre-validate:<br/>idempotency / VA / charge status]
+    PreValidate -->|reads| RocksDB[(Embedded RocksDB<br/>charge-state / va-registry / idempotency)]
+    PreValidate --> KafkaProducer2[Kafka Producer]
+
+    subgraph Streams [Kafka Streams Topology]
+      Topology[Authoritative re-check<br/>+ apply / detect double-settlement]
+      Topology <--> RocksDB
+    end
+
+    ProjSink[Postgres Projection Sink<br/>batch consumer]
+    WebhookWorker[Webhook Dispatcher<br/>batch consumer]
+  end
+
+  KafkaProducer1 --> Kafka[(1 Kafka Broker, KRaft)]
+  KafkaProducer2 --> Kafka
+  Kafka --> Topology
+  Kafka --> ProjSink
+  Kafka --> WebhookWorker
+
+  ProjSink --> Postgres[(1 PostgreSQL instance<br/>read-only projection)]
+  WebhookWorker -->|deliver| Client
+  AdminUI[Admin Dashboard] --> Postgres
+```
+
+Everything left of the Kafka broker (API controllers, pre-validation, the streams topology, the projection sink, the webhook worker) runs in the same JVM as one deployable artifact — the only external processes are the Kafka broker and Postgres.
 
 ### What was confirmed
 
