@@ -90,9 +90,17 @@ worse lock queueing than a lighter approach would. This is a genuine characteris
 pessimistic-lock design under an adversarial workload shape (nearly all traffic through 2 of 8
 charges), not benchmark noise — and it's exactly the kind of thing a single run would have missed.
 A methodologically clean repeat measurement needs the database reset (or a much larger/more diverse
-VA pool) between runs, which was not done here. Full detail, including the comparison against
-`payment-gateway-evtsrc`'s own repeat-run behavior under the same condition, is in the linked report
-above.
+VA pool) between runs, which was not done here.
+
+Time-bucketing the raw run (`payment-gateway-evtsrc/scenarios/knee-analysis.py`) locates the
+degradation precisely: it is *not* a uniform slowdown. The median stays low in every stage of run 2
+(0.7–1.8ms), but the 1,000→2,000 TPS window's tail detaches sharply — p95 jumps to 370ms and p99 to
+535ms in that window alone, versus single-digit-to-low-double-digit ms in every other stage. That is
+the signature of lock-queue depth: most requests still complete fast, but once enough concurrent
+transactions are waiting on the same two `OPEN`-charge row locks, a growing tail gets stuck behind
+the queue — and it drains once the ramp comes back down. Full detail, the per-stage table, and the
+comparison against `payment-gateway-evtsrc`'s own (much milder) repeat-run behavior under the same
+condition are in the linked report above.
 
 ## A note on the test secret
 
