@@ -65,12 +65,9 @@ public class PaymentApplicationService {
         }
 
         // Idempotency: a replayed notification (against any generation) returns the recorded payment.
-        for (VirtualAccount generation : generations) {
-            Optional<Payment> existing = paymentRepository
-                    .findByVirtualAccountIdAndBankReference(generation.getId(), bankReference);
-            if (existing.isPresent()) {
-                return existing.get();
-            }
+        Optional<Payment> alreadyRecorded = findByReference(generations, bankReference);
+        if (alreadyRecorded.isPresent()) {
+            return alreadyRecorded.get();
         }
 
         // Prefer the ACTIVE generation; otherwise the newest one carries the failure semantics
@@ -83,6 +80,16 @@ public class PaymentApplicationService {
         // Pessimistic lock on the charge serializes sibling payments.
         Charge charge = chargeRepository.lockById(va.getCharge().getId())
                 .orElseThrow(() -> new NotFoundException("charge not found for VA " + vaNumber));
+
+        // Idempotency, again — now under the lock. The scan above runs before the lock is held, so
+        // a duplicate delivery of the SAME notification (the bank retrying, or a mirrored copy of
+        // the same callback) can commit in between: both scans miss, one wins the lock, and the
+        // loser would otherwise report "already paid" for a payment the gateway did record.
+        // READ_COMMITTED gives each statement a fresh snapshot, so the winner's row is visible here.
+        Optional<Payment> recordedWhileWaiting = findByReference(generations, bankReference);
+        if (recordedWhileWaiting.isPresent()) {
+            return recordedWhileWaiting.get();
+        }
 
         if (amount == null || amount.signum() <= 0) {
             throw new InvalidPaymentException("payment amount must be positive");
@@ -138,10 +145,7 @@ public class PaymentApplicationService {
         if (generations.isEmpty()) {
             throw new NotFoundException("VA not found in escrow " + escrow.getCode() + ": " + vaNumber);
         }
-        Payment payment = generations.stream()
-                .map(g -> paymentRepository.findByVirtualAccountIdAndBankReference(g.getId(), bankReference))
-                .flatMap(Optional::stream)
-                .findFirst()
+        Payment payment = findByReference(generations, bankReference)
                 .orElseThrow(() -> new NotFoundException(
                         "no payment to reverse for reference " + bankReference));
         VirtualAccount va = payment.getVirtualAccount();
@@ -185,6 +189,14 @@ public class PaymentApplicationService {
         auditService.record("PAYMENT_REVERSED", "Payment", reversed.getId(),
                 "va=" + vaNumber + " amount=" + reversed.getAmount() + " ref=" + bankReference);
         return reversed;
+    }
+
+    /** The payment for this bank reference, on whichever generation of a reused number carries it. */
+    private Optional<Payment> findByReference(List<VirtualAccount> generations, String bankReference) {
+        return generations.stream()
+                .map(g -> paymentRepository.findByVirtualAccountIdAndBankReference(g.getId(), bankReference))
+                .flatMap(Optional::stream)
+                .findFirst();
     }
 
     private void applyClosed(Charge charge, VirtualAccount paidVa, BigDecimal amount) {
