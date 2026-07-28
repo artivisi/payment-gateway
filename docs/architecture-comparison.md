@@ -143,6 +143,13 @@ flowchart TD
 | **Throughput Capacity** | Hundreds to thousands of ACID TPS per single node. | Tens of thousands of continuous TPS across partitioned cluster. |
 | **Operational Overhead** | **Minimal:** 1 app instance + 1 PostgreSQL database. | **High:** Microservice fleet, Kafka brokers, Zookeeper/KRaft, Redis, RDBMS. |
 
+> [!NOTE]
+> This matrix describes the generic reference architecture evaluated *before* either option was
+> built. `payment-gateway-evtsrc`, the comparison implementation actually built and benchmarked, is
+> a **single-JVM monolith** like Option A — not "Distributed Microservices" and not a
+> "Microservice fleet." Its real topology is one Spring Boot process, one Kafka broker, and one
+> Postgres instance; see "What was actually built" in Post-Selection Validation below.
+
 ---
 
 ## Trade-off Analysis & Evaluation Criteria
@@ -165,7 +172,7 @@ flowchart TD
 ### 4. Operational Footprint & Deployment Strategy
 
 * **Domain Requirement:** The gateway is designed for self-hosted deployment by single operators or institutions holding direct bank relationships.
-* **Evaluation:** Option A requires minimal operational management (a single Spring Boot binary and a PostgreSQL database). Option B as scoped here (a full microservices decomposition with a separate fraud/clearing/settlement tier and Redis) requires running and maintaining a Kafka cluster, ZooKeeper/KRaft nodes, Redis caches, and separate projection worker services, creating high infrastructure costs and complex operational procedures. A lighter single-JVM variant was later built and benchmarked for comparison — see "Post-Selection Validation" below — and needed less infrastructure than this section describes (no Redis, no service fleet, KRaft only), but still required meaningfully more operational surface and implementation effort than Option A to reach correctness parity.
+* **Evaluation:** Option A requires minimal operational management (a single Spring Boot binary and a PostgreSQL database). Option B, as originally scoped in this document, requires running and maintaining a Kafka cluster, ZooKeeper/KRaft nodes, Redis caches, and separate projection worker services, creating high infrastructure costs and complex operational procedures. See "What was actually built" in Post-Selection Validation below for the lighter comparison implementation that was actually built and benchmarked, and how its real operational footprint compares to both this section and Option A.
 
 ---
 
