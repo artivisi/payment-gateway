@@ -5,7 +5,7 @@
 > [!IMPORTANT]
 > **Design Selection:** **Option A (Modular Monolith with PostgreSQL RDBMS)** is selected over **Option B (Event-Sourced/CQRS with Apache Kafka)** as the initial architecture for `payment-gateway`. Both options are evaluated as single-JVM monoliths — the distinguishing choice is the state model (relational/synchronous vs. event log + local state store), not application topology.
 >
-> Prior to implementation, an architectural trade-off analysis was conducted to compare a monolithic RDBMS-centric design against a high-throughput event-streaming microservices architecture. Option A was selected because its synchronous, ACID-compliant, low-operational-footprint model natively aligns with Virtual Account collection requirements, whereas Option B introduces unnecessary distributed state management complexity and network latency for this application's domain.
+> Prior to implementation, an architectural trade-off analysis was conducted to compare a relational, synchronous design against an event-sourced/CQRS design — both single-JVM monoliths. Option A was selected because its synchronous, ACID-compliant, low-operational-footprint model natively aligns with Virtual Account collection requirements, whereas Option B introduces state management complexity and network latency for this application's domain without a corresponding benefit at this scale.
 
 ---
 
@@ -59,96 +59,61 @@ flowchart TD
 
 ---
 
-### Option B: Event-Driven Microservices (Reference Architecture)
-* **Domain Focus:** High-throughput event clearing and real-time transaction processing.
-* **Core Paradigm:** Event sourcing, CQRS (Command Query Responsibility Segregation), partitioned stream processing.
-* **Tech Stack:** Java / Spring Boot microservices, Apache Kafka, Kafka Streams (RocksDB state stores), Redis, RDBMS projection sinks.
-* **State & Consistency:** Kafka event log as source of truth; RocksDB in-memory state stores partitioned by key; Eventually consistent CQRS projections with Exactly-Once Semantics (EOS).
+### Option B: Event-Sourced / CQRS Monolith (Reference Architecture)
+* **Domain Focus:** Multi-bank Virtual Account (VA) collection and lifecycle gateway (same domain as Option A).
+* **Core Paradigm:** Event sourcing, CQRS (Command Query Responsibility Segregation) — a single-JVM monolith, same topology as Option A, with a different state model.
+* **Tech Stack:** Java 25, Spring Boot 4, Apache Kafka (single broker, KRaft), embedded Kafka Streams (RocksDB state stores), PostgreSQL 18 as an async read projection.
+* **State & Consistency:** Kafka event log + embedded RocksDB as the write-side source of truth; PostgreSQL as an eventually-consistent CQRS read projection.
 
 ```mermaid
 flowchart TD
-  subgraph Clients [Upstream Client Apps]
-    AR[Receivables Subledger / Client App]
+  AR[Receivables Subledger / Client App] -->|POST /charges| ChargeApi[Charge API]
+  Bank1[Maybank SNAP REST] <-->|Sync Callback, checksum verified| CallbackApi[Bank Callback API]
+  Bank2[BSI REST] <-->|Sync Callback, checksum verified| CallbackApi
+  Bank3[CIMB SOAP] <-->|Sync Callback, checksum verified| CallbackApi
+
+  subgraph JVM [Single Spring Boot Process]
+    ChargeApi --> KafkaProducer[Kafka Producer]
+    CallbackApi --> PreValidate[Pre-validate:<br/>idempotency / VA / charge status]
+    PreValidate -->|reads| RocksDB[(Embedded RocksDB<br/>charge-state / va-registry / idempotency)]
+    PreValidate --> KafkaProducer
+
+    subgraph Streams [Kafka Streams Topology]
+      Topology[Authoritative re-check<br/>+ apply / detect double-settlement]
+      Topology <--> RocksDB
+    end
+
+    ProjSink[Postgres Projection Sink]
+    WebhookWorker[Webhook Dispatcher]
   end
 
-  subgraph IngressTier [Ingress Tier]
-    GatewaySvc[Ingress Gateway Microservice]
-  end
+  KafkaProducer --> Kafka[(1 Kafka Broker, KRaft)]
+  Kafka --> Topology
+  Kafka --> ProjSink
+  Kafka --> WebhookWorker
 
-  subgraph KafkaCluster [Apache Kafka Event Stream]
-    InquiryTopic((Inquiry / Payment Topics))
-    SettlementTopic((Settlement Event Topics))
-  end
-
-  subgraph ProcessingTier [Microservices Processing Tier]
-    FraudSvc[Fraud Screening Service]
-    ClearingSvc[Clearing Engine Microservice]
-    SettlementEngine[Settlement Engine<br/>Kafka Streams + RocksDB Stores]
-    RedisCache[(Redis In-Memory Idempotency)]
-  end
-
-  subgraph CQRS [CQRS Projection Sink]
-    ProjSink[Projection Sink Worker]
-    ReadDB[(Oracle / PostgreSQL Read DB)]
-  end
-
-  subgraph NotificationTier [Notification Tier]
-    NotifSvc[Notification Service Worker]
-  end
-
-  subgraph ExternalBanks [External Bank Core Networks]
-    Bank1[Maybank SNAP REST]
-    Bank2[BSI REST]
-    Bank3[CIMB SOAP]
-  end
-
-  AR -->|API Request| GatewaySvc
-  Bank1 <-->|Async/Sync Callback| GatewaySvc
-  Bank2 <-->|Async/Sync Callback| GatewaySvc
-  Bank3 <-->|Async/Sync Callback| GatewaySvc
-
-  GatewaySvc -->|Publish Event| InquiryTopic
-  InquiryTopic --> FraudSvc
-  FraudSvc --> ClearingSvc
-  ClearingSvc --> SettlementEngine
-  SettlementEngine <--> RedisCache
-  SettlementEngine -->|Publish Settlement| SettlementTopic
-  
-  SettlementTopic --> ProjSink
-  ProjSink --> ReadDB
-  
-  SettlementTopic --> NotifSvc
-  NotifSvc -->|Async Callback| AR
+  ProjSink --> Postgres[(1 PostgreSQL instance<br/>read-only projection)]
+  WebhookWorker -->|deliver| AR
 ```
 
-> [!NOTE]
-> This is the generic reference architecture evaluated *before* either option was built — not a
-> depiction of any implementation. The comparison implementation later built for benchmarking
-> (`payment-gateway-evtsrc`) has none of the Fraud/Clearing/Settlement microservice split or Redis
-> shown above; see "What was actually built" in the Post-Selection Validation section for its real
-> architecture diagram.
+Everything left of the Kafka broker (API controllers, pre-validation, the streams topology, the
+projection sink, the webhook worker) runs in the same JVM as one deployable artifact. Infrastructure
+is one Kafka broker and one PostgreSQL instance — no separate microservices, no Redis.
 
 ---
 
 ## Architectural Trade-off Matrix
 
-| Architectural Dimension | Option A (Modular Monolith) | Option B (Event-Driven Reference) |
+| Architectural Dimension | Option A (Modular Monolith) | Option B (Event-Sourced/CQRS) |
 | :--- | :--- | :--- |
-| **System Topology** | **Modular Monolith** (Single deployable application binary). | **Distributed Microservices** (Multiple decoupled services). |
-| **Ingress Pattern** | **Synchronous Request-Response** (HTTP REST / SOAP XML). | **Asynchronous / Streaming Pipeline** (Event topics + Message ingress). |
-| **State & Source of Truth** | **Relational Database** (PostgreSQL 18 with Flyway migrations). | **Event Log** (Apache Kafka) + RocksDB local state stores. |
-| **Query & Read Model** | **Direct RDBMS Queries** (Indexed SQL reads & joins). | **CQRS Projection Sink** (Kafka streams to RDBMS read model). |
-| **Concurrency Control** | **Pessimistic / Optimistic DB Locks** per aggregate root. | **Partition Key Sharding** (Lock-free execution per stream partition). |
-| **Cross-Entity Invariants** | **Atomic Multi-Row Transactions** (ACID boundaries). | **Distributed Stream Processing** (Eventual consistency / Sagas). |
-| **Throughput Capacity** | Hundreds to thousands of ACID TPS per single node. | Tens of thousands of continuous TPS across partitioned cluster. |
-| **Operational Overhead** | **Minimal:** 1 app instance + 1 PostgreSQL database. | **High:** Microservice fleet, Kafka brokers, Zookeeper/KRaft, Redis, RDBMS. |
-
-> [!NOTE]
-> This matrix describes the generic reference architecture evaluated *before* either option was
-> built. `payment-gateway-evtsrc`, the comparison implementation actually built and benchmarked, is
-> a **single-JVM monolith** like Option A — not "Distributed Microservices" and not a
-> "Microservice fleet." Its real topology is one Spring Boot process, one Kafka broker, and one
-> Postgres instance; see "What was actually built" in Post-Selection Validation below.
+| **System Topology** | **Modular Monolith** (Single deployable application binary). | **Modular Monolith** (Single deployable application binary) — same topology as Option A; only the state model differs. |
+| **Ingress Pattern** | **Synchronous Request-Response** (HTTP REST / SOAP XML). | **Synchronous Request-Response**, with pre-validation against local RocksDB before an async Kafka append. |
+| **State & Source of Truth** | **Relational Database** (PostgreSQL 18 with Flyway migrations). | **Event Log** (Apache Kafka) + embedded RocksDB local state stores. |
+| **Query & Read Model** | **Direct RDBMS Queries** (Indexed SQL reads & joins). | **CQRS Projection Sink** (a Kafka consumer batches writes into a PostgreSQL read model). |
+| **Concurrency Control** | **Pessimistic / Optimistic DB Locks** per aggregate root. | **Partition Key Sharding** (single writer per Kafka partition key, no locks). |
+| **Cross-Entity Invariants** | **Atomic Multi-Row Transactions** (ACID boundaries). | **Detect-and-flag**: a race can still land as accepted at pre-validation; the single-writer partition-key stage re-checks and flags an overpayment rather than preventing it synchronously. |
+| **Throughput Capacity** | Hundreds to thousands of ACID TPS per single node. | Comparable at the tested scale (both comfortably absorbed a 2,000 TPS benchmark with headroom); a multi-broker, multi-partition scale-out ceiling was not built or tested. |
+| **Operational Overhead** | **Minimal:** 1 app instance + 1 PostgreSQL database. | **Moderate:** 1 app instance + 1 Kafka broker (KRaft) + 1 PostgreSQL database — more infrastructure, and empirically more implementation effort to reach correctness parity, than Option A. |
 
 ---
 
@@ -157,28 +122,28 @@ flowchart TD
 ### 1. Ingress Protocol Alignment (Synchronous vs. Asynchronous)
 
 * **Domain Requirement:** Upstream integration with bank core networks and ATM interfaces relies on **synchronous HTTP/SOAP request-response** protocols. When an external bank system queries a Virtual Account (`onInquiry`), the gateway must reply within a strict 2–3 second timeout with verified bill details.
-* **Evaluation:** In Option B, inserting a Kafka event bus between the bank's HTTP callback and the internal processing core adds message broker serialization overhead and asynchronous polling hops, while the HTTP thread must still block waiting for a response. Option A processes inquiries in-process with minimal latency, making it architecturally superior for synchronous protocols.
+* **Evaluation:** In Option B, the HTTP thread must still validate against local state and wait for a durable Kafka append before it can respond — event serialization and the broker round-trip add latency a direct SQL transaction doesn't have (confirmed by benchmarking: see Post-Selection Validation). Option A processes inquiries in-process with minimal latency, making it architecturally superior for synchronous protocols.
 
 ### 2. Multi-Bank Debt Invariants ("Pay via Any Bank")
 
 * **Domain Requirement:** A single debt aggregate (`Charge`) can be backed by 1..N sibling Virtual Accounts across different bank escrows. A payment received at one bank must immediately adjust shared cumulative balances or cancel sibling VAs to prevent double-payment or duplicate settlement.
-* **Evaluation:** Option A guarantees this single-debt invariant cleanly using **relational row locking** (`SELECT FOR UPDATE`) within a single PostgreSQL transaction. Enforcing the same multi-bank invariant in Option B requires complex distributed sagas or single-partition event bottlenecks, introducing race condition risks when two banks process payments simultaneously.
+* **Evaluation:** Option A guarantees this single-debt invariant cleanly using **relational row locking** (`SELECT FOR UPDATE`) within a single PostgreSQL transaction — a concurrent write simply waits on the lock. Option B has no equivalent lock to wait on: the comparison implementation validates against local state before appending to Kafka, then re-checks once a single-writer stage processes the event, detecting and flagging a race after the fact (an "overpayment" record for manual reconciliation) rather than preventing it synchronously. This is workable but is a real category of risk Option A's transaction boundary does not have.
 
 ### 3. Throughput Requirements vs. RDBMS Capacity
 
 * **Domain Requirement:** Typical collection gateway workloads operate at peak rates of tens to a few hundred transactions per second (TPS) during billing windows.
-* **Evaluation:** A modern, tuned PostgreSQL 18 instance supports **5,000–10,000+ ACID transactions per second** on standard server hardware. Option B is engineered for multi-thousand continuous TPS workloads distributed across multiple worker nodes. Choosing Option B for Option A's scale profile represents premature optimization and unneeded architectural complexity.
+* **Evaluation:** A modern, tuned PostgreSQL 18 instance supports **5,000–10,000+ ACID transactions per second** on standard server hardware (not independently verified by benchmarking — see Post-Selection Validation). Option B could in principle scale further by adding Kafka partitions and worker instances, but this was not built or load-tested; at the scale actually benchmarked (a ramp to 2,000 TPS), both options absorbed the load comfortably with room to spare. Choosing Option B for Option A's scale profile represents premature optimization and unneeded architectural complexity.
 
 ### 4. Operational Footprint & Deployment Strategy
 
 * **Domain Requirement:** The gateway is designed for self-hosted deployment by single operators or institutions holding direct bank relationships.
-* **Evaluation:** Option A requires minimal operational management (a single Spring Boot binary and a PostgreSQL database). Option B, as originally scoped in this document, requires running and maintaining a Kafka cluster, ZooKeeper/KRaft nodes, Redis caches, and separate projection worker services, creating high infrastructure costs and complex operational procedures. See "What was actually built" in Post-Selection Validation below for the lighter comparison implementation that was actually built and benchmarked, and how its real operational footprint compares to both this section and Option A.
+* **Evaluation:** Option A requires minimal operational management (a single Spring Boot binary and a PostgreSQL database). Option B adds one process to that footprint — a Kafka broker — since it is a single-JVM monolith like Option A, not a microservices fleet. That's a smaller infrastructure gap than "event-driven" might suggest, but it isn't free: see "What was confirmed" in Post-Selection Validation for the real, measured implementation cost of getting Option B's comparison build to correctness parity with Option A.
 
 ---
 
 ## Conclusion
 
-**Option A (Modular Monolith with PostgreSQL RDBMS)** is selected as the initial architecture for `payment-gateway`. It meets all business requirements for synchronous bank callbacks, strict multi-bank debt consistency, and low operational overhead, while avoiding the distributed system complexity of an event-streaming microservices platform.
+**Option A (Modular Monolith with PostgreSQL RDBMS)** is selected as the initial architecture for `payment-gateway`. It meets all business requirements for synchronous bank callbacks, strict multi-bank debt consistency, and low operational overhead, with less implementation and operational cost than an event-sourced/CQRS alternative at this workload's scale.
 
 This selection was made before either option was built, based on the reasoning above. See "Post-Selection Validation" below for what was actually measured once a comparison implementation existed.
 
@@ -186,46 +151,12 @@ This selection was made before either option was built, based on the reasoning a
 
 ## Post-Selection Validation (2026-07-28)
 
-A comparison implementation was later built: [`payment-gateway-evtsrc`](https://github.com/artivisi/payment-gateway-evtsrc), a single-JVM (not microservices) variant using Apache Kafka + embedded RocksDB as the write-side source of truth and PostgreSQL as an async CQRS read projection. It is lighter than the "Option B" reference architecture above — one Spring Boot binary, no Redis, no separate fraud/clearing/settlement services, KRaft instead of ZooKeeper — but still represents the same core trade-off this document evaluated (event log + local state store vs. a single relational transaction).
+Option B, as described above, was later actually built for comparison:
+[`payment-gateway-evtsrc`](https://github.com/artivisi/payment-gateway-evtsrc). It matches the
+diagram and tech stack in the Option B section — a single-JVM monolith, one Kafka broker, one
+Postgres instance, no Redis, no service fleet — and was benchmarked head-to-head against this repo.
 
 Full methodology, hardware details, and per-system numbers are in [`payment-gateway-evtsrc/scenarios/perf_benchmark_report.md`](https://github.com/artivisi/payment-gateway-evtsrc/blob/main/scenarios/perf_benchmark_report.md) (section 8). A short summary and this repo's own results are in [`docs/benchmark-report.md`](benchmark-report.md).
-
-### What was actually built
-
-No separate Fraud/Clearing/Settlement services, no Redis, no microservices fleet — one Spring Boot process with an embedded Kafka Streams engine, talking to one Kafka broker and one Postgres instance:
-
-```mermaid
-flowchart TD
-  Client[Client App] -->|POST /charges| ChargeApi[Charge API]
-  Bank[BSI Bank] -->|POST /api/bank/bsi<br/>checksum verified| BsiAdapter[BSI Adapter]
-
-  subgraph JVM [Single Spring Boot Process]
-    ChargeApi --> KafkaProducer1[Kafka Producer]
-    BsiAdapter --> PreValidate[Pre-validate:<br/>idempotency / VA / charge status]
-    PreValidate -->|reads| RocksDB[(Embedded RocksDB<br/>charge-state / va-registry / idempotency)]
-    PreValidate --> KafkaProducer2[Kafka Producer]
-
-    subgraph Streams [Kafka Streams Topology]
-      Topology[Authoritative re-check<br/>+ apply / detect double-settlement]
-      Topology <--> RocksDB
-    end
-
-    ProjSink[Postgres Projection Sink<br/>batch consumer]
-    WebhookWorker[Webhook Dispatcher<br/>batch consumer]
-  end
-
-  KafkaProducer1 --> Kafka[(1 Kafka Broker, KRaft)]
-  KafkaProducer2 --> Kafka
-  Kafka --> Topology
-  Kafka --> ProjSink
-  Kafka --> WebhookWorker
-
-  ProjSink --> Postgres[(1 PostgreSQL instance<br/>read-only projection)]
-  WebhookWorker -->|deliver| Client
-  AdminUI[Admin Dashboard] --> Postgres
-```
-
-Everything left of the Kafka broker (API controllers, pre-validation, the streams topology, the projection sink, the webhook worker) runs in the same JVM as one deployable artifact — the only external processes are the Kafka broker and Postgres.
 
 ### What was confirmed
 
