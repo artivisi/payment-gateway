@@ -168,8 +168,11 @@ class PaymentConcurrencyIntegrationTest extends AbstractIntegrationTest {
                 () -> paymentService.apply(bsi, bsiVa, amount, "RACE-REPLAY-1", Instant.now());
         List<Outcome> outcomes = race(List.of(replay, replay));
 
-        // The replay either returns the recorded payment or is rejected — never applied twice.
-        assertThat(outcomes).filteredOn(o -> o.payment() != null).isNotEmpty();
+        // BOTH deliveries must answer with the recorded payment. Rejecting the loser as
+        // "already paid" is what the bank sees when it retries a notification it already sent.
+        assertThat(outcomes).allSatisfy(o -> assertThat(o.error()).isNull());
+        assertThat(outcomes).extracting(o -> o.payment().getId()).containsOnly(
+                outcomes.getFirst().payment().getId());
 
         Charge reloaded = chargeRepository.findById(charge.getId()).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(ChargeStatus.PAID);
@@ -178,19 +181,38 @@ class PaymentConcurrencyIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void open_replayRacingItself_uniqueConstraintPreventsDoubleCount() throws Exception {
+    void open_replayRacingItself_bothAnswerWithTheRecordedPayment() throws Exception {
         Charge charge = createCharge(ChargeType.OPEN, new BigDecimal("100000"));
 
         Callable<Payment> replay =
                 () -> paymentService.apply(bsi, bsiVa, new BigDecimal("50000"), "RACE-REPLAY-2", Instant.now());
         List<Outcome> outcomes = race(List.of(replay, replay));
 
-        // OPEN accumulates without an already-paid guard, so the (VA, bankReference) unique
-        // constraint is the last line of defense against a racing replay.
-        assertThat(outcomes).filteredOn(o -> o.payment() != null).isNotEmpty();
+        // OPEN accumulates without an already-paid guard, so before the under-lock idempotency
+        // re-check the loser reached the insert and died on the (VA, bankReference) constraint.
+        assertThat(outcomes).allSatisfy(o -> assertThat(o.error()).isNull());
+        assertThat(outcomes).extracting(o -> o.payment().getId()).containsOnly(
+                outcomes.getFirst().payment().getId());
 
         Charge reloaded = chargeRepository.findById(charge.getId()).orElseThrow();
         assertThat(reloaded.getCumulativePaid()).isEqualByComparingTo("50000");
+        assertThat(paymentRepository.findByChargeIdWithVa(charge.getId())).hasSize(1);
+    }
+
+    @Test
+    void closed_bankRetriesAfterSettlement_answersWithTheRecordedPayment() throws Exception {
+        BigDecimal amount = new BigDecimal("1000000");
+        Charge charge = createCharge(ChargeType.CLOSED, amount);
+
+        // The sequential case: BSI re-sends a notification hours after the charge settled. It must
+        // still answer 00 with the recorded payment, not 13 "already paid".
+        Payment first = paymentService.apply(bsi, bsiVa, amount, "RETRY-1", Instant.now());
+        Payment retry = paymentService.apply(bsi, bsiVa, amount, "RETRY-1", Instant.now());
+
+        assertThat(retry.getId()).isEqualTo(first.getId());
+        Charge reloaded = chargeRepository.findById(charge.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(ChargeStatus.PAID);
+        assertThat(reloaded.getCumulativePaid()).isEqualByComparingTo(amount);
         assertThat(paymentRepository.findByChargeIdWithVa(charge.getId())).hasSize(1);
     }
 }
