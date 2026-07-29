@@ -167,18 +167,22 @@ retracted as a contamination artifact. The correctness-audit failure was, at fir
 on the same basis — until the operator asked "the app should not do double payment however low the
 resource is, correct?", which is correct: not reproducing under a clean environment shows the defect
 is rare, not that it isn't real. It was root-caused (two independent, uncoordinated write paths in
-evtsrc's `PostgresProjectionSink`) and fixed; the fix was verified with a test that has no dependency
-on load or timing at all, which is why "0 mismatches" below can be trusted going forward even though
-the same code produced mismatches that morning. See
-`payment-gateway-evtsrc/docs/benchmark-remediation-guideline.md`'s "Fifth gap" (the saturation
-retraction) and "Sixth gap" (the defect: root cause, fix, and the correction to the retraction).
+evtsrc's `PostgresProjectionSink`) and fixed downstream; a further push from the operator ("we can
+work around it with a single atomic RocksDB transaction instead") led to the actual root-cause fix —
+evtsrc's write path no longer splits an optimistic request-thread read from a later, separate Kafka
+Streams decision at all. Both fixes were verified with tests that have no dependency on load or
+timing (the deeper fix additionally with a 50-thread concurrent stress test), which is why "0
+mismatches" below can be trusted going forward even though the same code produced mismatches that
+morning. See `payment-gateway-evtsrc/docs/benchmark-remediation-guideline.md`'s "Fifth gap" (the
+saturation retraction), "Sixth gap" (the defect: root cause, downstream fix, and the correction to
+the retraction), and "Seventh gap" (the deeper fix and its re-benchmark).
 
 ### What was confirmed
 
 | Trade-off argument (above) | Measured outcome |
 |---|---|
 | Section 1 — synchronous protocols favor fewer hops | Confirmed on median latency: this system's median (1.01ms) was lower than the event-sourced variant's (3.83–3.96ms) under the identical BSI protocol workload, consistent with the extra Kafka produce-and-acknowledge hop. Not confirmed on tail latency this run: this system's p99 (112ms) was higher than the event-sourced variant's (8.5–9.4ms) — most likely explained by residual environment noise (see the retraction note above) rather than a reversal of the general pattern, but the data doesn't support a stronger claim than that. |
-| Section 2 — row locking is simpler/safer than distributed invariant enforcement | Confirmed, twice over. Earlier: the event-sourced variant once had to re-implement the OPEN-vs-INSTALLMENT charge closing rule in two separate stores (its Kafka Streams topology and its Postgres projection), and the two silently disagreed until the mismatch was found. Later: its financial-correctness audit failed in two out of two runs under load (one payment double-recorded per run) — traced to the same underlying pattern, two independent, uncoordinated write paths disagreeing about a single payment's outcome, this time in its Postgres projection sink. Fixed (see above), but the recurrence of the same class of failure across two unrelated components is itself evidence for this row's argument: this system's single `PaymentApplicationService`, backed by one ACID transaction, structurally cannot have two write paths disagree about one payment, because there is only one write path. Its audit has passed with zero mismatches in every run to date. |
+| Section 2 — row locking is simpler/safer than distributed invariant enforcement | Confirmed, three times over, by the same underlying pattern recurring in three unrelated places: (1) the event-sourced variant once had OPEN-vs-INSTALLMENT closing logic implemented in two separate stores (its Kafka Streams topology and its Postgres projection) that silently disagreed; (2) its `PostgresProjectionSink` had two independent write paths that could disagree about one payment's outcome; (3) even after (2) was patched downstream, the actual cause was a request thread that could tell the bank "accepted" before a separate, later Kafka Streams decision could disagree with it — fixed only by rearchitecting the write path onto a single atomic RocksDB transaction, eliminating the second decision-maker entirely. This system's single `PaymentApplicationService`, backed by one ACID transaction, never had two decision-makers to begin with — it didn't need three iterations to reach the property RDBMS gets by default. Its audit has passed with zero mismatches in every run to date. |
 | Section 3 — RDBMS throughput is sufficient, Kafka-scale is premature at this workload | Confirmed as originally stated, once the contaminated-environment measurement is set aside: on the identical 2,000 TPS ramp, both systems ran comfortably within capacity — this system never exceeded 288 of 2,000 allotted VUs, the event-sourced variant never exceeded 122 (one run never left its 100-VU pre-allocation at all). Neither system was pushed to an actual hardware-limited ceiling, so the "5,000-10,000+ TPS" figure in section 3 above remains unverified, but "comparable capacity" is the better-supported reading of the data — this project's own dramatic-looking counter-evidence turned out to be a measurement artifact, not a real ceiling. |
 | Section 4 — lower operational footprint | Confirmed in effort, not just infrastructure: getting the event-sourced comparison implementation to correct behavior took substantially more fixes (a missing framework dependency that silently broke persistence, three iterations to get its own test harness right, the two-store invariant bug above) than this system needed at any point. |
 
