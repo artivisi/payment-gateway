@@ -102,6 +102,32 @@ class ExpiryReaperIntegrationTest extends AbstractIntegrationTest {
         assertThat(found).isTrue();
     }
 
+    /**
+     * The sweep must be a no-op once it has retired a charge's VAs. Expiry is soft, so the charge
+     * keeps its status forever — a selection keyed on status alone re-picks it every minute for the
+     * life of the charge, and the audit row it wrote each pass drowned the log (97% of production's
+     * audit_event by 2026-07-29).
+     */
+    @Test
+    void sweep_isNoOpOnceTheVasAreRetired() {
+        String chargeId = createCharge("ref-exp-twice", Instant.now().minusSeconds(60), "9009000010");
+
+        reaper.sweep();
+        long auditsAfterFirst = auditRepository.count();
+        assertThat(vaRepository.findByChargeId(chargeId))
+                .allMatch(va -> va.getStatus() == VirtualAccountStatus.EXPIRED);
+
+        reaper.sweep();
+        reaper.sweep();
+
+        assertThat(auditRepository.count())
+                .as("a sweep that retires nothing must not write an audit event")
+                .isEqualTo(auditsAfterFirst);
+        assertThat(chargeRepository.findExpired(Instant.now(), List.of(ChargeStatus.ACTIVE, ChargeStatus.PARTIALLY_PAID)))
+                .as("a charge with no ACTIVE VA left has nothing to sweep")
+                .noneMatch(c -> c.getId().equals(chargeId));
+    }
+
     @Test
     void sweep_ignoresNonExpiredCharges() {
         String chargeId = createCharge("ref-not-exp", Instant.now().plusSeconds(3600), "9009000003");
