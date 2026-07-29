@@ -128,6 +128,42 @@ class ExpiryReaperIntegrationTest extends AbstractIntegrationTest {
                 .noneMatch(c -> c.getId().equals(chargeId));
     }
 
+    /**
+     * Moving the deadline has to put the VA back, or the charge is payable in principle and
+     * unreachable in practice. This is the gap that refused a real BSI payment on 2026-07-29: a
+     * bill whose due date was corrected upstream had already had its VA retired.
+     */
+    @Test
+    void extendExpiry_restoresTheVaTheSweepRetired() {
+        String chargeId = createCharge("ref-extend", Instant.now().minusSeconds(60), "9009000011");
+        reaper.sweep();
+        assertThat(vaRepository.findByChargeId(chargeId))
+                .allMatch(va -> va.getStatus() == VirtualAccountStatus.EXPIRED);
+        var escrow = escrowRepository.findByCode(escrowCode).orElseThrow();
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> inquiryService.inquire(escrow, "9009000011"))
+                .isInstanceOf(com.artivisi.paymentgateway.exception.NotFoundException.class);
+
+        chargeService.extendExpiry(consumer, chargeId, Instant.now().plusSeconds(86400));
+
+        assertThat(vaRepository.findByChargeId(chargeId))
+                .allMatch(va -> va.getStatus() == VirtualAccountStatus.ACTIVE);
+        org.assertj.core.api.Assertions.assertThatNoException()
+                .isThrownBy(() -> inquiryService.inquire(escrow, "9009000011"));
+    }
+
+    /** Never hand back a charge whose number someone else now owns — the payer would pay the wrong bill. */
+    @Test
+    void extendExpiry_refusesWhenTheNumberIsActiveOnAnotherCharge() {
+        String first = createCharge("ref-ext-a", Instant.now().minusSeconds(60), "9009000012");
+        reaper.sweep();
+        createCharge("ref-ext-b", Instant.now().plusSeconds(3600), "9009000012");
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(
+                        () -> chargeService.extendExpiry(consumer, first, Instant.now().plusSeconds(3600)))
+                .isInstanceOf(com.artivisi.paymentgateway.exception.InvalidRequestException.class);
+    }
+
     @Test
     void sweep_ignoresNonExpiredCharges() {
         String chargeId = createCharge("ref-not-exp", Instant.now().plusSeconds(3600), "9009000003");
