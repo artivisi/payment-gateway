@@ -181,3 +181,15 @@ retraction) and "Sixth gap" (the defect: root cause, fix, and the correction to 
 | Section 2 — row locking is simpler/safer than distributed invariant enforcement | Confirmed, twice over. Earlier: the event-sourced variant once had to re-implement the OPEN-vs-INSTALLMENT charge closing rule in two separate stores (its Kafka Streams topology and its Postgres projection), and the two silently disagreed until the mismatch was found. Later: its financial-correctness audit failed in two out of two runs under load (one payment double-recorded per run) — traced to the same underlying pattern, two independent, uncoordinated write paths disagreeing about a single payment's outcome, this time in its Postgres projection sink. Fixed (see above), but the recurrence of the same class of failure across two unrelated components is itself evidence for this row's argument: this system's single `PaymentApplicationService`, backed by one ACID transaction, structurally cannot have two write paths disagree about one payment, because there is only one write path. Its audit has passed with zero mismatches in every run to date. |
 | Section 3 — RDBMS throughput is sufficient, Kafka-scale is premature at this workload | Confirmed as originally stated, once the contaminated-environment measurement is set aside: on the identical 2,000 TPS ramp, both systems ran comfortably within capacity — this system never exceeded 288 of 2,000 allotted VUs, the event-sourced variant never exceeded 122 (one run never left its 100-VU pre-allocation at all). Neither system was pushed to an actual hardware-limited ceiling, so the "5,000-10,000+ TPS" figure in section 3 above remains unverified, but "comparable capacity" is the better-supported reading of the data — this project's own dramatic-looking counter-evidence turned out to be a measurement artifact, not a real ceiling. |
 | Section 4 — lower operational footprint | Confirmed in effort, not just infrastructure: getting the event-sourced comparison implementation to correct behavior took substantially more fixes (a missing framework dependency that silently broke persistence, three iterations to get its own test harness right, the two-store invariant bug above) than this system needed at any point. |
+
+### Why this repo runs on Option A in production
+
+Every argument above was made before either option was built, then checked against a real,
+independently-benchmarked comparison implementation — not skipped because event-sourced/CQRS was
+assumed to be out of reach. [`payment-gateway-evtsrc`](https://github.com/artivisi/payment-gateway-evtsrc)
+demonstrates that capability directly: a working Kafka Streams/RocksDB write path, a CQRS Postgres
+projection, benchmarked head-to-head through the identical BSI protocol, with its own correctness
+defects found and fixed along the way. This repo runs on the relational, ACID-transaction design
+because that is what the evidence supports for this workload's scale — lower latency, no
+multi-write-path correctness risk class, less operational surface — not because the alternative
+couldn't be built.
