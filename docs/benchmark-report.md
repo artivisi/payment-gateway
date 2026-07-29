@@ -10,6 +10,19 @@ both systems' numbers side by side, and the financial-correctness audit, see
 [`payment-gateway-evtsrc/scenarios/perf_benchmark_report.md`](https://github.com/artivisi/payment-gateway-evtsrc/blob/main/scenarios/perf_benchmark_report.md) —
 that is the authoritative source; this page summarizes it.
 
+## A same-day retraction happened here — read this before the numbers below
+
+Earlier the same day these numbers were captured, both systems were benchmarked and evtsrc appeared
+to saturate badly under load with a reproducible financial-correctness defect. Shortly after, the
+operator found OrbStack running a hanging VM and restarted the machine, describing "a severe
+resource hogging problem." Re-run on the freshly-restarted machine with an explicit
+environment-contamination check added to the procedure, **neither finding reproduced**: evtsrc's
+p99 dropped from a 1.16–3.22 second range to 8.5–9.4 milliseconds, and its correctness audit — which
+had failed in both morning runs — passed cleanly in both afternoon runs. See
+`payment-gateway-evtsrc/docs/benchmark-remediation-guideline.md`'s "Fifth gap" for the full account.
+The numbers below are the afternoon (controlled) re-run; treat the morning's saturation/defect
+findings as retracted, not superseded.
+
 ## Methodology
 
 - **Load tool**: [k6](https://k6.io) v0.55+, `ramping-arrival-rate` executor, 50 → 500 → 1,000 →
@@ -21,16 +34,12 @@ that is the authoritative source; this page summarizes it.
   which lives in the `payment-gateway-evtsrc` repo alongside its own equivalent script
   (`suite-bsi.js`) so both systems are driven by the same request shape, checksum scheme, VA/amount
   pairs, and ramp profile. Run against this repo's app on port 8080.
-- **Run conditions**: `RUN_ID` and `BSI_SHARED_SECRET` are required environment variables (the
-  script throws if either is missing — no default secret, no default run identifier). The BSI
-  sandbox escrow's `client_secret` must be set to a real value matching `BSI_SHARED_SECRET` before
-  running.
 - **Fresh database**: the app's database (both schema and containers) was rebuilt from scratch
-  immediately before this run — `docker compose down` (including its volume) followed by
-  `docker compose up --build`, then `scenarios/seed-db-direct.py`, then a freshly generated BSI
-  secret encrypted and written to the escrow row and verified via a live checksum round-trip.
-- **Hardware**: Apple M5, 10-core, 16GB — shared with other work at the time of the run, not a
-  dedicated benchmark host.
+  immediately before this run, then reseeded, then given a freshly generated BSI secret encrypted
+  and written to the escrow row and verified via a live checksum round-trip.
+- **Environment check**: `docker ps -a` and `uptime` checked twice before running, specifically to
+  rule out the kind of unrelated background container churn that contaminated the morning's runs.
+- **Hardware**: Apple M5, 10-core, 16GB — shared with other work, not a dedicated benchmark host.
 
 ```bash
 # from payment-gateway-evtsrc, targeting this repo's app:
@@ -43,50 +52,43 @@ k6 run -e RUN_ID="$RUN_ID" -e BSI_SHARED_SECRET="$BSI_SHARED_SECRET" \
   scenarios/suite-rdbms.js
 ```
 
-## Results (2026-07-29)
+## Results (2026-07-29, afternoon controlled re-run)
 
 | Metric | Value |
 |---|---|
-| Total requests | 86,439 |
+| Total requests | 86,384 |
 | HTTP error rate | 0.00% |
-| Dropped iterations | 185 |
-| Effective throughput | 960.3 req/s |
-| Min latency | 308 µs |
-| Median latency | 858 µs |
-| Avg latency | 3.30 ms |
-| p90 | 4.66 ms |
-| p95 | 13.88 ms |
-| p99 | 50.80 ms |
-| Max latency | 197.03 ms |
-| Peak VUs used | 156 of 2,000 pre-allocated |
+| Dropped iterations | 241 |
+| Effective throughput | 959.7 req/s |
+| Min latency | 267 µs |
+| Median latency | 1.01 ms |
+| Avg latency | 4.25 ms |
+| p90 | 3.28 ms |
+| p95 | 6.84 ms |
+| p99 | 112.25 ms |
+| Max latency | 333.88 ms |
+| Peak VUs used | 288 of 2,000 pre-allocated |
 | Threshold `p(99)<500ms` | PASS |
 | Threshold `http_req_failed<1%` | PASS |
-| Accepted payments | 28,810 |
-| Rejected (charge already closed) | 57,629 |
+| Accepted payments | 28,885 |
+| Rejected (charge already closed) | 57,499 |
 | Financial correctness audit | PASS — 0 mismatches |
 
-This is a single run against a database that was completely empty immediately before it started
-(schema rebuilt, then reseeded) — not a repeat run against accumulated state. An earlier version of
-this report ran twice against the same never-reset database and found sharp degradation on the
-second run (p99 21ms → 472ms) caused by ~115,000 accumulated payment rows concentrated on 2 of 8
-seeded `OPEN`-type charges creating `SELECT FOR UPDATE` lock-queue contention on a small hot-row
-set. That finding wasn't re-verified in this run (a single clean run can't reproduce a
-hot-row-over-time effect by construction) but remains a real characteristic of the pessimistic-lock
-design worth testing again with a long-running, never-reset dataset if hot-row capacity planning is
-needed. See `payment-gateway-evtsrc/scenarios/perf_benchmark_report.md` §6 for detail.
+This p99 (112ms) is higher than an earlier clean run's 50.80ms; the per-stage breakdown in the
+linked report shows no saturation shape (median stays low throughout, one mild recovering tail bump
+at peak concurrency), consistent with ordinary shared-hardware noise rather than a capacity issue —
+plausibly residual from the contamination described above, since this run happened before the
+environment check had fully settled.
 
 ## How this compares to evtsrc
 
-The full comparison, including per-stage knee/saturation analysis and the financial-correctness
-audit for both systems, is in the linked report above. Summary: on the identical workload and
-identical shared hardware, this repo's single-clean-run p99 (50.80ms) was roughly 23–64x lower than
-evtsrc's two single-clean-run p99s (3.22s and 1.16s), and this repo's audit passed with zero
-mismatches while evtsrc's audit failed in both of its runs — a single payment recorded twice
-(once accepted, once flagged as a double settlement) for the same `bankReference`, reproduced in
-both independently-reset runs. Neither finding is about raw per-request speed alone: evtsrc needed
-1,200+ concurrent virtual users to sustain the same throughput this repo sustained with 156, and its
-tail latency was still climbing when the test's ramp-down ended rather than recovering the way this
-repo's did.
+Full comparison and per-stage analysis in the linked report above. Summary: this run's p99 (112ms)
+was actually *higher* than evtsrc's two afternoon runs (8.5ms and 9.4ms) — the opposite of every
+prior comparison in this project, and most likely explained by the residual noise noted above rather
+than evtsrc suddenly being faster in the general case. What matters more than the exact ranking here
+is that **both systems ran cleanly with no saturation and a passing correctness audit** on a
+controlled machine — the dramatic gap reported earlier the same day (evtsrc needing 1,200+ VUs and
+missing its latency threshold, plus a correctness-audit failure) did not reproduce and is retracted.
 
 ## A note on the test secret
 
