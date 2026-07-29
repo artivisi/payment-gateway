@@ -2,6 +2,7 @@ package com.artivisi.paymentgateway.web;
 
 import com.artivisi.paymentgateway.dto.ChargeResponse;
 import com.artivisi.paymentgateway.dto.CreateChargeRequest;
+import com.artivisi.paymentgateway.dto.ExtendChargeRequest;
 import com.artivisi.paymentgateway.entity.Consumer;
 import com.artivisi.paymentgateway.service.ChargeService;
 import com.artivisi.paymentgateway.service.ConsumerAuthService;
@@ -61,5 +62,16 @@ public class ChargeController {
             @PathVariable String id) {
         Consumer consumer = consumerAuthService.authenticate(clientId, clientSecret);
         return chargeService.cancel(consumer, id);
+    }
+
+    /** Move the deadline of an open charge, restoring a VA the expiry sweep already retired. */
+    @PostMapping("/{id}/extend")
+    public ChargeResponse extend(
+            @RequestHeader(value = CLIENT_ID_HEADER, required = false) String clientId,
+            @RequestHeader(value = CLIENT_SECRET_HEADER, required = false) String clientSecret,
+            @PathVariable String id,
+            @Valid @RequestBody ExtendChargeRequest request) {
+        Consumer consumer = consumerAuthService.authenticate(clientId, clientSecret);
+        return chargeService.extendExpiry(consumer, id, request.expiresAt());
     }
 }

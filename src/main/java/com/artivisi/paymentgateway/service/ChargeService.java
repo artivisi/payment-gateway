@@ -118,6 +118,54 @@ public class ChargeService {
         return ChargeResponse.from(charge, virtualAccountRepository.findByChargeId(charge.getId()));
     }
 
+    /**
+     * Move a charge's deadline, restoring any VA the expiry sweep already retired.
+     *
+     * <p>Expiry is soft on the charge but not on the VA: {@code ExpiryReaper} sets the VA to EXPIRED,
+     * and nothing put it back. Moving {@code expiresAt} forward alone therefore left the charge
+     * payable in principle and unreachable in practice — the number answered NOT_FOUND. That gap is
+     * not hypothetical: a bill whose due date was corrected upstream after the charge was opened had
+     * its VA retired and a real payment refused.
+     *
+     * <p>Reactivation is refused, loudly, if some other generation now holds the number ACTIVE.
+     * Silently leaving the VA retired would hand back a charge that cannot be paid.
+     */
+    @Transactional
+    public ChargeResponse extendExpiry(Consumer consumer, String id, java.time.Instant expiresAt) {
+        Charge charge = chargeRepository.findByIdAndConsumerId(id, consumer.getId())
+                .orElseThrow(() -> new NotFoundException("charge not found: " + id));
+        if (charge.getStatus() != ChargeStatus.ACTIVE && charge.getStatus() != ChargeStatus.PARTIALLY_PAID) {
+            throw new InvalidRequestException(
+                    "cannot move the deadline of a " + charge.getStatus() + " charge");
+        }
+        java.time.Instant previous = charge.getExpiresAt();
+        charge.setExpiresAt(expiresAt);
+
+        List<VirtualAccount> vas = virtualAccountRepository.findByChargeId(charge.getId());
+        int restored = 0;
+        if (expiresAt.isAfter(java.time.Instant.now())) {
+            for (VirtualAccount va : vas) {
+                if (va.getStatus() != VirtualAccountStatus.EXPIRED) {
+                    continue;
+                }
+                virtualAccountRepository
+                        .findByEscrowAccountIdAndVaNumberAndStatus(
+                                va.getEscrowAccount().getId(), va.getVaNumber(), VirtualAccountStatus.ACTIVE)
+                        .ifPresent(active -> {
+                            throw new InvalidRequestException("cannot restore vaNumber " + va.getVaNumber()
+                                    + ": it is already active on charge " + active.getCharge().getId());
+                        });
+                va.setStatus(VirtualAccountStatus.ACTIVE);
+                virtualAccountRepository.save(va);
+                restored++;
+            }
+        }
+        auditService.record("CHARGE_EXPIRY_MOVED", "Charge", charge.getId(),
+                "consumerReference=" + charge.getConsumerReference()
+                        + " from=" + previous + " to=" + expiresAt + " restoredVas=" + restored);
+        return ChargeResponse.from(charge, vas);
+    }
+
     @Transactional
     public ChargeResponse cancel(Consumer consumer, String id) {
         Charge charge = chargeRepository.findByIdAndConsumerId(id, consumer.getId())
