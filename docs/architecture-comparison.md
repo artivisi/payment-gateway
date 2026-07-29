@@ -158,21 +158,26 @@ Postgres instance, no Redis, no service fleet — and was benchmarked head-to-he
 
 Full methodology and both systems' numbers are in [`payment-gateway-evtsrc/scenarios/perf_benchmark_report.md`](https://github.com/artivisi/payment-gateway-evtsrc/blob/main/scenarios/perf_benchmark_report.md). A short summary and this repo's own results are in [`docs/benchmark-report.md`](benchmark-report.md).
 
-**A same-day retraction is part of this record.** An earlier run the same morning found evtsrc
+**Two same-day corrections are part of this record.** An earlier run the same morning found evtsrc
 saturating badly (p99 in the 1.2–3.2 second range, needing 1,200+ VUs) with a financial-correctness
 audit failure in both of its runs. The operator then found the benchmarking machine had a hanging
 OrbStack VM, restarted it, and asked for the benchmark to be redone under a controlled environment.
-Neither finding reproduced: evtsrc's p99 came back at 8.5–9.4ms across two runs, and both runs'
-correctness audits passed with zero mismatches. The rows below reflect the afternoon (controlled)
-numbers; see `perf_benchmark_report.md`'s "Retraction" section and
-`payment-gateway-evtsrc/docs/benchmark-remediation-guideline.md`'s "Fifth gap" for the full account
-of what happened and why the morning's numbers shouldn't be trusted.
+The saturation finding did not reproduce (evtsrc's p99 came back at 8.5–9.4ms across two runs) and is
+retracted as a contamination artifact. The correctness-audit failure was, at first, wrongly retracted
+on the same basis — until the operator asked "the app should not do double payment however low the
+resource is, correct?", which is correct: not reproducing under a clean environment shows the defect
+is rare, not that it isn't real. It was root-caused (two independent, uncoordinated write paths in
+evtsrc's `PostgresProjectionSink`) and fixed; the fix was verified with a test that has no dependency
+on load or timing at all, which is why "0 mismatches" below can be trusted going forward even though
+the same code produced mismatches that morning. See
+`payment-gateway-evtsrc/docs/benchmark-remediation-guideline.md`'s "Fifth gap" (the saturation
+retraction) and "Sixth gap" (the defect: root cause, fix, and the correction to the retraction).
 
 ### What was confirmed
 
 | Trade-off argument (above) | Measured outcome |
 |---|---|
 | Section 1 — synchronous protocols favor fewer hops | Confirmed on median latency: this system's median (1.01ms) was lower than the event-sourced variant's (3.83–3.96ms) under the identical BSI protocol workload, consistent with the extra Kafka produce-and-acknowledge hop. Not confirmed on tail latency this run: this system's p99 (112ms) was higher than the event-sourced variant's (8.5–9.4ms) — most likely explained by residual environment noise (see the retraction note above) rather than a reversal of the general pattern, but the data doesn't support a stronger claim than that. |
-| Section 2 — row locking is simpler/safer than distributed invariant enforcement | Partially confirmed, from an earlier finding that still stands: the event-sourced variant once had to re-implement the OPEN-vs-INSTALLMENT charge closing rule in two separate stores (its Kafka Streams topology and its Postgres projection), and the two silently disagreed until the mismatch was found — a failure mode this system's single `PaymentApplicationService` never had available to it. A second, more dramatic finding (a payment double-recorded under load, in both of two runs) did not survive a controlled re-run and is retracted — see above. This system's audit has passed with zero mismatches in every run to date, including this one. |
+| Section 2 — row locking is simpler/safer than distributed invariant enforcement | Confirmed, twice over. Earlier: the event-sourced variant once had to re-implement the OPEN-vs-INSTALLMENT charge closing rule in two separate stores (its Kafka Streams topology and its Postgres projection), and the two silently disagreed until the mismatch was found. Later: its financial-correctness audit failed in two out of two runs under load (one payment double-recorded per run) — traced to the same underlying pattern, two independent, uncoordinated write paths disagreeing about a single payment's outcome, this time in its Postgres projection sink. Fixed (see above), but the recurrence of the same class of failure across two unrelated components is itself evidence for this row's argument: this system's single `PaymentApplicationService`, backed by one ACID transaction, structurally cannot have two write paths disagree about one payment, because there is only one write path. Its audit has passed with zero mismatches in every run to date. |
 | Section 3 — RDBMS throughput is sufficient, Kafka-scale is premature at this workload | Confirmed as originally stated, once the contaminated-environment measurement is set aside: on the identical 2,000 TPS ramp, both systems ran comfortably within capacity — this system never exceeded 288 of 2,000 allotted VUs, the event-sourced variant never exceeded 122 (one run never left its 100-VU pre-allocation at all). Neither system was pushed to an actual hardware-limited ceiling, so the "5,000-10,000+ TPS" figure in section 3 above remains unverified, but "comparable capacity" is the better-supported reading of the data — this project's own dramatic-looking counter-evidence turned out to be a measurement artifact, not a real ceiling. |
 | Section 4 — lower operational footprint | Confirmed in effort, not just infrastructure: getting the event-sourced comparison implementation to correct behavior took substantially more fixes (a missing framework dependency that silently broke persistence, three iterations to get its own test harness right, the two-store invariant bug above) than this system needed at any point. |

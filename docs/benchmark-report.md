@@ -10,18 +10,28 @@ both systems' numbers side by side, and the financial-correctness audit, see
 [`payment-gateway-evtsrc/scenarios/perf_benchmark_report.md`](https://github.com/artivisi/payment-gateway-evtsrc/blob/main/scenarios/perf_benchmark_report.md) —
 that is the authoritative source; this page summarizes it.
 
-## A same-day retraction happened here — read this before the numbers below
+## Two same-day corrections — read this before the numbers below
 
 Earlier the same day these numbers were captured, both systems were benchmarked and evtsrc appeared
 to saturate badly under load with a reproducible financial-correctness defect. Shortly after, the
 operator found OrbStack running a hanging VM and restarted the machine, describing "a severe
 resource hogging problem." Re-run on the freshly-restarted machine with an explicit
-environment-contamination check added to the procedure, **neither finding reproduced**: evtsrc's
-p99 dropped from a 1.16–3.22 second range to 8.5–9.4 milliseconds, and its correctness audit — which
-had failed in both morning runs — passed cleanly in both afternoon runs. See
-`payment-gateway-evtsrc/docs/benchmark-remediation-guideline.md`'s "Fifth gap" for the full account.
-The numbers below are the afternoon (controlled) re-run; treat the morning's saturation/defect
-findings as retracted, not superseded.
+environment-contamination check added to the procedure, the **saturation finding did not
+reproduce**: evtsrc's p99 dropped from a 1.16–3.22 second range to 8.5–9.4 milliseconds. That part
+is retracted — it was a contamination artifact, not a property of evtsrc's architecture.
+
+The **correctness defect was a different matter.** Its audit passing cleanly in the controlled
+re-run was initially (and wrongly) treated as retracting that finding too, until the operator
+pushed back: "the app should not do double payment however low the resource is, correct?" — correct.
+Not reproducing under a clean environment is evidence the defect is *rare*, not evidence it isn't
+*real*. It was investigated directly, root-caused (two independent, uncoordinated write paths in
+evtsrc's `PostgresProjectionSink`), reproduced deterministically with a test that has no dependency
+on load or timing at all, and fixed. See
+`payment-gateway-evtsrc/docs/benchmark-remediation-guideline.md`'s "Fifth gap" (the saturation
+retraction) and "Sixth gap" (the defect: root cause, fix, and the correction to the retraction) for
+the full account. The numbers below are the afternoon (controlled) re-run for the performance
+comparison; the correctness defect they show as "0 mismatches" was fixed afterward, not always
+absent — see the linked report's §6 for what "0 mismatches" here does and doesn't prove.
 
 ## Methodology
 
@@ -87,8 +97,11 @@ was actually *higher* than evtsrc's two afternoon runs (8.5ms and 9.4ms) — the
 prior comparison in this project, and most likely explained by the residual noise noted above rather
 than evtsrc suddenly being faster in the general case. What matters more than the exact ranking here
 is that **both systems ran cleanly with no saturation and a passing correctness audit** on a
-controlled machine — the dramatic gap reported earlier the same day (evtsrc needing 1,200+ VUs and
-missing its latency threshold, plus a correctness-audit failure) did not reproduce and is retracted.
+controlled machine — the saturation gap reported earlier the same day (evtsrc needing 1,200+ VUs and
+missing its latency threshold) did not reproduce and is retracted. The correctness-audit failure
+reported that same morning was not a false alarm, though: it was a real, rare defect (root-caused
+and fixed in evtsrc's `PostgresProjectionSink` — see the linked report's §6), and "0 mismatches"
+above reflects the fix, not the defect never having existed.
 
 ## A note on the test secret
 
