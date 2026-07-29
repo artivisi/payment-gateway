@@ -108,7 +108,11 @@ downstream in evtsrc's `PostgresProjectionSink` (see the linked report's §6), t
 actual source by rearchitecting evtsrc's write path onto a directly-owned RocksDB transaction (§8) —
 verified both by a 50-thread concurrent stress test and by two further fresh benchmark runs
 (p99 9.96ms / 9.85ms, statistically indistinguishable from before the rearchitecture). "0
-mismatches" above reflects that fix, not the defect never having existed.
+mismatches" above reflects that fix, not the defect never having existed. A follow-up pass (§9)
+found that same rearchitecture only tracked charge-level status, not per-VA status — the paying VA
+and its siblings should end up PAID vs. CANCELLED respectively, matching this repo's own
+`PaymentApplicationService.settleAndCancelSiblings`, not all marked PAID — fixed and re-benchmarked
+twice more (p99 9.19ms / 8.65ms), again no measurable cost.
 
 ## A note on the test secret
 
