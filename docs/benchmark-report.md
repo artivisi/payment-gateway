@@ -26,10 +26,14 @@ pushed back: "the app should not do double payment however low the resource is, 
 Not reproducing under a clean environment is evidence the defect is *rare*, not evidence it isn't
 *real*. It was investigated directly, root-caused (two independent, uncoordinated write paths in
 evtsrc's `PostgresProjectionSink`), reproduced deterministically with a test that has no dependency
-on load or timing at all, and fixed. See
+on load or timing at all, and fixed — and that fix was itself only a downstream patch. A further
+push from the operator ("we can work around it with a single atomic RocksDB transaction instead")
+led to the actual root-cause fix: evtsrc's write path no longer splits an optimistic request-thread
+read from an async Kafka Streams decision at all. See
 `payment-gateway-evtsrc/docs/benchmark-remediation-guideline.md`'s "Fifth gap" (the saturation
-retraction) and "Sixth gap" (the defect: root cause, fix, and the correction to the retraction) for
-the full account. The numbers below are the afternoon (controlled) re-run for the performance
+retraction), "Sixth gap" (the defect: root cause, downstream fix, and the correction to the
+retraction), and "Seventh gap" (the deeper fix and its re-benchmark) for the full account. The
+numbers below are the afternoon (controlled) re-run for the performance
 comparison; the correctness defect they show as "0 mismatches" was fixed afterward, not always
 absent — see the linked report's §6 for what "0 mismatches" here does and doesn't prove.
 
@@ -99,9 +103,12 @@ than evtsrc suddenly being faster in the general case. What matters more than th
 is that **both systems ran cleanly with no saturation and a passing correctness audit** on a
 controlled machine — the saturation gap reported earlier the same day (evtsrc needing 1,200+ VUs and
 missing its latency threshold) did not reproduce and is retracted. The correctness-audit failure
-reported that same morning was not a false alarm, though: it was a real, rare defect (root-caused
-and fixed in evtsrc's `PostgresProjectionSink` — see the linked report's §6), and "0 mismatches"
-above reflects the fix, not the defect never having existed.
+reported that same morning was not a false alarm, though: it was a real, rare defect, first patched
+downstream in evtsrc's `PostgresProjectionSink` (see the linked report's §6), then fixed at its
+actual source by rearchitecting evtsrc's write path onto a directly-owned RocksDB transaction (§8) —
+verified both by a 50-thread concurrent stress test and by two further fresh benchmark runs
+(p99 9.96ms / 9.85ms, statistically indistinguishable from before the rearchitecture). "0
+mismatches" above reflects that fix, not the defect never having existed.
 
 ## A note on the test secret
 
