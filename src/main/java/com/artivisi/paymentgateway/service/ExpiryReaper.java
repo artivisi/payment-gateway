@@ -72,16 +72,25 @@ public class ExpiryReaper {
                 return;
             }
             List<VirtualAccount> vas = virtualAccountRepository.findByChargeId(chargeId);
+            int retired = 0;
             for (VirtualAccount va : vas) {
                 if (va.getStatus() == VirtualAccountStatus.ACTIVE) {
                     va.setStatus(VirtualAccountStatus.EXPIRED);
                     virtualAccountRepository.save(va);
+                    retired++;
                 }
+            }
+            // An audit event records a state change; a sweep that retired nothing did not make one.
+            // Writing it unconditionally is what let a repeating no-op bury the log (see
+            // ChargeRepository#findExpired), and an audit trail nobody can read is not a control.
+            if (retired == 0) {
+                return;
             }
             // Deliberately NOT charge.setStatus(EXPIRED) — see the class javadoc. The debt is still
             // owed and still reportable; it simply cannot be collected on this VA any more.
             auditService.recordAs("system", "CHARGE_VA_RETIRED_ON_EXPIRY", "Charge", chargeId,
-                    "consumerReference=" + charge.getConsumerReference()
+                    "retiredVas=" + retired
+                            + " consumerReference=" + charge.getConsumerReference()
                             + " expiresAt=" + charge.getExpiresAt()
                             + " chargeStatus=" + charge.getStatus() + " (unchanged)");
         });

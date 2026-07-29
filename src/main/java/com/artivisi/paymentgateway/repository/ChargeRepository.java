@@ -46,8 +46,19 @@ public interface ChargeRepository extends JpaRepository<Charge, String> {
     @Query("select c from Charge c join fetch c.consumer where c.id = :id")
     Optional<Charge> findByIdWithConsumer(@Param("id") String id);
 
-    /** Charges past their expiry that are still payable (not yet expired/paid/cancelled). */
-    @Query("select c from Charge c where c.expiresAt <= :now and c.status in :statuses")
+    /**
+     * Charges past their expiry that still have a VA to retire.
+     *
+     * <p>The ACTIVE-VA clause is what makes the sweep terminate. Expiry is soft — the charge keeps
+     * its status forever — so a predicate on {@code expiresAt} and status alone re-selects the same
+     * charges on every run, for the life of the charge. That is not merely wasted work: the sweep
+     * wrote an audit event per charge per pass, and by 2026-07-29 production held 84.019
+     * CHARGE_VA_RETIRED_ON_EXPIRY rows out of 86.803 — 97% of the audit log describing retirements
+     * that had already happened.
+     */
+    @Query("select c from Charge c where c.expiresAt <= :now and c.status in :statuses "
+            + "and exists (select 1 from VirtualAccount va where va.charge = c "
+            + "and va.status = com.artivisi.paymentgateway.entity.VirtualAccountStatus.ACTIVE)")
     List<Charge> findExpired(@Param("now") Instant now,
                              @Param("statuses") List<ChargeStatus> statuses);
 
