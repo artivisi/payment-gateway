@@ -9,6 +9,7 @@ import com.artivisi.paymentgateway.entity.Consumer;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.VirtualAccount;
 import com.artivisi.paymentgateway.entity.VirtualAccountStatus;
+import com.artivisi.paymentgateway.entity.WebhookEventType;
 import com.artivisi.paymentgateway.exception.DuplicateException;
 import com.artivisi.paymentgateway.exception.InvalidRequestException;
 import com.artivisi.paymentgateway.exception.NotFoundException;
@@ -33,17 +34,20 @@ public class ChargeService {
     private final EscrowAccountRepository escrowAccountRepository;
     private final NumberSpaceValidator numberSpaceValidator;
     private final AuditService auditService;
+    private final WebhookService webhookService;
 
     public ChargeService(ChargeRepository chargeRepository,
                          VirtualAccountRepository virtualAccountRepository,
                          EscrowAccountRepository escrowAccountRepository,
                          NumberSpaceValidator numberSpaceValidator,
-                         AuditService auditService) {
+                         AuditService auditService,
+                         WebhookService webhookService) {
         this.chargeRepository = chargeRepository;
         this.virtualAccountRepository = virtualAccountRepository;
         this.escrowAccountRepository = escrowAccountRepository;
         this.numberSpaceValidator = numberSpaceValidator;
         this.auditService = auditService;
+        this.webhookService = webhookService;
     }
 
     /** Result of create: the charge view plus whether it was newly created (vs idempotent hit). */
@@ -173,6 +177,12 @@ public class ChargeService {
         if (charge.getStatus() == ChargeStatus.PAID) {
             throw new InvalidRequestException("cannot cancel a paid charge");
         }
+        // Already cancelled: a true no-op, not a second cancellation. Consumers retry this call from
+        // a durable outbox, so re-recording the audit event and re-emitting the webhook on every
+        // retry would bury the one that mattered.
+        if (charge.getStatus() == ChargeStatus.CANCELLED) {
+            return ChargeResponse.from(charge, virtualAccountRepository.findByChargeId(charge.getId()));
+        }
         charge.setStatus(ChargeStatus.CANCELLED);
         List<VirtualAccount> vas = virtualAccountRepository.findByChargeId(charge.getId());
         for (VirtualAccount va : vas) {
@@ -183,6 +193,10 @@ public class ChargeService {
         }
         auditService.record("CHARGE_CANCELLED", "Charge", charge.getId(),
                 "consumerReference=" + charge.getConsumerReference());
+        // The consumer's mirror is derived from this event. Emit even when the consumer asked for the
+        // cancellation itself — applying an event you caused is idempotent, whereas a caller we did
+        // not anticipate (an operator, an ops repair script) leaves the mirror silently stale.
+        webhookService.enqueue(charge, null, WebhookEventType.CHARGE_CANCELLED);
         return ChargeResponse.from(charge, vas);
     }
 }

@@ -70,6 +70,18 @@ A `Charge` is payable through 1..N sibling `VirtualAccount`s, one per target esc
 
 One webhook is emitted per received payment (carrying cumulative + remaining); the charge reaching `PAID` is a terminal event.
 
+**Collectability changes are webhooks too.** A charge going `CANCELLED` — whoever asked for it: the
+consumer, an operator in the admin UI, or an ops repair script — emits `CHARGE_CANCELLED`. The
+gateway owns collectability (is there a live VA, which generation, can this be paid now) because only
+it can enforce `uq_va_escrow_number_active` across every consumer. The consumer owns the debt (is it
+owed, how much, is it forgiven) — the gateway deliberately never decides that, which is why expiry is
+soft. Those are different questions, so a consumer necessarily keeps a local mirror of charge state,
+and **that mirror must be derived from these events, never independently authored**. Without the
+event a consumer that did not initiate the cancellation is simply never told: its books keep billing
+a debt whose VA is dead, and only diffing the two databases reveals it. Emit on every cancellation
+path, including ones the consumer itself triggered — a consumer applying an event it caused is
+idempotent, while a missing event is silent divergence.
+
 ## Expiry is soft
 
 `expiresAt` is enforced **at read time**: inquiry and payment both refuse a charge past its date. The
