@@ -9,6 +9,8 @@ import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
 import com.artivisi.paymentgateway.service.ConsumerService;
+import com.artivisi.paymentgateway.entity.WebhookEventType;
+import com.artivisi.paymentgateway.repository.WebhookDeliveryRepository;
 import com.artivisi.paymentgateway.service.EscrowAccountService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItems;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.notNullValue;
 
 class ChargeApiIntegrationTest extends AbstractIntegrationTest {
@@ -29,6 +32,7 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
 
     @Autowired EscrowAccountService escrowService;
     @Autowired ConsumerService consumerService;
+    @Autowired WebhookDeliveryRepository webhookDeliveryRepository;
 
     private String clientId;
     private String clientSecret;
@@ -126,6 +130,38 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
                 .then().statusCode(200)
                 .body("status", equalTo("CANCELLED"))
                 .body("accounts.status", hasItems("CANCELLED"));
+    }
+
+    /**
+     * A consumer's charge mirror is derived from this event, so the cancellation has to be announced
+     * even when the consumer asked for it — otherwise any other caller (an operator, an ops script)
+     * silently desynchronises the consumer's books from the gateway.
+     */
+    @Test
+    void cancellingACharge_notifiesTheConsumerExactlyOnce() {
+        String id = given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
+                .contentType("application/json").body(chargeBody("ref-cancel-webhook", bsiVa))
+                .when().post("/api/charges").then().statusCode(201).extract().path("id");
+
+        given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
+                .when().post("/api/charges/{id}/cancel", id).then().statusCode(200);
+
+        assertThat(cancelWebhooksFor(id)).isEqualTo(1);
+
+        // Consumers retry cancellation from a durable outbox; a repeat must not enqueue a second
+        // notification, or the retries bury the event that mattered.
+        given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
+                .when().post("/api/charges/{id}/cancel", id).then().statusCode(200)
+                .body("status", equalTo("CANCELLED"));
+
+        assertThat(cancelWebhooksFor(id)).isEqualTo(1);
+    }
+
+    private long cancelWebhooksFor(String chargeId) {
+        return webhookDeliveryRepository.findAll().stream()
+                .filter(d -> d.getEventType() == WebhookEventType.CHARGE_CANCELLED)
+                .filter(d -> chargeId.equals(d.getCharge().getId()))
+                .count();
     }
 
     @Test
