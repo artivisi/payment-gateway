@@ -47,7 +47,15 @@
 
     <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Summary</h2>
     <div class="card mb-8 overflow-hidden">
-        <table class="min-w-full divide-y divide-slate-200">
+        <!-- table-fixed with explicit widths: the explanation is a full sentence, and under auto
+             layout it sizes its column to the sentence's natural width, pushing Count and Amount
+             out of the card entirely (overflow-hidden then clips them silently). -->
+        <table class="w-full table-fixed divide-y divide-slate-200">
+            <colgroup>
+                <col style="width: 64%"/>
+                <col style="width: 12%"/>
+                <col style="width: 24%"/>
+            </colgroup>
             <thead class="bg-slate-50">
             <tr><th class="th">Item</th><th class="th">Count</th><th class="th">Amount</th></tr>
             </thead>
@@ -55,7 +63,8 @@
             <tr th:each="s : ${summary}">
                 <td class="td">
                     <p class="font-medium" th:text="${s.type}">TYPE</p>
-                    <p class="mt-1 text-xs leading-relaxed text-slate-600" th:text="${s.meaning}">meaning</p>
+                    <p class="mt-1 whitespace-normal break-words text-xs leading-relaxed text-slate-600"
+                       th:text="${s.meaning}">meaning</p>
                 </td>
                 <td class="td align-top" th:text="${s.count}">0</td>
                 <td class="td align-top font-mono text-xs" th:text="${s.total}">0</td>
@@ -70,7 +79,8 @@
             <tr>
                 <td class="td font-medium">Total in question</td>
                 <td class="td"></td>
-                <td class="td font-mono text-xs font-medium" th:text="${claimTotal}">0</td>
+                <td class="td font-mono text-xs font-medium" data-testid="claim-total"
+                    th:text="${claimTotal}">0</td>
             </tr>
             </tfoot>
         </table>
@@ -78,7 +88,11 @@
 
     <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Transactions</h2>
     <div class="card overflow-hidden">
-        <table class="min-w-full divide-y divide-slate-200">
+        <table class="w-full table-fixed divide-y divide-slate-200">
+            <colgroup>
+                <col style="width: 20%"/><col style="width: 17%"/><col style="width: 20%"/>
+                <col style="width: 15%"/><col style="width: 28%"/>
+            </colgroup>
             <thead class="bg-slate-50">
             <tr>
                 <th class="th">Item</th>
@@ -90,11 +104,11 @@
             </thead>
             <tbody class="divide-y divide-slate-100">
             <tr th:each="d : ${discrepancies}">
-                <td class="td text-xs" th:text="${d.type}">TYPE</td>
-                <td class="td font-mono text-xs" th:text="${d.vaNumber} ?: '—'">va</td>
-                <td class="td font-mono text-xs" th:text="${d.bankReference} ?: '—'">ref</td>
+                <td class="td break-words text-xs" th:text="${d.type}">TYPE</td>
+                <td class="td break-all font-mono text-xs" th:text="${d.vaNumber} ?: '—'">va</td>
+                <td class="td break-all font-mono text-xs" th:text="${d.bankReference} ?: '—'">ref</td>
                 <td class="td font-mono text-xs" th:text="${d.amount} ?: '—'">0</td>
-                <td class="td text-xs text-slate-600" th:text="${d.detail}">detail</td>
+                <td class="td break-words text-xs text-slate-600" th:text="${d.detail}">detail</td>
             </tr>
             <tr th:if="${#lists.isEmpty(discrepancies)}">
                 <td class="td text-slate-400" colspan="5">None.</td>

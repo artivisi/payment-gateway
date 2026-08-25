@@ -361,6 +361,10 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
             login(page);
+            // Narrower than Playwright's 1280 default on purpose: the summary table fits at 1280 and
+            // overflows at 1100, so a check at the default viewport sees nothing wrong. 1100 is an
+            // ordinary laptop content width and close to what the print stylesheet lays out to.
+            page.setViewportSize(1100, 1400);
             page.navigate(base() + "/admin/reconciliations/" + run.getId() + "/claim");
             String claim = page.getByTestId("settlement-claim").textContent();
 
@@ -372,6 +376,13 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                     .contains("NOTIFIED_NOT_SETTLED")
                     .contains("no matching credit appears in the settlement")
                     .contains("500000");
+
+            // NOTE: this asserts the text is present, NOT that it is legible. On 2026-08-25 the
+            // summary table overflowed its card at this width — the explanation cut off mid-sentence
+            // and the Count and Amount columns never reached the screen — and a textContent check
+            // passed throughout. Attempts to catch it from bounding boxes and from
+            // scrollWidth/clientWidth both failed to fire, so the layout is currently guarded by
+            // nothing but a person looking at it. Needs a visual-diff check, not another assertion.
             browser.close();
         }
     }
