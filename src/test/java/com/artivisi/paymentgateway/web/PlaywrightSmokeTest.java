@@ -442,8 +442,10 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         String billNumber = "20260825" + String.format("%08d", n % 100000000);
         // consumerReference is an opaque id, exactly as account-receivable sends it — the bill number
         // is the only thing on this charge finance would recognise.
+        // Unique per run, so searching it proves the lookup rather than matching every other fixture.
+        String payerName = "Payer " + n;
         var created = chargeService.create(consumer, new CreateChargeRequest(
-                java.util.UUID.randomUUID().toString(), "Payer 1", null, null,
+                java.util.UUID.randomUUID().toString(), payerName, null, null,
                 ChargeType.CLOSED, new java.math.BigDecimal("250000"), null,
                 java.util.List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber)),
                 "Daftar ulang", billNumber));
@@ -462,7 +464,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                     .as("the row must be addressed by what finance can trace")
                     .contains(billNumber)
                     .contains(vaNumber)
-                    .contains("Payer 1");
+                    .contains(payerName);
 
             // The VA number is the other thing they hold — it is what the student typed and what the
             // settlement line carries.
@@ -472,7 +474,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                     .contains(billNumber);
 
             // A payer name, for when neither number is to hand.
-            page.navigate(base() + "/admin/audit?q=Payer1");
+            page.navigate(base() + "/admin/audit?q=" + payerName.replace(" ", "%20"));
             assertThat(page.getByTestId("audit-list").textContent())
                     .as("a payer name must find their charge")
                     .contains(billNumber);
