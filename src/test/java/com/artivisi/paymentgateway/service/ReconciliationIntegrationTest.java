@@ -237,7 +237,7 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
         String body = "{\"period\":\"2026-06-25\",\"credits\":[{\"vaNumber\":\"9300000030\","
                 + "\"bankReference\":\"R30\",\"amount\":250000,\"transactionTime\":\"2026-06-25T10:00:00Z\"}]}";
 
-        given().contentType("application/json").body(body)
+        given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(body)
                 .when().post("/api/escrow-accounts/{code}/reconciliations", escrow.getCode())
                 .then().statusCode(201)
                 .body("recoveredCount", equalTo(1))

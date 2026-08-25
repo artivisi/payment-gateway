@@ -21,8 +21,17 @@ import org.springframework.security.web.access.intercept.AuthorizationFilter;
 
 /**
  * Admin-UI authentication + RBAC (PCI Req 7/8). {@code /admin} requires an authenticated operator and
- * the appropriate role; bank-callback ({@code /api/**}, {@code /ws/**}), Consumer API, and health stay
- * open here (they carry their own signature/key auth, and bank IP allowlisting is a separate filter).
+ * the appropriate role.
+ *
+ * <p>What stays open here is only what authenticates itself: bank callbacks ({@code /api/bank/**},
+ * {@code /ws/**}) by signature and IP allowlist, the Consumer API ({@code /api/charges/**}) by client
+ * id and secret, the device flow because it is how a token is obtained, and health.
+ *
+ * <p>The management APIs under {@code /api/escrow-accounts} and {@code /api/consumers} are NOT in that
+ * set, though a blanket {@code /api/**} rule once put them there. Until 2026-08-25 the escrow
+ * configuration and the consumer registry were readable by anyone on the internet, and the
+ * escrow-create handler was reachable. They are the admin screens' own endpoints and now require the
+ * same permissions, carried by a device token.
  */
 @Configuration
 @EnableWebSecurity
@@ -47,6 +56,15 @@ public class SecurityConfig {
                         // Operator-facing API, authenticated by a device token (RFC 8628) carrying the
                         // owning operator's permissions.
                         .requestMatchers("/api/analysis-reports/**").hasAuthority("ANALYSIS_VIEW")
+                        // Management APIs. These are the admin screens' own endpoints, not bank
+                        // traffic, and they carry no signature or client key of their own — the
+                        // blanket /api/** rule below swept them in, and until 2026-08-25 anyone on
+                        // the internet could read the escrow configuration and the consumer registry
+                        // and reach the escrow-create handler. Same permissions as the screens.
+                        .requestMatchers(HttpMethod.POST, "/api/escrow-accounts/**").hasAuthority("ESCROW_MANAGE")
+                        .requestMatchers("/api/escrow-accounts/**").hasAuthority("ESCROW_VIEW")
+                        .requestMatchers(HttpMethod.POST, "/api/consumers/**").hasAuthority("CONSUMER_MANAGE")
+                        .requestMatchers("/api/consumers/**").hasAuthority("CONSUMER_VIEW")
                         // Bank callbacks + Consumer API authenticate themselves (signature / client key / IP).
                         .requestMatchers("/api/**", "/ws/**").permitAll()
                         // Post-login step-up pages: any authenticated operator (incl. pre-MFA).
