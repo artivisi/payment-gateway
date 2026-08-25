@@ -311,7 +311,10 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         escrowAccountService.create(new EscrowAccountRequest(
                 "pw-recon-" + n, "bsi", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
-                "940090111", "Settle", "90001", "940", 10, null, null));
+                "940090111", "Settle", "90001", "940", 10, null, null,
+                // This stub bank keeps nothing, stated explicitly: reconciliation refuses to run
+                // against an escrow whose fee is unknown rather than compare gross against net.
+                java.math.BigDecimal.ZERO));
 
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch();

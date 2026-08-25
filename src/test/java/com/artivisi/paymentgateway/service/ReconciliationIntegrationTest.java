@@ -9,6 +9,8 @@ import com.artivisi.paymentgateway.dto.SettlementCredit;
 import com.artivisi.paymentgateway.entity.AuthScheme;
 import com.artivisi.paymentgateway.entity.Charge;
 import com.artivisi.paymentgateway.entity.ChargeStatus;
+import com.artivisi.paymentgateway.entity.Payment;
+import com.artivisi.paymentgateway.repository.PaymentRepository;
 import com.artivisi.paymentgateway.entity.ChargeType;
 import com.artivisi.paymentgateway.entity.Consumer;
 import com.artivisi.paymentgateway.entity.ConsumerStatus;
@@ -34,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.restassured.RestAssured.given;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.equalTo;
 
 class ReconciliationIntegrationTest extends AbstractIntegrationTest {
@@ -49,21 +52,23 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
     @Autowired ReconciliationService reconciliationService;
     @Autowired ReconciliationDiscrepancyRepository discrepancyRepository;
     @Autowired ChargeRepository chargeRepository;
+    @Autowired PaymentRepository paymentRepository;
     @Autowired WebhookDeliveryRepository webhookRepository;
 
     private EscrowAccount escrow;
     private Consumer consumer;
 
-    private static EscrowAccountRequest escrowRequest(String code) {
+    /** {@code fee} is what the bank keeps per payment; ZERO says "this one keeps nothing". */
+    private static EscrowAccountRequest escrowRequest(String code, BigDecimal fee) {
         return new EscrowAccountRequest(code, "bsi", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
-                "930900111", "Operator Settlement", "93099", "930", 10, null, null);
+                "930900111", "Operator Settlement", "93099", "930", 10, null, null, fee);
     }
 
     @BeforeEach
     void seed() {
         int n = SEQ.incrementAndGet();
-        escrow = escrowService.create(escrowRequest("recon-bsi-" + n));
+        escrow = escrowService.create(escrowRequest("recon-bsi-" + n, BigDecimal.ZERO));
         consumer = consumerService.create(new ConsumerRequest(
                 "recon-consumer-" + n, "Academic", "recon-client-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
@@ -77,6 +82,59 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
 
     private static SettlementCredit credit(String va, String ref, String amount) {
         return new SettlementCredit(va, ref, new BigDecimal(amount), TX_TIME);
+    }
+
+    @Test
+    void reconcile_refusesUntilTheSettlementFeeIsKnown() {
+        EscrowAccount unset = escrowService.create(
+                escrowRequest("recon-nofee-" + SEQ.incrementAndGet(), null));
+        createCharge("9300000009", "100000");
+
+        // Guessing zero would report every row of a fee-charging bank as an amount mismatch, and a
+        // report that is wrong about everything gets read as a broken feature.
+        assertThatThrownBy(() -> reconciliationService.reconcile(unset, PERIOD, List.of()))
+                .hasMessageContaining("settlementFee is not configured");
+    }
+
+    @Test
+    void aBankFeeIsExpected_notAMismatch() {
+        EscrowAccount fee = escrowService.create(
+                escrowRequest("recon-fee-" + SEQ.incrementAndGet(), new BigDecimal("2000")));
+        escrow = fee;                       // charges and payments must live on this escrow
+        createCharge("9300000011", "100000");
+        createCharge("9300000012", "300000");
+        paymentService.apply(fee, "9300000011", new BigDecimal("100000"), "F1", TX_TIME);
+        paymentService.apply(fee, "9300000012", new BigDecimal("300000"), "F2", TX_TIME);
+
+        ReconciliationRun run = reconciliationService.reconcile(fee, PERIOD, List.of(
+                credit("9300000011", "F1", "98000"),     // payer paid 100.000, bank kept 2.000
+                credit("9300000012", "F2", "300000")));  // full amount arrived: that IS wrong
+
+        assertThat(run.getMatchedCount()).isEqualTo(1);
+        assertThat(discrepancyRepository.findByReconciliationRunIdOrderByCreatedAtAsc(run.getId()))
+                .extracting("type").containsExactly(DiscrepancyType.AMOUNT_MISMATCH);
+    }
+
+    @Test
+    void aRecoveredPaymentRecordsWhatThePayerPaid_notWhatTheBankKept() {
+        EscrowAccount fee = escrowService.create(
+                escrowRequest("recon-rec-" + SEQ.incrementAndGet(), new BigDecimal("2000")));
+        escrow = fee;
+        createCharge("9300000013", "100000");
+
+        // Bank settled it, no callback ever arrived. The settlement line carries the net.
+        ReconciliationRun run = reconciliationService.reconcile(fee, PERIOD, List.of(
+                credit("9300000013", "F3", "98000")));
+
+        assertThat(run.getRecoveredCount()).isEqualTo(1);
+        Payment recovered = paymentRepository.findAll().stream()
+                .filter(p -> "F3".equals(p.getBankReference())).findFirst().orElseThrow();
+        // Recording 98.000 would leave the student 2.000 short of a charge they settled in full,
+        // and the charge could never reach PAID.
+        assertThat(recovered.getAmount()).isEqualByComparingTo("100000");
+        assertThat(chargeRepository.findAll().stream()
+                .filter(c -> ("recon-ref-9300000013").equals(c.getConsumerReference()))
+                .findFirst().orElseThrow().getStatus()).isEqualTo(ChargeStatus.PAID);
     }
 
     @Test

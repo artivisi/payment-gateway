@@ -101,6 +101,12 @@
                     <input class="input" id="settlementAccountName" name="settlementAccountName"
                            th:value="${escrow.settlementAccountName}" required/>
                 </div>
+                <div>
+                    <label class="label" for="settlementFee">Settlement fee per payment</label>
+                    <input class="input" id="settlementFee" name="settlementFee" type="number" step="0.01" min="0"
+                           th:value="${escrow.settlementFee}"/>
+                    <p class="hint">Deducted by the bank from every payment before crediting this account. Leave empty if not yet known; reconciliation will refuse to run until it is set. Enter 0 if the bank deducts nothing.</p>
+                </div>
             </div>
         </section>
 

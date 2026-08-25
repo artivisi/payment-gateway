@@ -57,13 +57,14 @@ public class AdminEscrowController {
             @RequestParam Integer vaDigitLength,
             @RequestParam(required = false) String merchantTag,
             @RequestParam(required = false) String institutionTag,
+            @RequestParam(required = false) java.math.BigDecimal settlementFee,
             RedirectAttributes redirectAttributes) {
         try {
             escrowAccountService.create(new EscrowAccountRequest(code, provider, hostingModel, transport, authScheme,
                     activeEnvironment, blankToNull(clientId), blankToNull(clientSecret), blankToNull(partnerId),
                     blankToNull(channelId), null, blankToNull(publicKey), null, null,
                     settlementAccountNumber, settlementAccountName, companyId, vaPrefix, vaDigitLength,
-                    blankToNull(merchantTag), blankToNull(institutionTag)));
+                    blankToNull(merchantTag), blankToNull(institutionTag), settlementFee));
             redirectAttributes.addFlashAttribute("message", "Escrow account '" + code + "' created.");
             return "redirect:/admin/escrow-accounts";
         } catch (RuntimeException e) {
@@ -102,13 +103,14 @@ public class AdminEscrowController {
             @RequestParam Integer vaDigitLength,
             @RequestParam(required = false) String merchantTag,
             @RequestParam(required = false) String institutionTag,
+            @RequestParam(required = false) java.math.BigDecimal settlementFee,
             RedirectAttributes redirectAttributes) {
         try {
             escrowAccountService.update(id, new EscrowUpdateRequest(provider, hostingModel, transport, authScheme,
                     activeEnvironment, blankToNull(clientId), blankToNull(clientSecret), blankToNull(partnerId),
                     blankToNull(channelId), blankToNull(privateKey), blankToNull(publicKey), blankToNull(sandboxBaseUrl),
                     blankToNull(productionBaseUrl), settlementAccountNumber, settlementAccountName, companyId, vaPrefix,
-                    vaDigitLength, blankToNull(merchantTag), blankToNull(institutionTag)));
+                    vaDigitLength, blankToNull(merchantTag), blankToNull(institutionTag), settlementFee));
             redirectAttributes.addFlashAttribute("message", "Escrow updated.");
             return "redirect:/admin/escrow-accounts";
         } catch (RuntimeException e) {

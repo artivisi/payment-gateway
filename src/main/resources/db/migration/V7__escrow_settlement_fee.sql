@@ -1,0 +1,21 @@
+-- What the bank keeps from each payment before crediting the settlement account.
+--
+-- BSI deducts Rp 2.000 per VA payment: a student pays 2.000.000 and the account receives 1.998.000.
+-- Reconciliation compared the two figures directly, so the first real settlement import would have
+-- reported EVERY row as an AMOUNT_MISMATCH — a report that is wrong about everything gets read as a
+-- broken feature and thrown away, which is worse than no report. Measured on 2026-08-25 against seven
+-- months of statements: every matched row across May-June differ by exactly the
+-- fee, and it predates the gateway, so it is a standing arrangement rather than anything new.
+--
+-- It also has to be added back when reconciliation RECOVERS a paid-not-notified credit. The
+-- settlement line carries the net; the payment we create must carry what the payer actually paid, or
+-- every recovered payment silently under-credits the student by the fee and the charge never reaches
+-- PAID.
+--
+-- NULL means "not configured", not "no fee", and reconciliation refuses to run for that escrow. A
+-- bank that charges nothing needs an explicit 0. The alternative — defaulting to zero — is a silent
+-- wrong answer for any bank that does charge, which is the failure this column exists to stop.
+-- Deliberately not seeded with a value: the fee is a per-deployment commercial term, not a product
+-- constant, and belongs in the escrow record the operator maintains.
+
+alter table escrow_account add column settlement_fee numeric(19,2);

@@ -14,6 +14,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.UuidGenerator;
 
 import java.time.Instant;
+import java.math.BigDecimal;
 
 /**
  * The core unit — one bank biller. Carries everything structural: which adapter to use,
@@ -69,6 +70,13 @@ public class EscrowAccount {
     private String settlementAccountNumber;
 
     private String settlementAccountName;
+
+    /**
+     * What the bank keeps from each payment before crediting the settlement account (BSI: Rp 2.000
+     * per VA payment). NULL means not configured, not zero — reconciliation refuses to run rather
+     * than guess, because guessing zero silently mismatches every row at a bank that does charge.
+     */
+    private BigDecimal settlementFee;
 
     private String companyId;
 

@@ -56,7 +56,7 @@ class ReconciliationCsvImportTest extends AbstractIntegrationTest {
                     null, null, null, null, null, null, null, null,
                     row.get("settlementAccountNumber"), row.get("settlementAccountName"),
                     row.get("companyId"), row.get("vaPrefix"),
-                    Integer.parseInt(row.get("vaDigitLength")), null, null));
+                    Integer.parseInt(row.get("vaDigitLength")), null, null, java.math.BigDecimal.ZERO));
             escrows.put(escrow.getCode(), escrow);
         }
 
