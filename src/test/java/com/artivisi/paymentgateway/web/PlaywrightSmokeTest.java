@@ -452,10 +452,10 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             Browser browser = playwright.chromium().launch();
             Page page = browser.newPage();
             login(page);
-            // Searched by charge id, because that is what the audit search can match today: it looks
-            // at the event's own fields, not at the charge behind them, so a finance user searching
-            // the bill number off a bank statement still finds nothing. Separate gap, noted.
-            page.navigate(base() + "/admin/audit?q=" + created.response().id());
+            // Searched the way finance arrives: holding the bill number off a bank statement, not a
+            // charge id. The log stores the id, so this only works because the search resolves the
+            // charge behind the event.
+            page.navigate(base() + "/admin/audit?q=" + billNumber);
             String log = page.getByTestId("audit-list").textContent();
 
             assertThat(log)
@@ -463,6 +463,19 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                     .contains(billNumber)
                     .contains(vaNumber)
                     .contains("Payer 1");
+
+            // The VA number is the other thing they hold — it is what the student typed and what the
+            // settlement line carries.
+            page.navigate(base() + "/admin/audit?q=" + vaNumber);
+            assertThat(page.getByTestId("audit-list").textContent())
+                    .as("a VA number must find the charge it belongs to")
+                    .contains(billNumber);
+
+            // A payer name, for when neither number is to hand.
+            page.navigate(base() + "/admin/audit?q=Payer1");
+            assertThat(page.getByTestId("audit-list").textContent())
+                    .as("a payer name must find their charge")
+                    .contains(billNumber);
             browser.close();
         }
     }
