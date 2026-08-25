@@ -81,7 +81,7 @@ class ReconciliationCsvImportTest extends AbstractIntegrationTest {
                     Instant.parse(row.get("transactionTime")));
         }
 
-        given().multiPart("file", "settlement-sample.csv",
+        given().header("Authorization", "Bearer " + managementToken()).multiPart("file", "settlement-sample.csv",
                         CsvFixtures.bytes("/testdata/reconciliation/settlement-sample.csv"), "text/csv")
                 .formParam("period", "2026-06-25")
                 .when().post("/api/escrow-accounts/{code}/reconciliations/import", "demo-bsi")

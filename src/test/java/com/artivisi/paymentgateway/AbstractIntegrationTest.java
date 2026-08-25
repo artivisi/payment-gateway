@@ -34,6 +34,31 @@ public abstract class AbstractIntegrationTest {
     @LocalServerPort
     protected int port;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.artivisi.paymentgateway.service.DeviceAuthService deviceAuthService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.artivisi.paymentgateway.repository.OperatorRepository operatorRepository;
+
+    /**
+     * A bearer token for the management API, carrying the bootstrap operator's permissions.
+     *
+     * <p>The management endpoints under {@code /api/escrow-accounts} and {@code /api/consumers} stopped
+     * being open on 2026-08-25 — they had been reachable unauthenticated from the internet. Tests that
+     * exercise them now have to authenticate the way any other caller does, which is the point: a test
+     * that could reach them without credentials was, in effect, asserting the hole.
+     */
+    protected String managementToken() {
+        var start = io.restassured.RestAssured.given().contentType("application/json")
+                .body(java.util.Map.of("clientId", "integration-test", "deviceName", "tests"))
+                .when().post("/api/device/code").then().statusCode(200).extract().jsonPath();
+        deviceAuthService.authorize(start.getString("userCode"), operatorRepository.findAll().getFirst());
+        return io.restassured.RestAssured.given().contentType("application/json")
+                .body(java.util.Map.of("deviceCode", start.getString("deviceCode")))
+                .when().post("/api/device/token").then().statusCode(200)
+                .extract().path("accessToken");
+    }
+
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);

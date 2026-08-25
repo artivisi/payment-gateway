@@ -45,7 +45,7 @@ class RegistryIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void createAndReadEscrowAccount_neverReturnsSecrets() {
-        String id = given().contentType("application/json").body(escrowRequest("bsi-launch"))
+        String id = given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(escrowRequest("bsi-launch"))
                 .when().post("/api/escrow-accounts")
                 .then().statusCode(201)
                 .body("id", notNullValue())
@@ -55,7 +55,7 @@ class RegistryIntegrationTest extends AbstractIntegrationTest {
                 .body("privateKey", nullValue())
                 .extract().path("id");
 
-        given().when().get("/api/escrow-accounts/{id}", id)
+        given().header("Authorization", "Bearer " + managementToken()).when().get("/api/escrow-accounts/{id}", id)
                 .then().statusCode(200)
                 .body("code", equalTo("bsi-launch"))
                 .body("vaDigitLength", equalTo(16))
@@ -64,10 +64,10 @@ class RegistryIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void duplicateEscrowCode_returns409() {
-        given().contentType("application/json").body(escrowRequest("dup-escrow"))
+        given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(escrowRequest("dup-escrow"))
                 .when().post("/api/escrow-accounts").then().statusCode(201);
 
-        given().contentType("application/json").body(escrowRequest("dup-escrow"))
+        given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(escrowRequest("dup-escrow"))
                 .when().post("/api/escrow-accounts").then().statusCode(409);
     }
 
@@ -75,19 +75,19 @@ class RegistryIntegrationTest extends AbstractIntegrationTest {
     void invalidEscrow_returns400() {
         Map<String, Object> body = escrowRequest("bad-escrow");
         body.remove("settlementAccountNumber");
-        given().contentType("application/json").body(body)
+        given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(body)
                 .when().post("/api/escrow-accounts").then().statusCode(400);
     }
 
     @Test
     void unknownEscrow_returns404() {
-        given().when().get("/api/escrow-accounts/{id}", "does-not-exist")
+        given().header("Authorization", "Bearer " + managementToken()).when().get("/api/escrow-accounts/{id}", "does-not-exist")
                 .then().statusCode(404);
     }
 
     @Test
     void createAndReadConsumer_neverReturnsSecret() {
-        String id = given().contentType("application/json").body(consumerRequest("academic", "academic-client"))
+        String id = given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(consumerRequest("academic", "academic-client"))
                 .when().post("/api/consumers")
                 .then().statusCode(201)
                 .body("id", notNullValue())
@@ -95,7 +95,7 @@ class RegistryIntegrationTest extends AbstractIntegrationTest {
                 .body("clientSecret", nullValue())
                 .extract().path("id");
 
-        given().when().get("/api/consumers/{id}", id)
+        given().header("Authorization", "Bearer " + managementToken()).when().get("/api/consumers/{id}", id)
                 .then().statusCode(200)
                 .body("code", equalTo("academic"))
                 .body("clientSecret", nullValue());
@@ -103,10 +103,10 @@ class RegistryIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void duplicateConsumerClientId_returns409() {
-        given().contentType("application/json").body(consumerRequest("c-one", "same-client"))
+        given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(consumerRequest("c-one", "same-client"))
                 .when().post("/api/consumers").then().statusCode(201);
 
-        given().contentType("application/json").body(consumerRequest("c-two", "same-client"))
+        given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(consumerRequest("c-two", "same-client"))
                 .when().post("/api/consumers").then().statusCode(409);
     }
 }
