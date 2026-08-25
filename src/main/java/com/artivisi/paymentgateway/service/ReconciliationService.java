@@ -1,5 +1,6 @@
 package com.artivisi.paymentgateway.service;
 
+import com.artivisi.paymentgateway.exception.InvalidRequestException;
 import com.artivisi.paymentgateway.dto.SettlementCredit;
 import com.artivisi.paymentgateway.entity.DiscrepancyType;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
@@ -68,6 +69,18 @@ public class ReconciliationService {
 
     @Transactional
     public ReconciliationRun reconcile(EscrowAccount escrow, LocalDate period, List<SettlementCredit> credits) {
+        // The bank keeps a fee from each payment, so the settlement line is NET and our payment is
+        // GROSS. Refuse rather than guess: assuming zero silently reports every row of a fee-charging
+        // bank as an amount mismatch, and a report that is wrong about everything gets discarded.
+        // A bank that charges nothing is configured with an explicit 0.
+        BigDecimal fee = escrow.getSettlementFee();
+        if (fee == null) {
+            throw new InvalidRequestException(
+                    "settlementFee is not configured for escrow " + escrow.getCode()
+                            + " — set it (0 if the bank deducts nothing) before reconciling, or every"
+                            + " settled row is compared gross against net");
+        }
+
         ReconciliationRun run = new ReconciliationRun();
         run.setEscrowAccount(escrow);
         run.setPeriod(period);
@@ -108,17 +121,24 @@ public class ReconciliationService {
             if (payment.isPresent()) {
                 Payment existing = payment.get();
                 settledPaymentKeys.add(key(existing));
-                if (existing.getAmount().compareTo(credit.amount()) == 0) {
+                // What the bank should have credited for this payment, once its fee is taken off.
+                BigDecimal expected = existing.getAmount().subtract(fee);
+                if (expected.compareTo(credit.amount()) == 0) {
                     matched++;
                 } else {
                     discrepancies.add(fromCredit(run, DiscrepancyType.AMOUNT_MISMATCH, credit, existing,
-                            "gateway " + existing.getAmount() + " vs settled " + credit.amount()));
+                            "gateway " + existing.getAmount() + " less fee " + fee + " = " + expected
+                                    + " vs settled " + credit.amount()));
                 }
             } else {
                 try {
                     Payment recoveredPayment = recoveryTransaction.execute(status ->
+                            // The settlement line is net; the payer paid the fee too. Recording the
+                            // net here would under-credit the student by the fee on every recovered
+                            // payment, leaving charges that can never reach PAID.
                             paymentApplicationService.apply(escrow, credit.vaNumber(),
-                                    credit.amount(), credit.bankReference(), credit.transactionTime()));
+                                    credit.amount().add(fee), credit.bankReference(),
+                                    credit.transactionTime()));
                     settledPaymentKeys.add(key(recoveredPayment));
                     recovered++;
                     discrepancies.add(fromCredit(run, DiscrepancyType.PAID_NOT_NOTIFIED_RECOVERED, credit,

@@ -48,6 +48,7 @@ public class EscrowAccountService {
         e.setProductionBaseUrl(request.productionBaseUrl());
         e.setSettlementAccountNumber(request.settlementAccountNumber());
         e.setSettlementAccountName(request.settlementAccountName());
+        e.setSettlementFee(request.settlementFee());
         e.setCompanyId(request.companyId());
         e.setVaPrefix(request.vaPrefix());
         e.setVaDigitLength(request.vaDigitLength());
@@ -77,6 +78,7 @@ public class EscrowAccountService {
         e.setProductionBaseUrl(request.productionBaseUrl());
         e.setSettlementAccountNumber(request.settlementAccountNumber());
         e.setSettlementAccountName(request.settlementAccountName());
+        e.setSettlementFee(request.settlementFee());
         e.setMerchantTag(request.merchantTag());
         e.setInstitutionTag(request.institutionTag());
 

@@ -33,6 +33,7 @@ public record EscrowAccountResponse(
         Integer vaDigitLength,
         String merchantTag,
         String institutionTag,
+        java.math.BigDecimal settlementFee,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -42,7 +43,7 @@ public record EscrowAccountResponse(
                 e.getAuthScheme(), e.getActiveEnvironment(), e.getClientId(), e.getPartnerId(),
                 e.getChannelId(), e.getPublicKey(), e.getSandboxBaseUrl(), e.getProductionBaseUrl(),
                 e.getSettlementAccountNumber(), e.getSettlementAccountName(), e.getCompanyId(),
-                e.getVaPrefix(), e.getVaDigitLength(), e.getMerchantTag(), e.getInstitutionTag(),
+                e.getVaPrefix(), e.getVaDigitLength(), e.getMerchantTag(), e.getInstitutionTag(), e.getSettlementFee(),
                 e.getCreatedAt(), e.getUpdatedAt());
     }
 }
