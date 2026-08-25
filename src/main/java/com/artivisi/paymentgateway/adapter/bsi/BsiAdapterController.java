@@ -9,6 +9,7 @@ import com.artivisi.paymentgateway.exception.InvalidPaymentException;
 import com.artivisi.paymentgateway.exception.NotFoundException;
 import com.artivisi.paymentgateway.repository.ChargeRepository;
 import com.artivisi.paymentgateway.service.EscrowResolver;
+import com.artivisi.paymentgateway.service.BankCallbackRecorder;
 import com.artivisi.paymentgateway.service.InquiryService;
 import com.artivisi.paymentgateway.service.PaymentApplicationService;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -61,17 +62,29 @@ public class BsiAdapterController {
     private final PaymentApplicationService paymentApplicationService;
     private final ChargeRepository chargeRepository;
 
+    private final BankCallbackRecorder callbackRecorder;
+
     public BsiAdapterController(EscrowResolver escrowResolver, InquiryService inquiryService,
                                 PaymentApplicationService paymentApplicationService,
-                                ChargeRepository chargeRepository) {
+                                ChargeRepository chargeRepository,
+                                BankCallbackRecorder callbackRecorder) {
         this.escrowResolver = escrowResolver;
         this.inquiryService = inquiryService;
         this.paymentApplicationService = paymentApplicationService;
         this.chargeRepository = chargeRepository;
+        this.callbackRecorder = callbackRecorder;
     }
 
     @PostMapping
-    public BsiResponse handle(@RequestBody BsiRequest request) {
+    public BsiResponse handle(@RequestBody String rawBody) {
+        // The raw text first: what the bank sent is a different fact from what we made of it, and a
+        // typed binding discards anything it does not model without saying so. That is how
+        // nomorJurnalPembukuan went unseen from launch until 2026-08-25.
+        BsiRequest request = callbackRecorder.record(PROVIDER, rawBody, BsiRequest.class);
+        return handle(request);
+    }
+
+    private BsiResponse handle(BsiRequest request) {
         String action = request.action() == null ? "" : request.action().toLowerCase(Locale.ROOT);
 
         EscrowAccount escrow;

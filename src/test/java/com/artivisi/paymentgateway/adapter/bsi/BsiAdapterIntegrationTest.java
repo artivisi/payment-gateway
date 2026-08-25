@@ -41,6 +41,7 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
     private static final String TGL = "2026-06-24T10:00:00";
 
     @Autowired com.artivisi.paymentgateway.repository.PaymentRepository paymentRepository;
+    @Autowired com.artivisi.paymentgateway.repository.BankCallbackRepository callbackRepository;
     @Autowired EscrowAccountService escrowService;
     @Autowired ConsumerService consumerService;
     @Autowired ChargeService chargeService;
@@ -115,6 +116,55 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
         assertThat(paymentRepository.findAll().stream()
                 .filter(p -> ("TRX-" + vaNumber).equals(p.getBankReference()))
                 .findFirst().orElseThrow().getBankJournalNumber())
+                .isNull();
+    }
+
+    @Test
+    void everyCallbackIsKeptAsTheBankSentIt_withoutItsSignature() {
+        Map<String, Object> payment = body("payment", vaNumber, checksum(vaNumber), new BigDecimal("1000000"));
+        payment.put("nomorJurnalPembukuan", "8877420825173803000451");
+
+        post(payment).then().body("responseCode", equalTo("00"));
+
+        var row = callbackRepository.findByBankReferenceOrderByReceivedAtAsc("TRX-" + vaNumber)
+                .stream().filter(c -> "payment".equals(c.getAction())).findFirst().orElseThrow();
+        assertThat(row.getProvider()).isEqualTo("bsi");
+        assertThat(row.getVaNumber()).isEqualTo(vaNumber);
+        assertThat(row.getPayload())
+                .as("the bank's own values are what make the record worth keeping")
+                .contains("nomorJurnalPembukuan")
+                .contains("8877420825173803000451");
+        // Never the signature: it is derived from the escrow's shared key, and a table of raw bank
+        // messages is the easiest place to leak one by accident.
+        assertThat(row.getPayload()).contains("<redacted>").doesNotContain(checksum(vaNumber));
+    }
+
+    @Test
+    void aFieldWeDoNotModelIsRecordedRatherThanDiscarded() {
+        Map<String, Object> payment = body("payment", vaNumber, checksum(vaNumber), new BigDecimal("1000000"));
+        // Stands in for the next nomorJurnalPembukuan: something the bank starts sending that this
+        // gateway has no component for. It must not fail the payment, and it must not vanish.
+        payment.put("kodeCabangBaru", "0451-JKT");
+
+        post(payment).then().body("responseCode", equalTo("00"));
+
+        var row = callbackRepository.findByBankReferenceOrderByReceivedAtAsc("TRX-" + vaNumber)
+                .stream().filter(c -> "payment".equals(c.getAction())).findFirst().orElseThrow();
+        assertThat(row.getUnknownFields()).contains("kodeCabangBaru");
+        assertThat(callbackRepository.findByUnknownFieldsIsNotNullOrderByReceivedAtDesc())
+                .as("queryable as data, not buried in a log")
+                .anyMatch(c -> ("TRX-" + vaNumber).equals(c.getBankReference()));
+    }
+
+    @Test
+    void aFullyModelledCallbackFlagsNothing() {
+        post(body("payment", vaNumber, checksum(vaNumber), new BigDecimal("1000000")))
+                .then().body("responseCode", equalTo("00"));
+
+        assertThat(callbackRepository.findByBankReferenceOrderByReceivedAtAsc("TRX-" + vaNumber)
+                .stream().filter(c -> "payment".equals(c.getAction())).findFirst().orElseThrow()
+                .getUnknownFields())
+                .as("a warning that fires on ordinary traffic is a warning nobody reads")
                 .isNull();
     }
 
