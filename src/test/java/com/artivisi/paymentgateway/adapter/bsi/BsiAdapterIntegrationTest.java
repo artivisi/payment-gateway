@@ -30,6 +30,7 @@ import io.restassured.config.RestAssuredConfig;
 import io.restassured.path.json.config.JsonPathConfig;
 
 import static io.restassured.RestAssured.given;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.comparesEqualTo;
 import static org.hamcrest.Matchers.equalTo;
 
@@ -86,6 +87,35 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
             m.put("nilai", nilai);
         }
         return m;
+    }
+
+    @Test
+    void paymentKeepsTheBanksJournalNumber() {
+        Map<String, Object> payment = body("payment", vaNumber, checksum(vaNumber), new BigDecimal("1000000"));
+        // Exactly as BSI sends it: journal sequence, MMDDHHMMSS, then bank code 451. The field was
+        // absent from BsiRequest until 2026-08-25, so Jackson dropped it on every callback and the
+        // only reference the bank could trace was never kept.
+        payment.put("nomorJurnalPembukuan", "8877420825173803000451");
+
+        post(payment).then().body("responseCode", equalTo("00"));
+
+        assertThat(paymentRepository.findAll().stream()
+                .filter(p -> ("TRX-" + vaNumber).equals(p.getBankReference()))
+                .findFirst().orElseThrow().getBankJournalNumber())
+                .isEqualTo("8877420825173803000451");
+    }
+
+    @Test
+    void aPaymentWithoutAJournalNumberIsStillAccepted() {
+        // Not every bank sends one, and BSI has not always. Null is the honest record; it must not
+        // block the payment or be filled in with something we made up.
+        post(body("payment", vaNumber, checksum(vaNumber), new BigDecimal("1000000")))
+                .then().body("responseCode", equalTo("00"));
+
+        assertThat(paymentRepository.findAll().stream()
+                .filter(p -> ("TRX-" + vaNumber).equals(p.getBankReference()))
+                .findFirst().orElseThrow().getBankJournalNumber())
+                .isNull();
     }
 
     private static final RestAssuredConfig BIG_DECIMAL = RestAssuredConfig.config()

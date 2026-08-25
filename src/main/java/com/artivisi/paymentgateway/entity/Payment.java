@@ -42,6 +42,14 @@ public class Payment {
 
     private String bankReference;
 
+    /**
+     * The bank's own bookkeeping reference, when its notification carries one (BSI:
+     * {@code nomorJurnalPembukuan}). NULL for payments recorded before this existed, for payments
+     * recovered from a settlement file rather than a notification, and for banks that send nothing
+     * equivalent. Never derived — it is the bank's number or nothing.
+     */
+    private String bankJournalNumber;
+
     private Instant transactionTime;
 
     @Enumerated(EnumType.STRING)

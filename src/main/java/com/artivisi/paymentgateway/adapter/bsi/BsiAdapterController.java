@@ -129,7 +129,8 @@ public class BsiAdapterController {
         Payment payment;
         try {
             payment = paymentApplicationService.apply(escrow, request.nomorPembayaran(),
-                    request.nilai(), request.idTransaksi(), transactionTime);
+                    request.nilai(), request.idTransaksi(), transactionTime,
+                    request.nomorJurnalPembukuan());
         } catch (NotFoundException e) {
             return BsiResponse.error(BsiResponseCode.INVALID_ACCOUNT, e.getMessage());
         } catch (InvalidPaymentException e) {

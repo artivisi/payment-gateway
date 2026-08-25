@@ -94,9 +94,15 @@ public class AdminAuditController {
                 .map(AuditEvent::getEntityId).filter(Objects::nonNull).distinct().toList();
         if (!paymentIds.isEmpty()) {
             for (Payment p : paymentRepository.findAllById(paymentIds)) {
-                if (p.getBankReference() != null && !p.getBankReference().isBlank()) {
-                    subjects.put(p.getId(), p.getBankReference());
+                if (p.getBankReference() == null || p.getBankReference().isBlank()) {
+                    continue;
                 }
+                // Both references when we have both: the journal number is the one the bank can
+                // trace, and someone reading the audit log is usually about to ask them to.
+                String label = p.getBankJournalNumber() == null || p.getBankJournalNumber().isBlank()
+                        ? p.getBankReference()
+                        : p.getBankReference() + " · jurnal " + p.getBankJournalNumber();
+                subjects.put(p.getId(), label);
             }
         }
         return subjects;

@@ -57,6 +57,25 @@ public class PaymentApplicationService {
     @Transactional
     public Payment apply(EscrowAccount escrow, String vaNumber, BigDecimal amount,
                          String bankReference, Instant transactionTime) {
+        return apply(escrow, vaNumber, amount, bankReference, transactionTime, null);
+    }
+
+    /**
+     * Apply a payment, recording the bank's own bookkeeping reference alongside it.
+     *
+     * <p>{@code bankJournalNumber} is null wherever the bank did not send one — a payment recovered
+     * from a settlement file, or an adapter whose notification carries no equivalent. It is never
+     * derived from anything else: a reference we invented would be worse than none, because its whole
+     * purpose is to be quoted back to the bank.
+     *
+     * <p>Annotated in its own right, not only on the five-argument delegate: adapters call this one
+     * directly, and without it the payment ran outside a transaction. The BSI tests caught that
+     * immediately — every payment and reversal failed with "No active transaction" while inquiries,
+     * which take a different path, went on passing.
+     */
+    @Transactional
+    public Payment apply(EscrowAccount escrow, String vaNumber, BigDecimal amount,
+                         String bankReference, Instant transactionTime, String bankJournalNumber) {
         // Numbers are reusable: several generations may exist, at most one ACTIVE.
         List<VirtualAccount> generations = virtualAccountRepository
                 .findByEscrowAccountIdAndVaNumberOrderByCreatedAtDesc(escrow.getId(), vaNumber);
@@ -117,6 +136,7 @@ public class PaymentApplicationService {
         payment.setCharge(charge);
         payment.setAmount(amount);
         payment.setBankReference(bankReference);
+        payment.setBankJournalNumber(bankJournalNumber);
         payment.setTransactionTime(transactionTime);
         payment.setStatus(PaymentStatus.ACCEPTED);
         Payment saved = paymentRepository.save(payment);

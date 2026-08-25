@@ -13,6 +13,12 @@ public record BsiRequest(
         String tanggalTransaksi,
         String kodeBank,
         String kodeChannel,
-        String kodeTerminal
+        String kodeTerminal,
+        /**
+         * BSI's core-banking journal reference for the payment. Absent from this record until
+         * 2026-08-25, so Jackson silently dropped it on every callback — and it is the only
+         * identifier BSI sends that its own operators can trace against the settlement account.
+         */
+        String nomorJurnalPembukuan
 ) {
 }
