@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Settlement claim')}"></head>
+<body class="bg-white text-slate-800">
+<nav th:replace="~{fragments :: navbar('reconciliation')}" class="no-print"></nav>
+
+<!-- Print is the delivery mechanism: finance sends this to the bank as a PDF, so everything that
+     belongs to the admin UI rather than to the claim is dropped from the printed page. -->
+<style>
+    @media print {
+        .no-print { display: none !important; }
+        body { background: #fff; }
+        .card { border: 1px solid #cbd5e1; box-shadow: none; }
+        a[href]:after { content: ""; }
+    }
+</style>
+
+<main class="mx-auto max-w-4xl px-4 py-8" data-testid="settlement-claim">
+    <div class="no-print mb-6 flex items-center justify-between">
+        <a th:href="@{'/admin/reconciliations/' + ${run.id}}" class="btn-ghost">Back to run</a>
+        <button type="button" class="btn-primary" onclick="window.print()" data-testid="print-claim">
+            Print / save as PDF
+        </button>
+    </div>
+
+    <header class="mb-8 border-b border-slate-200 pb-6">
+        <h1 class="text-2xl font-semibold text-slate-900">Settlement discrepancy claim</h1>
+        <dl class="mt-4 grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
+            <div><dt class="text-slate-500">Bank</dt>
+                <dd th:text="${run.escrowAccount.provider}">provider</dd></div>
+            <div><dt class="text-slate-500">Settlement period</dt>
+                <dd th:text="${run.period}">period</dd></div>
+            <div><dt class="text-slate-500">Settlement account</dt>
+                <dd th:text="${run.escrowAccount.settlementAccountNumber} + ' · '
+                             + ${run.escrowAccount.settlementAccountName}">account</dd></div>
+            <div><dt class="text-slate-500">Prepared</dt>
+                <dd th:text="${generatedAt}">when</dd></div>
+        </dl>
+    </header>
+
+    <p class="mb-6 text-sm leading-relaxed text-slate-700">
+        The items below are differences between the settlement report for this account and period and the
+        transactions recorded by our payment system. Each group states what we are asking the bank to
+        confirm. Amounts are as they appear on the settlement report; the agreed per-transaction fee has
+        already been accounted for, so the differences listed here are over and above it.
+    </p>
+
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Summary</h2>
+    <div class="card mb-8 overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+            <tr><th class="th">Item</th><th class="th">Count</th><th class="th">Amount</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="s : ${summary}">
+                <td class="td">
+                    <p class="font-medium" th:text="${s.type}">TYPE</p>
+                    <p class="mt-1 text-xs leading-relaxed text-slate-600" th:text="${s.meaning}">meaning</p>
+                </td>
+                <td class="td align-top" th:text="${s.count}">0</td>
+                <td class="td align-top font-mono text-xs" th:text="${s.total}">0</td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(summary)}">
+                <td class="td text-slate-400" colspan="3">
+                    No discrepancies for this period — nothing to claim.
+                </td>
+            </tr>
+            </tbody>
+            <tfoot th:if="${!#lists.isEmpty(summary)}" class="bg-slate-50">
+            <tr>
+                <td class="td font-medium">Total in question</td>
+                <td class="td"></td>
+                <td class="td font-mono text-xs font-medium" th:text="${claimTotal}">0</td>
+            </tr>
+            </tfoot>
+        </table>
+    </div>
+
+    <h2 class="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">Transactions</h2>
+    <div class="card overflow-hidden">
+        <table class="min-w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+            <tr>
+                <th class="th">Item</th>
+                <th class="th">Virtual account</th>
+                <th class="th">Bank reference</th>
+                <th class="th">Amount</th>
+                <th class="th">Our record</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="d : ${discrepancies}">
+                <td class="td text-xs" th:text="${d.type}">TYPE</td>
+                <td class="td font-mono text-xs" th:text="${d.vaNumber} ?: '—'">va</td>
+                <td class="td font-mono text-xs" th:text="${d.bankReference} ?: '—'">ref</td>
+                <td class="td font-mono text-xs" th:text="${d.amount} ?: '—'">0</td>
+                <td class="td text-xs text-slate-600" th:text="${d.detail}">detail</td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(discrepancies)}">
+                <td class="td text-slate-400" colspan="5">None.</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>
