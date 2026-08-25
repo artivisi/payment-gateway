@@ -116,6 +116,16 @@ End-of-day, per escrow account: ingest the bank's settlement, match credits to p
 
 ## Testing
 
+**Local container engine is Apple Container + socktainer** (OrbStack removed 2026-08). Two things
+differ from Docker Engine and both surface as misleading failures. **Ryuk must be disabled**
+(`ryuk.disabled=true` in `~/.testcontainers.properties`) — it is unreachable through socktainer, and
+a failed attempt wedges the engine so the *next* run fails on the database instead, which reads as an
+application fault. **Every container is its own VM with a fixed reservation**, so
+`ContainerResourceDefaults` (registered via `META-INF/services`) caps each one; without it socktainer
+reserves 1 GiB and 4 CPUs per container. Testcontainers cannot pull through socktainer either, so
+test images must already be local (`container image pull --platform linux/arm64 …`). Full runbook:
+`whitelist-alert-manager/docs/apple-container-runbook.md`.
+
 Functional-first: RestAssured + Testcontainers + Playwright. Bank simulators: [snap-provider-simulator](https://github.com/artivisi/snap-provider-simulator) for SNAP (Maybank); WireMock stubs for the proprietary banks (BSI REST, CIMB SOAP). docker-compose drives end-to-end.
 
 ## Security / DevSecOps
