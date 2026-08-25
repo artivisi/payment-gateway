@@ -7,7 +7,11 @@
     <div class="mb-6 flex items-center justify-between">
         <h1 class="text-2xl font-semibold text-slate-900"
             th:text="${run.escrowAccount.code} + ' · ' + ${run.period}">run</h1>
-        <a th:href="@{/admin/reconciliations}" class="btn-ghost">Back</a>
+        <div class="flex gap-2">
+            <a th:href="@{'/admin/reconciliations/' + ${run.id} + '/claim'}" class="btn-primary"
+               data-testid="prepare-claim">Prepare claim for the bank</a>
+            <a th:href="@{/admin/reconciliations}" class="btn-ghost">Back</a>
+        </div>
     </div>
 
     <div class="card mb-6 grid grid-cols-2 gap-4 p-6 sm:grid-cols-4">
