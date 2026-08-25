@@ -138,7 +138,17 @@ SpotBugs (0 findings), CodeQL, OWASP ZAP DAST, OWASP Dependency-Check, SonarClou
 
 ## Governance
 
-Public, Apache 2.0, generic product. No client names, credentials, endpoints, or sample data in this repository. Use neutral domain naming throughout.
+**Private since 2026-08-26** (was public; converted after production figures and a client's legacy
+system names were found in migration comments and commit messages). Apache 2.0, generic product.
+
+The discipline stays regardless of visibility: no client names, credentials, endpoints, or sample
+data; neutral domain naming throughout. Private is a smaller blast radius, not a licence to embed a
+deployment's specifics — the product ships to more than one operator, and anything the operator-specific
+belongs in the deploy repo. Test fixtures count: a real settlement account number and a payer name
+lifted from production data reached this repo on 2026-08-25 that way.
+
+**One fork was detached and remains public** (`syahdafahreza/payment-gateway`, last pushed
+2026-07-29), so anything committed here before that date is still readable there.
 
 ## Build sequence
 
