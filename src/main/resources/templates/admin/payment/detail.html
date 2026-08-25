@@ -27,6 +27,15 @@
                     <dt class="text-slate-400">Bank reference</dt>
                     <dd class="font-mono text-xs" th:text="${payment.bankReference}">—</dd>
                 </div>
+                <!-- The number to quote when asking the bank to trace this payment: it belongs to
+                     their core banking, where the VA collection reference above does not reach.
+                     Absent for payments recorded before we captured it, and for banks that send
+                     none — shown as a dash rather than hidden, so its absence is visible. -->
+                <div>
+                    <dt class="text-slate-400">Bank journal number</dt>
+                    <dd class="font-mono text-xs" data-testid="bank-journal-number"
+                        th:text="${payment.bankJournalNumber} ?: '—'">—</dd>
+                </div>
                 <div>
                     <dt class="text-slate-400">Recorded at</dt>
                     <dd class="font-mono text-xs" th:text="${payment.createdAt}">—</dd>
