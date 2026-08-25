@@ -138,6 +138,26 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void reportOnly_flagsUnrecordedCreditsWithoutManufacturingPayments() {
+        createCharge("9300000021", "100000");
+        long paymentsBefore = paymentRepository.count();
+
+        // A credit for a VA we have, with no payment recorded against it. The recovering path would
+        // create the payment; report-only must not, because the file may not be one whose references
+        // we can trust — that is the whole reason the mode exists.
+        ReconciliationRun run = reconciliationService.reconcile(escrow, PERIOD,
+                List.of(credit("9300000021", "RO-1", "100000")), false);
+
+        assertThat(run.getRecoveredCount()).isZero();
+        assertThat(paymentRepository.count())
+                .as("report-only must not write payments into the ledger")
+                .isEqualTo(paymentsBefore);
+        assertThat(discrepancyRepository.findByReconciliationRunIdOrderByCreatedAtAsc(run.getId()))
+                .extracting("type")
+                .containsExactly(DiscrepancyType.PAID_NOT_NOTIFIED_REPORTED);
+    }
+
+    @Test
     void reconcile_classifiesEveryOutcome() {
         // VA1 matched, VA2 paid-not-notified, VA3 amount mismatch, VA4 notified-not-settled.
         createCharge("9300000001", "100000");

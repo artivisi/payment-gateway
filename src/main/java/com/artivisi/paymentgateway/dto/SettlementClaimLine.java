@@ -24,6 +24,10 @@ public record SettlementClaimLine(
             case NOTIFIED_NOT_SETTLED ->
                     "We received a payment notification and recorded the payment, but no matching credit "
                             + "appears in the settlement. Please confirm whether the funds were settled.";
+            case PAID_NOT_NOTIFIED_REPORTED ->
+                    "The settlement contains a credit we have no record of receiving. Please confirm the "
+                            + "payment and why no notification reached us; the funds are not yet applied "
+                            + "to the payer's bill on our side.";
             case PAID_NOT_NOTIFIED_RECOVERED ->
                     "The settlement contains a credit we never received a notification for. The payment "
                             + "has been recovered on our side; please check why the notification was not delivered.";

@@ -14,6 +14,10 @@
 
     <div class="card mb-6 p-6">
         <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">Run reconciliation</h2>
+        <div class="mb-4 flex justify-end">
+            <a th:href="@{/admin/reconciliations/discrepancies}" class="btn-ghost"
+               data-testid="review-discrepancies">Review discrepancies</a>
+        </div>
         <form th:action="@{/admin/reconciliations/import}" method="post" enctype="multipart/form-data"
               class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div>
@@ -32,6 +36,10 @@
                 <input class="input" id="file" name="file" type="file" accept=".csv,text/csv" required data-testid="settlement-file"/>
             </div>
             <div class="sm:col-span-3">
+                <label class="flex items-center gap-2 text-sm text-slate-600">
+                    <input type="checkbox" name="reportOnly" value="true" data-testid="report-only"/>
+                    Report only — do not create payments for credits we have no record of
+                </label>
                 <button type="submit" class="btn-primary" data-testid="form-submit">Run</button>
             </div>
         </form>

@@ -33,7 +33,14 @@
                 <td class="td"><span th:classappend="${r.eventClass}" th:text="${r.event}">event</span></td>
                 <td class="td">
                     <div class="text-xs text-slate-600" th:text="${r.entityType}">entity</div>
-                    <div class="font-mono text-[11.5px] text-slate-400" th:title="${r.entityIdFull}" th:text="${r.entityIdShort}">id</div>
+                    <!-- Lead with the bill number, VA and payer where we have them: the UUID is the
+                         right key and the wrong label for anyone chasing a payment off a bank
+                         statement. It stays available on hover, and as the label when there is
+                         nothing better. -->
+                    <div th:if="${r.subject}" class="text-[11.5px] text-slate-700"
+                         th:title="${r.entityIdFull}" th:text="${r.subject}">bill · VA · payer</div>
+                    <div th:unless="${r.subject}" class="font-mono text-[11.5px] text-slate-400"
+                         th:title="${r.entityIdFull}" th:text="${r.entityIdShort}">id</div>
                 </td>
                 <td class="td max-w-xs overflow-hidden text-ellipsis whitespace-nowrap font-mono text-[11.5px] text-slate-500"
                     th:title="${r.detailFull}" th:text="${r.detail}">detail</td>

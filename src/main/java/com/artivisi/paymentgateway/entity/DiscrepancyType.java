@@ -5,6 +5,11 @@ public enum DiscrepancyType {
     AMOUNT_MISMATCH,
     /** Bank settled a credit the gateway never recorded; recovered (payment created + webhook forwarded). */
     PAID_NOT_NOTIFIED_RECOVERED,
+    /**
+     * Bank settled a credit the gateway never recorded, and the run was report-only so no payment was
+     * created. Distinct from RECOVERED because the money is still unapplied and someone has to act.
+     */
+    PAID_NOT_NOTIFIED_REPORTED,
     /** Gateway recorded a payment the bank did not settle. */
     NOTIFIED_NOT_SETTLED,
     /** Two settlement credits share the same reference. */

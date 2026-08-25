@@ -67,8 +67,26 @@ public class ReconciliationService {
         this.recoveryTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
+    /** Reconcile and recover: the normal end-of-day path. */
     @Transactional
     public ReconciliationRun reconcile(EscrowAccount escrow, LocalDate period, List<SettlementCredit> credits) {
+        return reconcile(escrow, period, credits, true);
+    }
+
+    /**
+     * Reconcile, optionally without recovering.
+     *
+     * <p>Recovery creates a payment and forwards a webhook for every settled credit the gateway has no
+     * record of. That is right when the settlement file is the bank's own and its references are the
+     * ones we match on. It is dangerous otherwise: a file whose references do not line up makes every
+     * row look unrecorded, and recovery would then manufacture duplicate payments against charges that
+     * are already paid. Report-only exists so a statement extract can be examined — which payments the
+     * bank never settled, which credits we cannot account for — without writing money into the ledger
+     * on the strength of a file nobody has validated yet.
+     */
+    @Transactional
+    public ReconciliationRun reconcile(EscrowAccount escrow, LocalDate period,
+                                       List<SettlementCredit> credits, boolean recover) {
         // The bank keeps a fee from each payment, so the settlement line is NET and our payment is
         // GROSS. Refuse rather than guess: assuming zero silently reports every row of a fee-charging
         // bank as an amount mismatch, and a report that is wrong about everything gets discarded.
@@ -130,6 +148,9 @@ public class ReconciliationService {
                             "gateway " + existing.getAmount() + " less fee " + fee + " = " + expected
                                     + " vs settled " + credit.amount()));
                 }
+            } else if (!recover) {
+                discrepancies.add(fromCredit(run, DiscrepancyType.PAID_NOT_NOTIFIED_REPORTED, credit, null,
+                        "settled but not recorded here; report-only run, no payment created"));
             } else {
                 try {
                     Payment recoveredPayment = recoveryTransaction.execute(status ->
