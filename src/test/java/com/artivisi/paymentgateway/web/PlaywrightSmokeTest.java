@@ -345,7 +345,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
 
         // A payment we recorded that the settlement does not contain: the case finance has to put to
-        // the bank, and the one the one unsettled payment of 2026-07-08 falls into.
+        // the bank: money it told us about that never reached the settlement account.
         String vaNumber = "9410000" + String.format("%03d", n % 1000);
         chargeService.create(consumer, new CreateChargeRequest(
                 "pw-claim-ref-" + n, "Student", null, null, ChargeType.CLOSED,

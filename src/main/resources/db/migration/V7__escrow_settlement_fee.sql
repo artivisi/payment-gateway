@@ -4,8 +4,9 @@
 -- Reconciliation compared the two figures directly, so the first real settlement import would have
 -- reported EVERY row as an AMOUNT_MISMATCH — a report that is wrong about everything gets read as a
 -- broken feature and thrown away, which is worse than no report. Measured on 2026-08-25 against seven
--- months of statements: every matched row across May-June differ by exactly the
--- fee, and it predates the gateway, so it is a standing arrangement rather than anything new.
+-- months of the bank's own statements: every row that matched a recorded payment differed from it by
+-- exactly the fee, across every month checked, so it is a standing commercial term rather than a
+-- discrepancy to investigate.
 --
 -- It also has to be added back when reconciliation RECOVERS a paid-not-notified credit. The
 -- settlement line carries the net; the payment we create must carry what the payer actually paid, or
