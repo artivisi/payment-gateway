@@ -386,4 +386,84 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
             browser.close();
         }
     }
+
+    @Test
+    void discrepancyReviewListsWhatTheBankHasNotSettled() {
+        int n = SEQ.incrementAndGet();
+        var escrow = escrowAccountService.create(new EscrowAccountRequest(
+                "pw-disc-" + n, "bsi", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
+                "9990001234", "Settlement Account", "90001", "942", 10,
+                null, null, new java.math.BigDecimal("2000")));
+        var consumer = consumerService.create(new ConsumerRequest(
+                "pw-disc-c-" + n, "Academic", "pw-disc-cid-" + n, "secret-" + n,
+                "https://hook.example/" + n, ConsumerStatus.ACTIVE));
+        String vaNumber = "9420000" + String.format("%03d", n % 1000);
+        chargeService.create(consumer, new CreateChargeRequest(
+                "pw-disc-ref-" + n, "Student", null, null, ChargeType.CLOSED,
+                new java.math.BigDecimal("750000"), null,
+                java.util.List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber))));
+        paymentApplicationService.apply(escrow, vaNumber, new java.math.BigDecimal("750000"),
+                "DISC-REF-" + n, java.time.Instant.parse("2026-06-26T03:00:00Z"));
+        reconciliationService.reconcile(escrow, java.time.LocalDate.parse("2026-06-26"),
+                java.util.List.of(), false);
+
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage();
+            login(page);
+            page.navigate(base() + "/admin/reconciliations/discrepancies?type=NOTIFIED_NOT_SETTLED");
+            String review = page.getByTestId("discrepancy-review").textContent();
+
+            // The row has to carry the period and account it belongs to: a discrepancy with no
+            // context is not something finance can put to the bank.
+            assertThat(review)
+                    .contains("2026-06-26")
+                    .contains("pw-disc-" + n)
+                    .contains("NOTIFIED_NOT_SETTLED")
+                    .contains(vaNumber)
+                    .contains("750000");
+            browser.close();
+        }
+    }
+
+    @Test
+    void auditLogNamesChargesByBillNumberAndVaRatherThanUuid() {
+        int n = SEQ.incrementAndGet();
+        var escrow = escrowAccountService.create(new EscrowAccountRequest(
+                "pw-audit-" + n, "bsi", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
+                "9990001234", "Settlement Account", "90001", "943", 10,
+                null, null, new java.math.BigDecimal("2000")));
+        var consumer = consumerService.create(new ConsumerRequest(
+                "pw-audit-c-" + n, "Academic", "pw-audit-cid-" + n, "secret-" + n,
+                "https://hook.example/" + n, ConsumerStatus.ACTIVE));
+        String vaNumber = "9430000" + String.format("%03d", n % 1000);
+        String billNumber = "20260825" + String.format("%08d", n % 100000000);
+        // consumerReference is an opaque id, exactly as account-receivable sends it — the bill number
+        // is the only thing on this charge finance would recognise.
+        var created = chargeService.create(consumer, new CreateChargeRequest(
+                java.util.UUID.randomUUID().toString(), "Payer 1", null, null,
+                ChargeType.CLOSED, new java.math.BigDecimal("250000"), null,
+                java.util.List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber)),
+                "Daftar ulang", billNumber));
+
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage();
+            login(page);
+            // Searched by charge id, because that is what the audit search can match today: it looks
+            // at the event's own fields, not at the charge behind them, so a finance user searching
+            // the bill number off a bank statement still finds nothing. Separate gap, noted.
+            page.navigate(base() + "/admin/audit?q=" + created.response().id());
+            String log = page.getByTestId("audit-list").textContent();
+
+            assertThat(log)
+                    .as("the row must be addressed by what finance can trace")
+                    .contains(billNumber)
+                    .contains(vaNumber)
+                    .contains("Payer 1");
+            browser.close();
+        }
+    }
 }

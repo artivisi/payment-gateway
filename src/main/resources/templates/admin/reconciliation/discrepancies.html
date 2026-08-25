@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Settlement discrepancies')}"></head>
+<body class="bg-slate-50 text-slate-800">
+<nav th:replace="~{fragments :: navbar('reconciliation')}"></nav>
+<main class="mx-auto max-w-6xl px-4 py-8" data-testid="discrepancy-review">
+    <div class="mb-6 flex items-center justify-between">
+        <h1 class="text-2xl font-semibold text-slate-900">Settlement discrepancies</h1>
+        <a th:href="@{/admin/reconciliations}" class="btn-ghost">Reconciliation runs</a>
+    </div>
+
+    <p class="mb-6 max-w-3xl text-sm leading-relaxed text-slate-600">
+        Every difference found between a bank settlement and our own records, across all periods.
+        <strong>Payment not settled</strong> is the one to take to the bank: we received a payment
+        notification, recorded it, and told the payer their bill was settled, but the money has not
+        appeared in the settlement account.
+    </p>
+
+    <form method="get" class="card mb-6 flex flex-wrap items-end gap-4 p-4">
+        <div>
+            <label class="label" for="type">Show</label>
+            <select class="input" id="type" name="type" data-testid="type-filter">
+                <option value="" th:selected="${selectedType == null}">Everything</option>
+                <option th:each="t : ${types}" th:value="${t}" th:text="${t}"
+                        th:selected="${selectedType != null and selectedType.name() == t.name()}">TYPE</option>
+            </select>
+        </div>
+        <button type="submit" class="btn-primary" data-testid="apply-filter">Apply</button>
+    </form>
+
+    <div class="card overflow-x-auto">
+        <table class="w-full divide-y divide-slate-200">
+            <thead class="bg-slate-50">
+            <tr>
+                <th class="th">Period</th>
+                <th class="th">Escrow</th>
+                <th class="th">Item</th>
+                <th class="th">Virtual account</th>
+                <th class="th">Bank reference</th>
+                <th class="th">Amount</th>
+                <th class="th">Detail</th>
+                <th class="th">Run</th>
+            </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+            <tr th:each="d : ${discrepancies}" class="hover:bg-slate-50" data-testid="discrepancy-row">
+                <td class="td text-xs" th:text="${d.reconciliationRun.period}">period</td>
+                <td class="td text-xs" th:text="${d.reconciliationRun.escrowAccount.code}">escrow</td>
+                <td class="td"><span class="badge-muted text-xs" th:text="${d.type}">TYPE</span></td>
+                <td class="td font-mono text-xs" th:text="${d.vaNumber} ?: '—'">va</td>
+                <td class="td font-mono text-xs" th:text="${d.bankReference} ?: '—'">ref</td>
+                <td class="td font-mono text-xs" th:text="${d.amount} ?: '—'">0</td>
+                <td class="td text-xs text-slate-500" th:text="${d.detail}">detail</td>
+                <td class="td text-xs">
+                    <a class="text-accent-700 underline"
+                       th:href="@{'/admin/reconciliations/' + ${d.reconciliationRun.id} + '/claim'}">claim</a>
+                </td>
+            </tr>
+            <tr th:if="${#lists.isEmpty(discrepancies)}">
+                <td class="td text-slate-400" colspan="8">
+                    Nothing here. Either every settlement matched, or no settlement has been imported yet —
+                    a discrepancy can only be found by comparing a bank settlement against our records.
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>

@@ -1,5 +1,16 @@
 package com.artivisi.paymentgateway.web;
 
+import com.artivisi.paymentgateway.entity.Charge;
+import com.artivisi.paymentgateway.entity.Payment;
+import com.artivisi.paymentgateway.entity.VirtualAccount;
+import com.artivisi.paymentgateway.repository.ChargeRepository;
+import com.artivisi.paymentgateway.repository.PaymentRepository;
+import com.artivisi.paymentgateway.repository.VirtualAccountRepository;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 import com.artivisi.paymentgateway.entity.AuditEvent;
 import com.artivisi.paymentgateway.repository.AuditEventRepository;
 import com.artivisi.paymentgateway.web.viewmodel.AuditRowView;
@@ -27,8 +38,68 @@ public class AdminAuditController {
 
     private final AuditEventRepository auditEventRepository;
 
-    public AdminAuditController(AuditEventRepository auditEventRepository) {
+    private final ChargeRepository chargeRepository;
+    private final VirtualAccountRepository virtualAccountRepository;
+    private final PaymentRepository paymentRepository;
+
+    public AdminAuditController(AuditEventRepository auditEventRepository,
+                                ChargeRepository chargeRepository,
+                                VirtualAccountRepository virtualAccountRepository,
+                                PaymentRepository paymentRepository) {
         this.auditEventRepository = auditEventRepository;
+        this.chargeRepository = chargeRepository;
+        this.virtualAccountRepository = virtualAccountRepository;
+        this.paymentRepository = paymentRepository;
+    }
+
+    /**
+     * Names each row by something a person recognises: the bill number the student was given, the VA
+     * they paid into, who they are, or the bank's reference for a payment.
+     *
+     * <p>The log addresses everything by UUID, which is the right key and the wrong label — finance
+     * chasing a payment knows the bill number off the statement, not the charge's primary key.
+     * Resolved per page and in bulk, so this costs two queries rather than one per row.
+     */
+    private Map<String, String> subjectsFor(List<AuditEvent> events) {
+        Map<String, String> subjects = new HashMap<>();
+
+        List<String> chargeIds = events.stream()
+                .filter(e -> "Charge".equals(e.getEntityType()))
+                .map(AuditEvent::getEntityId).filter(Objects::nonNull).distinct().toList();
+        if (!chargeIds.isEmpty()) {
+            Map<String, List<String>> vasByCharge = virtualAccountRepository.findByChargeIdIn(chargeIds)
+                    .stream().collect(Collectors.groupingBy(v -> v.getCharge().getId(),
+                            Collectors.mapping(VirtualAccount::getVaNumber, Collectors.toList())));
+            for (Charge c : chargeRepository.findAllById(chargeIds)) {
+                List<String> parts = new ArrayList<>();
+                if (c.getBillNumber() != null && !c.getBillNumber().isBlank()) {
+                    parts.add(c.getBillNumber());
+                }
+                List<String> vas = vasByCharge.getOrDefault(c.getId(), List.of())
+                        .stream().distinct().toList();
+                if (!vas.isEmpty()) {
+                    parts.add("VA " + String.join(", ", vas));
+                }
+                if (c.getPayerName() != null && !c.getPayerName().isBlank()) {
+                    parts.add(c.getPayerName());
+                }
+                if (!parts.isEmpty()) {
+                    subjects.put(c.getId(), String.join(" · ", parts));
+                }
+            }
+        }
+
+        List<String> paymentIds = events.stream()
+                .filter(e -> "Payment".equals(e.getEntityType()))
+                .map(AuditEvent::getEntityId).filter(Objects::nonNull).distinct().toList();
+        if (!paymentIds.isEmpty()) {
+            for (Payment p : paymentRepository.findAllById(paymentIds)) {
+                if (p.getBankReference() != null && !p.getBankReference().isBlank()) {
+                    subjects.put(p.getId(), p.getBankReference());
+                }
+            }
+        }
+        return subjects;
     }
 
     @GetMapping
@@ -38,7 +109,9 @@ public class AdminAuditController {
         String query = (q == null || q.isBlank()) ? null : q.trim();
         Page<AuditEvent> events = auditEventRepository.search(category, query, PageRequest.of(page, PAGE_SIZE));
         Instant now = Instant.now();
-        List<AuditRowView> rows = events.getContent().stream().map(e -> toRow(e, now)).toList();
+        Map<String, String> subjects = subjectsFor(events.getContent());
+        List<AuditRowView> rows = events.getContent().stream()
+                .map(e -> toRow(e, now, subjects.get(e.getEntityId()))).toList();
 
         model.addAttribute("events", events);
         model.addAttribute("rows", rows);
@@ -48,13 +121,14 @@ public class AdminAuditController {
         return "admin/audit/list";
     }
 
-    private AuditRowView toRow(AuditEvent e, Instant now) {
+    private AuditRowView toRow(AuditEvent e, Instant now, String subject) {
         return new AuditRowView(
                 ViewFormats.relativeDay(e.getCreatedAt(), now), ViewFormats.time(e.getCreatedAt()), e.getCreatedAt().toString(),
                 e.getActor() != null ? e.getActor() : "system", e.getActor() != null ? "badge-primary" : "badge-muted",
                 e.getEventType().replace('_', ' '), eventClass(e.getEventType()),
                 e.getEntityType(), ViewFormats.shortId(e.getEntityId()), e.getEntityId(),
-                e.getDetail() != null && !e.getDetail().isBlank() ? e.getDetail() : "—", e.getDetail());
+                e.getDetail() != null && !e.getDetail().isBlank() ? e.getDetail() : "—", e.getDetail(),
+                subject);
     }
 
     private static String eventClass(String eventType) {

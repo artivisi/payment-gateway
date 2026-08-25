@@ -109,21 +109,40 @@ public class AdminReconciliationController {
         return "admin/reconciliation/detail";
     }
 
+    /**
+     * What the bank has not settled, across every run — the question finance actually asks.
+     *
+     * <p>Discrepancies otherwise live one run at a time, so chasing "which payments has BSI not
+     * settled" means opening each period in turn and remembering what was in the last one.
+     */
+    @GetMapping("/discrepancies")
+    public String discrepancies(@RequestParam(required = false) DiscrepancyType type, Model model) {
+        model.addAttribute("selectedType", type);
+        model.addAttribute("types", DiscrepancyType.values());
+        model.addAttribute("discrepancies",
+                discrepancyRepository.findForReview(type, PageRequest.of(0, 500)));
+        return "admin/reconciliation/discrepancies";
+    }
+
     @PostMapping("/import")
     public String importStatement(
             @RequestParam String escrowCode,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate period,
             @RequestParam MultipartFile file,
+            // An unchecked checkbox is simply not submitted, so absent means "recover", which is the
+            // established end-of-day behaviour. Report-only is the deliberate, opt-in choice.
+            @RequestParam(defaultValue = "false") boolean reportOnly,
             RedirectAttributes redirectAttributes) {
         try {
             EscrowAccount escrow = escrowAccountRepository.findByCode(escrowCode)
                     .orElseThrow(() -> new NotFoundException("escrow not found: " + escrowCode));
             ReconciliationRun run = reconciliationService.reconcile(escrow, period,
-                    settlementCsvParser.parse(file.getInputStream()));
+                    settlementCsvParser.parse(file.getInputStream()), !reportOnly);
             redirectAttributes.addFlashAttribute("message",
                     "Reconciliation completed: " + run.getMatchedCount() + " matched, "
                             + run.getRecoveredCount() + " recovered, "
-                            + run.getDiscrepancyCount() + " discrepancies.");
+                            + run.getDiscrepancyCount() + " discrepancies."
+                            + (reportOnly ? " Report only — nothing was recovered." : ""));
         } catch (IOException e) {
             redirectAttributes.addFlashAttribute("error", "Failed to read uploaded file: " + e.getMessage());
         } catch (RuntimeException e) {
