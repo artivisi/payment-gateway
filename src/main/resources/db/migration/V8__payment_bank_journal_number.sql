@@ -7,8 +7,8 @@
 -- It matters because BSI keeps three separate numbering schemes and none of them overlap: idTransaksi
 -- belongs to the VA collection system (what we store as bank_reference), nomorJurnalPembukuan to core
 -- banking, and the FT Number that appears on the account statement to funds transfer. Tested on the
--- every payment in the window where both sources exist: no journal number appears in the
--- statement and no FT number appears in a callback. So reconciling an account statement exactly is
+-- every payment in the window where both sources survive: no journal number appears in the statement
+-- and no FT number appears in a callback. So reconciling an account statement exactly is
 -- impossible today, and the journal number is the reference a BSI operator can actually trace when
 -- asked where a payment went.
 --
