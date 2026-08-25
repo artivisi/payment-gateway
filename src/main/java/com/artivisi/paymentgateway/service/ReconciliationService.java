@@ -23,6 +23,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -38,6 +39,13 @@ import java.util.Set;
  */
 @Service
 public class ReconciliationService {
+
+    /**
+     * The calendar the settlement day is reckoned on. Indonesian banks close their books locally and
+     * a statement headed "8 July" means the Jakarta day, so a run for that date has to cover the same
+     * hours the bank did.
+     */
+    private static final ZoneId SETTLEMENT_ZONE = ZoneId.of("Asia/Jakarta");
 
     private final ReconciliationRunRepository runRepository;
     private final ReconciliationDiscrepancyRepository discrepancyRepository;
@@ -106,8 +114,14 @@ public class ReconciliationService {
         run.setStartedAt(Instant.now());
         run = runRepository.save(run);
 
-        Instant start = period.atStartOfDay(ZoneOffset.UTC).toInstant();
-        Instant end = period.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        // The settlement period is a bank calendar day, and the bank keeps its books in Jakarta.
+        // Bounding it in UTC instead shifted the window seven hours: a payment at 04:38 WIB fell into
+        // the previous UTC day, so reconciling a statement reported it as a credit we never recorded
+        // while the day before reported the same payment as never settled. Two false discrepancies
+        // per real payment, at both ends of every run. The rest of the app already reckons calendar
+        // days this way (ViewFormats.DISPLAY_ZONE, the payment list's date ranges).
+        Instant start = period.atStartOfDay(SETTLEMENT_ZONE).toInstant();
+        Instant end = period.plusDays(1).atStartOfDay(SETTLEMENT_ZONE).toInstant();
         List<Payment> gatewayPayments = paymentRepository.findByEscrowAndStatusInPeriod(
                 escrow.getId(), PaymentStatus.ACCEPTED, start, end);
 

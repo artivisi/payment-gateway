@@ -158,6 +158,28 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void theSettlementDayIsTheBanksDayNotUtc() {
+        createCharge("9300000031", "400000");
+        // 04:38 WIB on the 26th — before 07:00, so UTC still calls it the 25th. The bank's statement
+        // for the 26th contains it, and a run for the 26th has to agree, or the same payment is
+        // reported as never settled on one day and never recorded on the next.
+        paymentService.apply(escrow, "9300000031", new BigDecimal("400000"), "TZ-1",
+                Instant.parse("2026-06-25T21:38:00Z"));
+
+        // Reconciled against a statement that does NOT contain it. Matching finds a payment by VA and
+        // reference whatever the period, so a run with the credit present looks identical either way;
+        // only the unsettled sweep reads the period, and that is where a UTC window loses the payment
+        // silently — the seven-hour shift drops it out of the day entirely and nothing is reported.
+        ReconciliationRun run = reconciliationService.reconcile(
+                escrow, LocalDate.parse("2026-06-26"), List.of());
+
+        assertThat(discrepancyRepository.findByReconciliationRunIdOrderByCreatedAtAsc(run.getId()))
+                .as("a payment the bank did not settle must be reported on the day the bank booked it")
+                .extracting("type")
+                .containsExactly(DiscrepancyType.NOTIFIED_NOT_SETTLED);
+    }
+
+    @Test
     void reconcile_classifiesEveryOutcome() {
         // VA1 matched, VA2 paid-not-notified, VA3 amount mismatch, VA4 notified-not-settled.
         createCharge("9300000001", "100000");
