@@ -73,6 +73,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
     @Autowired ConsumerService consumerService;
     @Autowired ChargeService chargeService;
     @Autowired PaymentApplicationService paymentApplicationService;
+    @Autowired com.artivisi.paymentgateway.service.ReconciliationService reconciliationService;
 
     private String operatorSecret;
 
@@ -327,6 +328,50 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                             CsvFixtures.bytes("/testdata/reconciliation/settlement-sample.csv")))
                     .submit();
             assertThat(recon.root().textContent()).contains("Reconciliation completed:");
+            browser.close();
+        }
+    }
+
+    @Test
+    void settlementClaimShowsWhatTheBankIsBeingAskedToConfirm() {
+        int n = SEQ.incrementAndGet();
+        var escrow = escrowAccountService.create(new EscrowAccountRequest(
+                "pw-claim-" + n, "bsi", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
+                "9990001234", "Settlement Account", "90001", "941", 10,
+                null, null, new java.math.BigDecimal("2000")));
+        var consumer = consumerService.create(new ConsumerRequest(
+                "pw-claim-c-" + n, "Academic", "pw-claim-cid-" + n, "secret-" + n,
+                "https://hook.example/" + n, ConsumerStatus.ACTIVE));
+
+        // A payment we recorded that the settlement does not contain: the case finance has to put to
+        // the bank, and the one the one unsettled payment of 2026-07-08 falls into.
+        String vaNumber = "9410000" + String.format("%03d", n % 1000);
+        chargeService.create(consumer, new CreateChargeRequest(
+                "pw-claim-ref-" + n, "Student", null, null, ChargeType.CLOSED,
+                new java.math.BigDecimal("500000"), null,
+                java.util.List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber))));
+        paymentApplicationService.apply(escrow, vaNumber, new java.math.BigDecimal("500000"),
+                "CLAIM-REF-" + n, java.time.Instant.parse("2026-06-25T03:00:00Z"));
+
+        var run = reconciliationService.reconcile(escrow, java.time.LocalDate.parse("2026-06-25"),
+                java.util.List.of());
+
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            Page page = browser.newPage();
+            login(page);
+            page.navigate(base() + "/admin/reconciliations/" + run.getId() + "/claim");
+            String claim = page.getByTestId("settlement-claim").textContent();
+
+            // Addressed to the bank: which account and period, what is being claimed, and in words
+            // the recipient can act on rather than an enum name.
+            assertThat(claim)
+                    .contains("9990001234")
+                    .contains("2026-06-25")
+                    .contains("NOTIFIED_NOT_SETTLED")
+                    .contains("no matching credit appears in the settlement")
+                    .contains("500000");
             browser.close();
         }
     }
