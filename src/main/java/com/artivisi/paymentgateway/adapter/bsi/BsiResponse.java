@@ -8,7 +8,7 @@ import java.math.BigDecimal;
 
 /**
  * Outbound BSI message (gateway → bank). Field set + order + serialization mirror legacy
- * the legacy service's {@code LegacyResponse} so the wire format is byte-compatible: {@code NON_EMPTY}
+ * the legacy service's response type so the wire format is byte-compatible: {@code NON_EMPTY}
  * omits null/empty fields (echo fields, reversal-only fields, and amounts on OPEN) exactly as
  * the legacy service does.
  */

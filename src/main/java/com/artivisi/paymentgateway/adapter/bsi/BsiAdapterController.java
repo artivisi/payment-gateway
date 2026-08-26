@@ -32,7 +32,7 @@ import java.util.Locale;
  * checksum against the escrow's shared key, then drives the core services and maps the result back
  * to BSI's wire format. Failures map to BSI response codes (never thrown to the bank).
  *
- * <p>The response shape mirrors legacy the legacy service's {@code LegacyResponse} field-for-field: it echoes
+ * <p>The response shape mirrors the legacy service's response type field-for-field: it echoes
  * the request's {@code kodeBank}/{@code kodeChannel}/{@code kodeTerminal}/{@code idTransaksi}, carries
  * {@code keterangan} (bill description), formats {@code tanggalTransaksi} as ISO date-time on
  * payment/reversal, and omits {@code akumulasiPembayaran}/reprices {@code tagihanEfektif} for OPEN —
@@ -43,7 +43,7 @@ import java.util.Locale;
 public class BsiAdapterController {
 
     private static final String PROVIDER = "bsi";
-    /** the legacy service runs in Asia/Jakarta and formats transaction times as a local ISO date-time. */
+    /** The legacy service runs in Asia/Jakarta and formats transaction times as a local ISO date-time. */
     private static final ZoneId ZONE = ZoneId.of("Asia/Jakarta");
 
     /**

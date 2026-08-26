@@ -138,17 +138,20 @@ SpotBugs (0 findings), CodeQL, OWASP ZAP DAST, OWASP Dependency-Check, SonarClou
 
 ## Governance
 
-**Private since 2026-08-26** (was public; converted after production figures and a client's legacy
-system names were found in migration comments and commit messages). Apache 2.0, generic product.
+Apache 2.0, generic product, **public**. Briefly private on 2026-08-26 while production data was
+removed from the tree and from history; the history was rewritten and force-pushed, so commit SHAs
+predating that no longer resolve.
 
-The discipline stays regardless of visibility: no client names, credentials, endpoints, or sample
-data; neutral domain naming throughout. Private is a smaller blast radius, not a licence to embed a
-deployment's specifics — the product ships to more than one operator, and anything the operator-specific
-belongs in the deploy repo. Test fixtures count: a real settlement account number and a payer name
-lifted from production data reached this repo on 2026-08-25 that way.
+No client names, credentials, endpoints, or sample data; neutral domain naming throughout. The
+product ships to more than one operator — anything deployment-specific belongs in the deploy repo.
+Test fixtures count, and they are how every leak so far happened: a real settlement account number,
+a payer name, and the operator's bank-assigned company id all reached this repo as fixture values.
+A third party's name in a fixture is PII whatever the repository's visibility.
 
 **One fork was detached and remains public** (`syahdafahreza/payment-gateway`, last pushed
-2026-07-29), so anything committed here before that date is still readable there.
+2026-07-29). The rewrite cannot reach it. The account number and payer name both entered on
+2026-08-25 and are absent from it; the company id entered 2026-06-26 and is in it, so that value is
+public regardless of what this repository does.
 
 ## Build sequence
 

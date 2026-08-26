@@ -3,7 +3,7 @@
 -- Exists because a typed DTO throws away what it does not model, silently. BSI sent
 -- `nomorJurnalPembukuan` on every payment notification since launch; BsiRequest had no such
 -- component, Jackson ignored it by default, and the field left no trace anywhere in this system. It
--- surfaced on 2026-08-25 only because the legacy service — the legacy service being retired — happened to log
+-- surfaced on 2026-08-25 only because the legacy service being retired happened to log
 -- raw request text at DEBUG. That log reaches back five weeks and dies with the service.
 --
 -- Stored as data rather than left to the log, because the legacy service demonstrates both halves of the

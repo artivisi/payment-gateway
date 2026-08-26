@@ -248,7 +248,7 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
         post(body("payment", vaNumber, checksum(vaNumber), new BigDecimal("1000000")))
                 .then().body("responseCode", equalTo("00"));
 
-        // the legacy service's reversal reply carries no amount fields (only refs); parity is verified by the
+        // The legacy service's reversal reply carries no amount fields (only refs); parity is verified by the
         // subsequent inquiry showing the charge reopened.
         post(body("reversal", vaNumber, checksum(vaNumber), new BigDecimal("1000000")))
                 .then().statusCode(200)

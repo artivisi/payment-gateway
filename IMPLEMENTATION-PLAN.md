@@ -6,9 +6,9 @@ Status legend: `[ ]` todo · `[~]` in progress · `[x]` done · `[!]` blocked/de
 
 ## Big picture
 
-Replace the operator's Kafka-wired single-bank VA fleet with one self-hosted, escrow-centric gateway. The gateway never holds funds; it answers bank inquiries, records payments, and forwards webhooks to consumers.
+Replace a Kafka-wired single-bank VA fleet with one self-hosted, escrow-centric gateway. The gateway never holds funds; it answers bank inquiries, records payments, and forwards webhooks to consumers.
 
-- **Subsume** (port to in-process adapters): `the legacy service` → `bsi` adapter, `the legacy CIMB service` → `cimb` adapter, `the legacy billing app` → CORE + Consumer API + webhook.
+- **Subsume** (port to in-process adapters): the legacy BSI collection service → `bsi` adapter, the legacy CIMB service → `cimb` adapter, the legacy billing app → CORE + Consumer API + webhook.
 - **Reference only** (ArtiVisi PTB): `jasa-pelabuhan` (BCA SNAP → `maybank`), `orbit-bongkar-muat` (BNI/Mandiri, BANK_HOSTED pattern), `mandiri-routing-gateway` (dispatch pattern).
 - **Key translation**: Kafka fan-out → in-process adapters + REST; system-generated VA numbers → consumer-supplied, gateway-validated; single-tenant → multi-escrow/multi-consumer; one-bill-many-banks preserved via the `Charge` aggregate (gateway-owned first-paid-cancels-siblings + shared cumulative).
 
@@ -84,7 +84,7 @@ Replace the operator's Kafka-wired single-bank VA fleet with one self-hosted, es
 - [x] SELF_HOSTED adapters are inbound endpoints (bank → gateway) that verify the bank's auth, resolve the escrow from the VA number (`EscrowResolver`), and call core `InquiryService` / `PaymentApplicationService` (+ `reverse`). **Finding (bsi + cimb done):** the shared contract is those core services, not a polymorphic interface — bsi (REST/JSON) and cimb (SOAP/XML) have genuinely different transports/message types, so a `BankProvider` Java interface for inbound adds no value and is skipped. The interface becomes meaningful for **BANK_HOSTED outbound** (`createVa`/`cancelVa`) + **reconciliation** (`pullSettlement`/`importStatement`); extract it there, with those phases.
 - **Decision (resolved):** reversal **is** part of the SELF_HOSTED contract — BSI sends reversal messages, so the gateway must handle them. Implement inquiry + payment first, then reversal (revert cumulative, re-open charge + reactivate siblings settled by the reversed payment; fail loud on cancelled charges / out-of-window).
 
-### `bsi` (proprietary REST/JSON) — port of the legacy service
+### `bsi` (proprietary REST/JSON) — port of the legacy BSI collection service
 - [x] `POST /api/bank/bsi` endpoint, action-dispatched (inquiry | payment)
 - [x] Escrow resolution from VA number (`EscrowResolver`, by provider + number space)
 - [x] SHA1 checksum verify (`nomorPembayaran + sharedKey + tanggalTransaksi`, sharedKey = escrow secret) — kept only because the bank mandates it
