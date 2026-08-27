@@ -286,6 +286,20 @@ class BsiAdapterIntegrationTest extends AbstractIntegrationTest {
         org.assertj.core.api.Assertions.assertThat(stored.getCreatedAt()).isNotEqualTo(expected);
     }
 
+    /**
+     * Missing rather than malformed — the case the parser guards with an explicit null check, and
+     * the one the caller used to also guard by catching NullPointerException. The checksum is
+     * computed over an absent timestamp the way the bank would compute it, so this reaches the
+     * parser instead of stopping at checksum validation.
+     */
+    @Test
+    void payment_withMissingTimestamp_isRejected() {
+        Map<String, Object> payment = body("payment", vaNumber,
+                BsiChecksum.compute(vaNumber, SHARED_KEY, null), new BigDecimal("1000000"));
+        payment.remove("tanggalTransaksi");
+        post(payment).then().statusCode(200).body("responseCode", equalTo("30"));
+    }
+
     /** No falling back to now(): a silent substitution is how the bank's clock got discarded before. */
     @Test
     void payment_withUnparsableTimestamp_isRejected() {

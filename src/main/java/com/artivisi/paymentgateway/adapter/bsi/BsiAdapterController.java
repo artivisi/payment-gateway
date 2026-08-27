@@ -135,7 +135,7 @@ public class BsiAdapterController {
         Instant transactionTime;
         try {
             transactionTime = bankTransactionTime(request);
-        } catch (DateTimeParseException | NullPointerException e) {
+        } catch (DateTimeParseException e) {
             return BsiResponse.error(BsiResponseCode.INVALID_REQUEST_FORMAT,
                     "tanggalTransaksi tidak valid: " + request.tanggalTransaksi());
         }
@@ -173,7 +173,7 @@ public class BsiAdapterController {
         Instant reversalTime;
         try {
             reversalTime = bankTransactionTime(request);
-        } catch (DateTimeParseException | NullPointerException e) {
+        } catch (DateTimeParseException e) {
             return BsiResponse.error(BsiResponseCode.INVALID_REQUEST_FORMAT,
                     "tanggalTransaksi tidak valid: " + request.tanggalTransaksi());
         }
