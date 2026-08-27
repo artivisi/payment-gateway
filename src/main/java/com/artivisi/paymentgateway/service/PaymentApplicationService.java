@@ -168,7 +168,6 @@ public class PaymentApplicationService {
         Payment payment = findByReference(generations, bankReference)
                 .orElseThrow(() -> new NotFoundException(
                         "no payment to reverse for reference " + bankReference));
-        VirtualAccount va = payment.getVirtualAccount();
 
         if (payment.getStatus() == PaymentStatus.REVERSED) {
             return payment;
