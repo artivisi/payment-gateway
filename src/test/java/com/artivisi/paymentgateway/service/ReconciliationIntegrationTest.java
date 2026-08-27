@@ -146,14 +146,14 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
         createCharge("9300000031", "100000");
         // The callback's own reference, and beside it the bank's core-banking journal number.
         paymentService.apply(fee, "9300000031", new BigDecimal("100000"),
-                "93000000312026062517000", TX_TIME, "5310230625100000000451");
+                "930000003120260625170000", TX_TIME, "9309990625170000000451");
 
         // A file exported from the bank's transaction portal identifies the same payment by the
         // journal number instead. Matching on the callback reference alone finds nothing in such a
         // file, and every row of it then reads as money the bank settled and we never recorded —
         // which, in a recovering run, would manufacture a duplicate payment for each one.
         ReconciliationRun run = reconciliationService.reconcile(fee, PERIOD,
-                List.of(credit("9300000031", "5310230625100000000451", "98000")),
+                List.of(credit("9300000031", "9309990625170000000451", "98000")),
                 true, SettlementAmountBasis.NET_OF_FEE);
 
         assertThat(run.getMatchedCount()).isEqualTo(1);
