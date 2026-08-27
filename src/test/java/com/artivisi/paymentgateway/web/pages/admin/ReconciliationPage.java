@@ -38,6 +38,12 @@ public class ReconciliationPage {
         return this;
     }
 
+    /** NET_OF_FEE for an account statement, GROSS for a bank's own transaction list. */
+    public ReconciliationPage selectAmountBasis(String basis) {
+        page.getByTestId("amount-basis").selectOption(basis);
+        return this;
+    }
+
     public ReconciliationPage submit() {
         page.getByTestId("form-submit").click();
         page.waitForURL("**/reconciliations");

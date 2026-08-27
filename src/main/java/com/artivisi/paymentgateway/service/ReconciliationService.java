@@ -1,6 +1,7 @@
 package com.artivisi.paymentgateway.service;
 
 import com.artivisi.paymentgateway.exception.InvalidRequestException;
+import com.artivisi.paymentgateway.dto.SettlementAmountBasis;
 import com.artivisi.paymentgateway.dto.SettlementCredit;
 import com.artivisi.paymentgateway.entity.DiscrepancyType;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
@@ -75,10 +76,10 @@ public class ReconciliationService {
         this.recoveryTransaction.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
-    /** Reconcile and recover: the normal end-of-day path. */
+    /** Reconcile and recover from a bank statement: the normal end-of-day path. */
     @Transactional
     public ReconciliationRun reconcile(EscrowAccount escrow, LocalDate period, List<SettlementCredit> credits) {
-        return reconcile(escrow, period, credits, true);
+        return reconcile(escrow, period, credits, true, SettlementAmountBasis.NET_OF_FEE);
     }
 
     /**
@@ -94,13 +95,14 @@ public class ReconciliationService {
      */
     @Transactional
     public ReconciliationRun reconcile(EscrowAccount escrow, LocalDate period,
-                                       List<SettlementCredit> credits, boolean recover) {
+                                       List<SettlementCredit> credits, boolean recover,
+                                       SettlementAmountBasis amountBasis) {
         // The bank keeps a fee from each payment, so the settlement line is NET and our payment is
         // GROSS. Refuse rather than guess: assuming zero silently reports every row of a fee-charging
         // bank as an amount mismatch, and a report that is wrong about everything gets discarded.
         // A bank that charges nothing is configured with an explicit 0.
         BigDecimal fee = escrow.getSettlementFee();
-        if (fee == null) {
+        if (amountBasis == SettlementAmountBasis.NET_OF_FEE && fee == null) {
             throw new InvalidRequestException(
                     "settlementFee is not configured for escrow " + escrow.getCode()
                             + " — set it (0 if the bank deducts nothing) before reconciling, or every"
@@ -130,6 +132,7 @@ public class ReconciliationService {
         List<ReconciliationDiscrepancy> discrepancies = new ArrayList<>();
         int matched = 0;
         int recovered = 0;
+        int matchedByJournal = 0;
 
         for (SettlementCredit credit : credits) {
             if (!seenReferences.add(credit.bankReference())) {
@@ -145,34 +148,41 @@ public class ReconciliationService {
                         "no virtual account for credit"));
                 continue;
             }
-            Optional<Payment> payment = generations.stream()
-                    .map(g -> paymentRepository
-                            .findByVirtualAccountIdAndBankReference(g.getId(), credit.bankReference()))
-                    .flatMap(Optional::stream)
-                    .findFirst();
+            Optional<Payment> payment = resolveByReference(generations, credit.bankReference());
+            boolean byJournal = false;
+            if (payment.isEmpty()) {
+                payment = resolveByJournalNumber(generations, credit.bankReference());
+                byJournal = payment.isPresent();
+            }
             if (payment.isPresent()) {
                 Payment existing = payment.get();
+                if (byJournal) {
+                    matchedByJournal++;
+                }
                 settledPaymentKeys.add(key(existing));
-                // What the bank should have credited for this payment, once its fee is taken off.
-                BigDecimal expected = existing.getAmount().subtract(fee);
+                BigDecimal expected = expected(existing, fee, amountBasis);
                 if (expected.compareTo(credit.amount()) == 0) {
                     matched++;
                 } else {
                     discrepancies.add(fromCredit(run, DiscrepancyType.AMOUNT_MISMATCH, credit, existing,
-                            "gateway " + existing.getAmount() + " less fee " + fee + " = " + expected
-                                    + " vs settled " + credit.amount()));
+                            describeExpectation(existing, fee, amountBasis, expected, credit)
+                                    + (byJournal ? " (matched on journal number)" : "")));
                 }
             } else if (!recover) {
                 discrepancies.add(fromCredit(run, DiscrepancyType.PAID_NOT_NOTIFIED_REPORTED, credit, null,
                         "settled but not recorded here; report-only run, no payment created"));
             } else {
                 try {
+                    // A NET line is what the account received; the payer sent the fee as well.
+                    // Recording the net would under-credit the payer on every recovered payment and
+                    // leave a charge that can never reach PAID. A GROSS line is already what the
+                    // payer sent, so adding the fee there would over-credit by the same amount.
+                    BigDecimal payerAmount = amountBasis == SettlementAmountBasis.NET_OF_FEE
+                            ? credit.amount().add(fee)
+                            : credit.amount();
                     Payment recoveredPayment = recoveryTransaction.execute(status ->
-                            // The settlement line is net; the payer paid the fee too. Recording the
-                            // net here would under-credit the student by the fee on every recovered
-                            // payment, leaving charges that can never reach PAID.
                             paymentApplicationService.apply(escrow, credit.vaNumber(),
-                                    credit.amount().add(fee), credit.bankReference(),
+                                    payerAmount, credit.bankReference(),
                                     credit.transactionTime()));
                     settledPaymentKeys.add(key(recoveredPayment));
                     recovered++;
@@ -199,9 +209,48 @@ public class ReconciliationService {
         run.setFinishedAt(Instant.now());
         ReconciliationRun completed = runRepository.save(run);
         auditService.record("RECONCILIATION_RUN", "ReconciliationRun", completed.getId(),
-                "escrow=" + escrow.getCode() + " period=" + period + " matched=" + matched
+                "escrow=" + escrow.getCode() + " period=" + period + " basis=" + amountBasis
+                        + " matched=" + matched + " matchedByJournal=" + matchedByJournal
                         + " recovered=" + recovered + " discrepancies=" + discrepancies.size());
         return completed;
+    }
+
+    private Optional<Payment> resolveByReference(List<VirtualAccount> generations, String reference) {
+        return generations.stream()
+                .map(g -> paymentRepository.findByVirtualAccountIdAndBankReference(g.getId(), reference))
+                .flatMap(Optional::stream)
+                .findFirst();
+    }
+
+    /**
+     * Second key for the same payment. Two references identify a BSI payment and which one you hold
+     * depends on which document you were given: the payment callback carries {@code idTransaksi},
+     * stored as {@code bankReference}, while the bank's transaction portal exports
+     * {@code nomorJurnalPembukuan}. The two numbering spaces have no overlap, so a portal export
+     * matches nothing on the reference alone even though every row is a payment already recorded
+     * here — which reads as the whole file being unsettled money.
+     *
+     * <p>Tried only after the reference finds nothing. The primary path is unchanged, and the
+     * shapes differ (26 digits versus 22), so one cannot be mistaken for the other.
+     */
+    private Optional<Payment> resolveByJournalNumber(List<VirtualAccount> generations, String reference) {
+        return generations.stream()
+                .map(g -> paymentRepository.findByVirtualAccountIdAndBankJournalNumber(g.getId(), reference))
+                .flatMap(Optional::stream)
+                .findFirst();
+    }
+
+    /** What this file should show for a payment we hold, on its own amount basis. */
+    private static BigDecimal expected(Payment payment, BigDecimal fee, SettlementAmountBasis basis) {
+        return basis == SettlementAmountBasis.NET_OF_FEE ? payment.getAmount().subtract(fee) : payment.getAmount();
+    }
+
+    private static String describeExpectation(Payment payment, BigDecimal fee, SettlementAmountBasis basis,
+                                              BigDecimal expected, SettlementCredit credit) {
+        return basis == SettlementAmountBasis.NET_OF_FEE
+                ? "gateway " + payment.getAmount() + " less fee " + fee + " = " + expected
+                        + " vs settled " + credit.amount()
+                : "gateway " + payment.getAmount() + " vs bank-reported " + credit.amount() + " (gross)";
     }
 
     private static String key(Payment payment) {

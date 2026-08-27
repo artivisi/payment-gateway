@@ -18,6 +18,12 @@ import java.util.List;
  * Parses an imported settlement statement into {@link SettlementCredit}s. Format (header row +
  * data): {@code vaNumber,bankReference,amount,transactionTime}, transactionTime ISO-8601 instant.
  * Fails loud on malformed rows.
+ *
+ * <p>The reference column may carry either reference a bank identifies the payment by: the one from
+ * the payment callback ({@code idTransaksi} for BSI) or its core-banking journal number, which is
+ * what a transaction-portal export carries instead. Reconciliation tries both, so the column needs
+ * no per-file declaration. The <em>amount</em> column does — see
+ * {@link com.artivisi.paymentgateway.dto.SettlementAmountBasis}.
  */
 @Component
 public class SettlementCsvParser {

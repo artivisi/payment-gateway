@@ -19,6 +19,13 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
 
     Optional<Payment> findByVirtualAccountIdAndBankReference(String virtualAccountId, String bankReference);
 
+    /**
+     * Resolve a payment by BSI's core-banking journal reference ({@code nomorJurnalPembukuan}).
+     * A settlement file exported from the bank's own transaction portal carries this instead of the
+     * {@code idTransaksi} the payment callback carried, and the two numbering spaces do not overlap.
+     */
+    Optional<Payment> findByVirtualAccountIdAndBankJournalNumber(String virtualAccountId, String bankJournalNumber);
+
     @Query("""
             select p from Payment p
             where p.virtualAccount.escrowAccount.id = :escrowId

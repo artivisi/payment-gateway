@@ -326,6 +326,9 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                     .fillPeriod("2026-06-25")
                     .uploadSettlement(new FilePayload("settlement.csv", "text/csv",
                             CsvFixtures.bytes("/testdata/reconciliation/settlement-sample.csv")))
+                    // The form has no default: a statement's amounts are net of the bank's fee, a
+                    // transaction list's are gross, and the importer cannot tell them apart.
+                    .selectAmountBasis("NET_OF_FEE")
                     .submit();
             assertThat(recon.root().textContent()).contains("Reconciliation completed:");
             browser.close();
@@ -406,7 +409,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         paymentApplicationService.apply(escrow, vaNumber, new java.math.BigDecimal("750000"),
                 "DISC-REF-" + n, java.time.Instant.parse("2026-06-26T03:00:00Z"));
         reconciliationService.reconcile(escrow, java.time.LocalDate.parse("2026-06-26"),
-                java.util.List.of(), false);
+                java.util.List.of(), false,
+                com.artivisi.paymentgateway.dto.SettlementAmountBasis.NET_OF_FEE);
 
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch();

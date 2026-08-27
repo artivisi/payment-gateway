@@ -84,6 +84,8 @@ class ReconciliationCsvImportTest extends AbstractIntegrationTest {
         given().header("Authorization", "Bearer " + managementToken()).multiPart("file", "settlement-sample.csv",
                         CsvFixtures.bytes("/testdata/reconciliation/settlement-sample.csv"), "text/csv")
                 .formParam("period", "2026-06-25")
+                // The fixtures are an account statement: amounts are what the account received.
+                .formParam("amountBasis", "NET_OF_FEE")
                 .when().post("/api/escrow-accounts/{code}/reconciliations/import", "demo-bsi")
                 .then().statusCode(201)
                 .body("matchedCount", equalTo(1))
