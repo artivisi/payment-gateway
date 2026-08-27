@@ -50,6 +50,14 @@ public class SecurityConfig {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/css/**", "/js/**", "/img/**", "/favicon.ico").permitAll()
+                        // Error dispatch. Without this, a request that never reaches its handler —
+                        // wrong method, empty body, unknown path — is forwarded to /error, which
+                        // then requires authentication and answers 302 to the login page. A bank
+                        // integrating against a callback endpoint gets a redirect where it should
+                        // get the error, which is undiagnosable from their side and reads as "the
+                        // endpoint moved". Spring Boot's defaults keep the message and stack trace
+                        // out of the response, so permitting it exposes nothing.
+                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                         // Device flow: how a CLI OBTAINS a token, so it cannot itself require one.
                         .requestMatchers("/api/device/**").permitAll()

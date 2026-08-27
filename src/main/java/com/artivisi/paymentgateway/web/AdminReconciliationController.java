@@ -10,6 +10,7 @@ import com.artivisi.paymentgateway.repository.EscrowAccountRepository;
 import com.artivisi.paymentgateway.repository.ReconciliationDiscrepancyRepository;
 import com.artivisi.paymentgateway.repository.ReconciliationRunRepository;
 import com.artivisi.paymentgateway.service.ReconciliationService;
+import com.artivisi.paymentgateway.dto.SettlementAmountBasis;
 import com.artivisi.paymentgateway.service.SettlementCsvParser;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -132,12 +133,16 @@ public class AdminReconciliationController {
             // An unchecked checkbox is simply not submitted, so absent means "recover", which is the
             // established end-of-day behaviour. Report-only is the deliberate, opt-in choice.
             @RequestParam(defaultValue = "false") boolean reportOnly,
+            // No default: an account statement's amounts are net of the bank's fee and a transaction
+            // list's are gross, and reading one as the other makes every row a mismatch. The form
+            // makes it a required choice rather than letting the common case ride on a default.
+            @RequestParam SettlementAmountBasis amountBasis,
             RedirectAttributes redirectAttributes) {
         try {
             EscrowAccount escrow = escrowAccountRepository.findByCode(escrowCode)
                     .orElseThrow(() -> new NotFoundException("escrow not found: " + escrowCode));
             ReconciliationRun run = reconciliationService.reconcile(escrow, period,
-                    settlementCsvParser.parse(file.getInputStream()), !reportOnly);
+                    settlementCsvParser.parse(file.getInputStream()), !reportOnly, amountBasis);
             redirectAttributes.addFlashAttribute("message",
                     "Reconciliation completed: " + run.getMatchedCount() + " matched, "
                             + run.getRecoveredCount() + " recovered, "

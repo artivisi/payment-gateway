@@ -5,6 +5,7 @@ import com.artivisi.paymentgateway.dto.ReconciliationSummary;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.ReconciliationRun;
 import com.artivisi.paymentgateway.exception.NotFoundException;
+import com.artivisi.paymentgateway.dto.SettlementAmountBasis;
 import com.artivisi.paymentgateway.dto.SettlementCredit;
 import com.artivisi.paymentgateway.repository.EscrowAccountRepository;
 import com.artivisi.paymentgateway.repository.ReconciliationDiscrepancyRepository;
@@ -50,23 +51,29 @@ public class ReconciliationController {
     @PostMapping
     public ResponseEntity<ReconciliationSummary> run(@PathVariable String code,
                                                      @Valid @RequestBody ReconciliationRequest request) {
-        return reconcile(code, request.period(), request.credits());
+        return reconcile(code, request.period(), request.credits(), request.amountBasis());
     }
 
-    /** Import-statement path: upload a settlement CSV ({@code vaNumber,bankReference,amount,transactionTime}). */
+    /**
+     * Import-statement path: upload a settlement CSV
+     * ({@code vaNumber,bankReference,amount,transactionTime}). {@code amountBasis} says what the
+     * amount column measures — see {@link SettlementAmountBasis}; there is no default.
+     */
     @PostMapping(path = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ReconciliationSummary> importStatement(
             @PathVariable String code,
             @RequestParam("period") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate period,
-            @RequestParam("file") MultipartFile file) throws IOException {
-        return reconcile(code, period, settlementCsvParser.parse(file.getInputStream()));
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("amountBasis") SettlementAmountBasis amountBasis) throws IOException {
+        return reconcile(code, period, settlementCsvParser.parse(file.getInputStream()), amountBasis);
     }
 
     private ResponseEntity<ReconciliationSummary> reconcile(String code, LocalDate period,
-                                                            List<SettlementCredit> credits) {
+                                                            List<SettlementCredit> credits,
+                                                            SettlementAmountBasis amountBasis) {
         EscrowAccount escrow = escrowAccountRepository.findByCode(code)
                 .orElseThrow(() -> new NotFoundException("escrow not found: " + code));
-        ReconciliationRun run = reconciliationService.reconcile(escrow, period, credits);
+        ReconciliationRun run = reconciliationService.reconcile(escrow, period, credits, true, amountBasis);
         ReconciliationSummary summary = ReconciliationSummary.of(run,
                 discrepancyRepository.findByReconciliationRunIdOrderByCreatedAtAsc(run.getId()));
         return ResponseEntity.status(HttpStatus.CREATED).body(summary);

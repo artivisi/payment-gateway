@@ -5,6 +5,7 @@ import com.artivisi.paymentgateway.dto.ChargeAccountRequest;
 import com.artivisi.paymentgateway.dto.ConsumerRequest;
 import com.artivisi.paymentgateway.dto.CreateChargeRequest;
 import com.artivisi.paymentgateway.dto.EscrowAccountRequest;
+import com.artivisi.paymentgateway.dto.SettlementAmountBasis;
 import com.artivisi.paymentgateway.dto.SettlementCredit;
 import com.artivisi.paymentgateway.entity.AuthScheme;
 import com.artivisi.paymentgateway.entity.Charge;
@@ -138,6 +139,63 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void matchesOnTheBankJournalNumberWhenTheFileCarriesThatInstead() {
+        EscrowAccount fee = escrowService.create(
+                escrowRequest("recon-jrn-" + SEQ.incrementAndGet(), new BigDecimal("2000")));
+        escrow = fee;
+        createCharge("9300000031", "100000");
+        // The callback's own reference, and beside it the bank's core-banking journal number.
+        paymentService.apply(fee, "9300000031", new BigDecimal("100000"),
+                "93000000312026062517000", TX_TIME, "5310230625100000000451");
+
+        // A file exported from the bank's transaction portal identifies the same payment by the
+        // journal number instead. Matching on the callback reference alone finds nothing in such a
+        // file, and every row of it then reads as money the bank settled and we never recorded —
+        // which, in a recovering run, would manufacture a duplicate payment for each one.
+        ReconciliationRun run = reconciliationService.reconcile(fee, PERIOD,
+                List.of(credit("9300000031", "5310230625100000000451", "98000")),
+                true, SettlementAmountBasis.NET_OF_FEE);
+
+        assertThat(run.getMatchedCount()).isEqualTo(1);
+        assertThat(run.getRecoveredCount()).isZero();
+        assertThat(run.getDiscrepancyCount()).isZero();
+    }
+
+    @Test
+    void aGrossTransactionListIsComparedGross_notNetOfTheFee() {
+        EscrowAccount fee = escrowService.create(
+                escrowRequest("recon-gross-" + SEQ.incrementAndGet(), new BigDecimal("2000")));
+        escrow = fee;
+        createCharge("9300000032", "100000");
+        paymentService.apply(fee, "9300000032", new BigDecimal("100000"), "G1", TX_TIME);
+
+        // A transaction list reports what the payer sent, not what the account received. Taking the
+        // fee off here would make every row of it an amount mismatch.
+        ReconciliationRun run = reconciliationService.reconcile(fee, PERIOD,
+                List.of(credit("9300000032", "G1", "100000")), true, SettlementAmountBasis.GROSS);
+
+        assertThat(run.getMatchedCount()).isEqualTo(1);
+        assertThat(run.getDiscrepancyCount()).isZero();
+    }
+
+    @Test
+    void aGrossFileDoesNotNeedTheFeeConfigured() {
+        // The fee only exists to bridge gross to net. A file that is already gross does not need it,
+        // and refusing to run would be refusing for no reason.
+        EscrowAccount unset = escrowService.create(
+                escrowRequest("recon-gross-nofee-" + SEQ.incrementAndGet(), null));
+        escrow = unset;
+        createCharge("9300000033", "100000");
+        paymentService.apply(unset, "9300000033", new BigDecimal("100000"), "G2", TX_TIME);
+
+        ReconciliationRun run = reconciliationService.reconcile(unset, PERIOD,
+                List.of(credit("9300000033", "G2", "100000")), true, SettlementAmountBasis.GROSS);
+
+        assertThat(run.getMatchedCount()).isEqualTo(1);
+        assertThat(run.getDiscrepancyCount()).isZero();
+    }
+
+    @Test
     void reportOnly_flagsUnrecordedCreditsWithoutManufacturingPayments() {
         createCharge("9300000021", "100000");
         long paymentsBefore = paymentRepository.count();
@@ -146,7 +204,7 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
         // create the payment; report-only must not, because the file may not be one whose references
         // we can trust — that is the whole reason the mode exists.
         ReconciliationRun run = reconciliationService.reconcile(escrow, PERIOD,
-                List.of(credit("9300000021", "RO-1", "100000")), false);
+                List.of(credit("9300000021", "RO-1", "100000")), false, SettlementAmountBasis.NET_OF_FEE);
 
         assertThat(run.getRecoveredCount()).isZero();
         assertThat(paymentRepository.count())
@@ -232,9 +290,23 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
+    void reconcileEndpoint_refusesAFileWhoseAmountBasisIsNotStated() {
+        createCharge("9300000034", "250000");
+        // Omitting it used to be harmless because net was assumed. It is not harmless: the same file
+        // read on the wrong basis reports every row as an amount mismatch, so the caller has to say.
+        String body = "{\"period\":\"2026-06-25\",\"credits\":[{\"vaNumber\":\"9300000034\","
+                + "\"bankReference\":\"R34\",\"amount\":250000,\"transactionTime\":\"2026-06-25T10:00:00Z\"}]}";
+
+        given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(body)
+                .when().post("/api/escrow-accounts/{code}/reconciliations", escrow.getCode())
+                .then().statusCode(400);
+    }
+
+    @Test
     void reconcileEndpoint_returnsSummary() {
         createCharge("9300000030", "250000");
-        String body = "{\"period\":\"2026-06-25\",\"credits\":[{\"vaNumber\":\"9300000030\","
+        String body = "{\"period\":\"2026-06-25\",\"amountBasis\":\"NET_OF_FEE\","
+                + "\"credits\":[{\"vaNumber\":\"9300000030\","
                 + "\"bankReference\":\"R30\",\"amount\":250000,\"transactionTime\":\"2026-06-25T10:00:00Z\"}]}";
 
         given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(body)
