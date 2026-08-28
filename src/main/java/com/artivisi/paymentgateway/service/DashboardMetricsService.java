@@ -39,7 +39,7 @@ import static com.artivisi.paymentgateway.web.viewmodel.ViewFormats.time;
 @Service
 public class DashboardMetricsService {
 
-    private static final List<ChargeStatus> OUTSTANDING_STATUSES = List.of(ChargeStatus.ACTIVE, ChargeStatus.PARTIALLY_PAID);
+    private static final List<ChargeStatus> OUTSTANDING_STATUSES = List.of(ChargeStatus.ACTIVE);
     private static final int TREND_DAYS = 14;
     private static final DateTimeFormatter DAY_NUMBER = DateTimeFormatter.ofPattern("d");
     private static final DateTimeFormatter DAY_TOOLTIP = DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("id-ID"));
@@ -62,8 +62,7 @@ public class DashboardMetricsService {
         Instant startOfMonth = nowJkt.toLocalDate().withDayOfMonth(1).atStartOfDay(DISPLAY_ZONE).toInstant();
 
         BigDecimal outstanding = chargeRepository.sumOutstanding(OUTSTANDING_STATUSES);
-        long activeCount = chargeRepository.countByStatus(ChargeStatus.ACTIVE)
-                + chargeRepository.countByStatus(ChargeStatus.PARTIALLY_PAID);
+        long activeCount = chargeRepository.countByStatus(ChargeStatus.ACTIVE);
 
         BigDecimal collectedToday = paymentRepository.sumAmountInPeriod(PaymentStatus.ACCEPTED, startOfToday, now);
         long paymentsToday = paymentRepository.countByStatusAndTransactionTimeBetween(PaymentStatus.ACCEPTED, startOfToday, now);

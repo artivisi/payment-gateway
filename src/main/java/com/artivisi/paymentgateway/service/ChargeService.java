@@ -138,7 +138,7 @@ public class ChargeService {
     public ChargeResponse extendExpiry(Consumer consumer, String id, java.time.Instant expiresAt) {
         Charge charge = chargeRepository.findByIdAndConsumerId(id, consumer.getId())
                 .orElseThrow(() -> new NotFoundException("charge not found: " + id));
-        if (charge.getStatus() != ChargeStatus.ACTIVE && charge.getStatus() != ChargeStatus.PARTIALLY_PAID) {
+        if (charge.getStatus() != ChargeStatus.ACTIVE) {
             throw new InvalidRequestException(
                     "cannot move the deadline of a " + charge.getStatus() + " charge");
         }
