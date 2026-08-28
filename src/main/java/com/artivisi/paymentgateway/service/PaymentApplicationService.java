@@ -127,7 +127,6 @@ public class PaymentApplicationService {
 
         switch (charge.getChargeType()) {
             case CLOSED -> applyClosed(charge, va, amount);
-            case INSTALLMENT -> applyInstallment(charge, va, amount);
             case OPEN -> applyOpen(charge, amount);
         }
 
@@ -191,8 +190,8 @@ public class PaymentApplicationService {
         boolean settledByThisPayment = charge.getStatus() == ChargeStatus.PAID;
         payment.setStatus(PaymentStatus.REVERSED);
         charge.setCumulativePaid(charge.getCumulativePaid().subtract(payment.getAmount()));
-        charge.setStatus(charge.getCumulativePaid().signum() == 0
-                ? ChargeStatus.ACTIVE : ChargeStatus.PARTIALLY_PAID);
+        // A CLOSED charge reverses to zero; an OPEN charge never left ACTIVE. Neither has a partial state.
+        charge.setStatus(ChargeStatus.ACTIVE);
         if (settledByThisPayment) {
             for (VirtualAccount sibling : virtualAccountRepository.findByChargeId(charge.getId())) {
                 if (sibling.getStatus() == VirtualAccountStatus.PAID
@@ -229,24 +228,6 @@ public class PaymentApplicationService {
         charge.setCumulativePaid(amount);
         charge.setStatus(ChargeStatus.PAID);
         settleAndCancelSiblings(charge, paidVa);
-    }
-
-    private void applyInstallment(Charge charge, VirtualAccount paidVa, BigDecimal amount) {
-        if (charge.getStatus() == ChargeStatus.PAID) {
-            throw new InvalidPaymentException("charge already paid (overpayment)");
-        }
-        BigDecimal newCumulative = charge.getCumulativePaid().add(amount);
-        if (newCumulative.compareTo(charge.getAmount()) > 0) {
-            BigDecimal remaining = charge.getAmount().subtract(charge.getCumulativePaid());
-            throw new InvalidPaymentException("payment exceeds remaining " + remaining);
-        }
-        charge.setCumulativePaid(newCumulative);
-        if (newCumulative.compareTo(charge.getAmount()) == 0) {
-            charge.setStatus(ChargeStatus.PAID);
-            settleAndCancelSiblings(charge, paidVa);
-        } else {
-            charge.setStatus(ChargeStatus.PARTIALLY_PAID);
-        }
     }
 
     private void applyOpen(Charge charge, BigDecimal amount) {

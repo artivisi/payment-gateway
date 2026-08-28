@@ -37,8 +37,7 @@ public class ExpiryReaper {
 
     private static final Logger log = LoggerFactory.getLogger(ExpiryReaper.class);
 
-    private static final List<ChargeStatus> EXPIRABLE = List.of(
-            ChargeStatus.ACTIVE, ChargeStatus.PARTIALLY_PAID);
+    private static final List<ChargeStatus> EXPIRABLE = List.of(ChargeStatus.ACTIVE);
 
     private final ChargeRepository chargeRepository;
     private final VirtualAccountRepository virtualAccountRepository;

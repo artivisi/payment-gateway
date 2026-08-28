@@ -126,34 +126,6 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void installment_sharesCumulativeAcrossBanksThenCompletes() {
-        Charge charge = createCharge(ChargeType.INSTALLMENT, new BigDecimal("1000000"));
-
-        paymentService.apply(bsi, bsiVa, new BigDecimal("400000"), "BSI-REF-1", Instant.now());
-        Charge afterPartial = chargeRepository.findById(charge.getId()).orElseThrow();
-        assertThat(afterPartial.getStatus()).isEqualTo(ChargeStatus.PARTIALLY_PAID);
-        assertThat(afterPartial.getCumulativePaid()).isEqualByComparingTo("400000");
-
-        // The other bank now sees the reduced remaining (shared cumulative).
-        InquiryResult cimbInquiry = inquiryService.inquire(cimb, cimbVa);
-        assertThat(cimbInquiry.remainingAmount()).isEqualByComparingTo("600000");
-
-        paymentService.apply(cimb, cimbVa, new BigDecimal("600000"), "CIMB-REF-1", Instant.now());
-        Charge afterFull = chargeRepository.findById(charge.getId()).orElseThrow();
-        assertThat(afterFull.getStatus()).isEqualTo(ChargeStatus.PAID);
-        assertThat(vaStatus(cimb.getId(), cimbVa)).isEqualTo(VirtualAccountStatus.PAID);
-        assertThat(vaStatus(bsi.getId(), bsiVa)).isEqualTo(VirtualAccountStatus.CANCELLED);
-    }
-
-    @Test
-    void installment_overpaymentIsRejected() {
-        createCharge(ChargeType.INSTALLMENT, new BigDecimal("1000000"));
-        assertThatThrownBy(() -> paymentService.apply(bsi, bsiVa, new BigDecimal("1200000"), "BSI-REF-1", Instant.now()))
-                .isInstanceOf(InvalidPaymentException.class)
-                .hasMessageContaining("exceeds remaining");
-    }
-
-    @Test
     void open_accumulatesAndKeepsSiblingsOpen() {
         Charge charge = createCharge(ChargeType.OPEN, new BigDecimal("100000"));
         paymentService.apply(bsi, bsiVa, new BigDecimal("50000"), "BSI-REF-1", Instant.now());

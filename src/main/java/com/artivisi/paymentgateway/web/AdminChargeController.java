@@ -105,7 +105,6 @@ public class AdminChargeController {
     private static String statusClass(ChargeStatus status) {
         return switch (status) {
             case ACTIVE -> "badge-primary";
-            case PARTIALLY_PAID -> "badge-warn";
             case PAID -> "badge-ok";
             case EXPIRED -> "badge-danger";
             case CANCELLED -> "badge-muted";
@@ -121,8 +120,6 @@ public class AdminChargeController {
                 new ChipView("All", chargeRepository.count(), activeStatus == null, href.apply(null)),
                 new ChipView("Active", chargeRepository.countByStatus(ChargeStatus.ACTIVE),
                         activeStatus == ChargeStatus.ACTIVE, href.apply(ChargeStatus.ACTIVE)),
-                new ChipView("Partially paid", chargeRepository.countByStatus(ChargeStatus.PARTIALLY_PAID),
-                        activeStatus == ChargeStatus.PARTIALLY_PAID, href.apply(ChargeStatus.PARTIALLY_PAID)),
                 new ChipView("Paid", chargeRepository.countByStatus(ChargeStatus.PAID),
                         activeStatus == ChargeStatus.PAID, href.apply(ChargeStatus.PAID)),
                 new ChipView("Expired", chargeRepository.countByStatus(ChargeStatus.EXPIRED),

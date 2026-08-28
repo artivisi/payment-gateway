@@ -143,23 +143,6 @@ class PaymentConcurrencyIntegrationTest extends AbstractIntegrationTest {
     }
 
     @Test
-    void installment_simultaneousPartialsAtTwoBanks_neverLoseAnUpdate() throws Exception {
-        Charge charge = createCharge(ChargeType.INSTALLMENT, new BigDecimal("1000000"));
-
-        List<Outcome> outcomes = race(List.of(
-                () -> paymentService.apply(bsi, bsiVa, new BigDecimal("300000"), "RACE-BSI-2", Instant.now()),
-                () -> paymentService.apply(cimb, cimbVa, new BigDecimal("400000"), "RACE-CIMB-2", Instant.now())));
-
-        assertThat(outcomes).filteredOn(o -> o.payment() != null).hasSize(2);
-
-        Charge reloaded = chargeRepository.findById(charge.getId()).orElseThrow();
-        assertThat(reloaded.getCumulativePaid()).isEqualByComparingTo("700000");
-        assertThat(reloaded.getStatus()).isEqualTo(ChargeStatus.PARTIALLY_PAID);
-        assertThat(virtualAccountRepository.findByChargeId(charge.getId()))
-                .allSatisfy(va -> assertThat(va.getStatus()).isEqualTo(VirtualAccountStatus.ACTIVE));
-    }
-
-    @Test
     void closed_replayRacingItself_neverDoubleCounts() throws Exception {
         BigDecimal amount = new BigDecimal("1000000");
         Charge charge = createCharge(ChargeType.CLOSED, amount);

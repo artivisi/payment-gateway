@@ -123,7 +123,7 @@ class ExpiryReaperIntegrationTest extends AbstractIntegrationTest {
         assertThat(auditRepository.count())
                 .as("a sweep that retires nothing must not write an audit event")
                 .isEqualTo(auditsAfterFirst);
-        assertThat(chargeRepository.findExpired(Instant.now(), List.of(ChargeStatus.ACTIVE, ChargeStatus.PARTIALLY_PAID)))
+        assertThat(chargeRepository.findExpired(Instant.now(), List.of(ChargeStatus.ACTIVE)))
                 .as("a charge with no ACTIVE VA left has nothing to sweep")
                 .noneMatch(c -> c.getId().equals(chargeId));
     }
