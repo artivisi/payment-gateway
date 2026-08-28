@@ -170,6 +170,32 @@ public class ChargeService {
         return ChargeResponse.from(charge, vas);
     }
 
+    /**
+     * Change what the charge is worth from now on. The VA number and the deadline stay; only the
+     * figure an inquiry answers moves.
+     *
+     * <p>Refused on anything but an ACTIVE charge: a paid CLOSED charge has nothing left to price,
+     * and a cancelled or expired one is not collectible, so a new amount would be a silent promise
+     * the bank never sees. There is no webhook for this — the consumer is the only caller and it
+     * already knows; if an operator path is ever added, that path must emit one (see cancel).
+     */
+    @Transactional
+    public ChargeResponse reprice(Consumer consumer, String id, BigDecimal amount) {
+        Charge charge = chargeRepository.findByIdAndConsumerId(id, consumer.getId())
+                .orElseThrow(() -> new NotFoundException("charge not found: " + id));
+        if (charge.getStatus() != ChargeStatus.ACTIVE) {
+            throw new InvalidRequestException("cannot reprice a " + charge.getStatus() + " charge");
+        }
+        if (amount == null || amount.signum() <= 0) {
+            throw new InvalidRequestException("amount must be greater than zero; got " + amount);
+        }
+        BigDecimal previous = charge.getAmount();
+        charge.setAmount(amount);
+        auditService.record("CHARGE_REPRICED", "Charge", charge.getId(),
+                "consumerReference=" + charge.getConsumerReference() + " from=" + previous + " to=" + amount);
+        return ChargeResponse.from(charge, virtualAccountRepository.findByChargeId(charge.getId()));
+    }
+
     @Transactional
     public ChargeResponse cancel(Consumer consumer, String id) {
         Charge charge = chargeRepository.findByIdAndConsumerId(id, consumer.getId())

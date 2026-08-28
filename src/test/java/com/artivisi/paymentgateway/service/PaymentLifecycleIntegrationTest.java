@@ -125,6 +125,34 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
                 .hasMessageContaining("CANCELLED");
     }
 
+    /**
+     * A receivables application walks one VA through an instalment plan by repricing the same
+     * CLOSED charge: the number the student holds never changes, the amount the bank answers does.
+     */
+    @Test
+    void closed_repriceChangesWhatInquiryAnswers_andPaymentMustMatchTheNewAmount() {
+        Charge charge = createCharge(ChargeType.CLOSED, new BigDecimal("2166667"));
+        assertThat(inquiryService.inquire(bsi, bsiVa).remainingAmount()).isEqualByComparingTo("2166667");
+
+        chargeService.reprice(charge.getConsumer(), charge.getId(), new BigDecimal("4333334"));
+
+        assertThat(inquiryService.inquire(bsi, bsiVa).remainingAmount()).isEqualByComparingTo("4333334");
+        assertThatThrownBy(() -> paymentService.apply(bsi, bsiVa, new BigDecimal("2166667"), "BSI-OLD", Instant.now()))
+                .isInstanceOf(InvalidPaymentException.class)
+                .hasMessageContaining("exact amount");
+        paymentService.apply(bsi, bsiVa, new BigDecimal("4333334"), "BSI-NEW", Instant.now());
+        assertThat(chargeRepository.findById(charge.getId()).orElseThrow().getStatus()).isEqualTo(ChargeStatus.PAID);
+    }
+
+    @Test
+    void reprice_isRefusedOncePaidOrCancelled() {
+        Charge charge = createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
+        paymentService.apply(bsi, bsiVa, new BigDecimal("1000000"), "BSI-REF-1", Instant.now());
+        assertThatThrownBy(() -> chargeService.reprice(charge.getConsumer(), charge.getId(), new BigDecimal("5")))
+                .isInstanceOf(com.artivisi.paymentgateway.exception.InvalidRequestException.class)
+                .hasMessageContaining("PAID");
+    }
+
     @Test
     void open_accumulatesAndKeepsSiblingsOpen() {
         Charge charge = createCharge(ChargeType.OPEN, new BigDecimal("100000"));
