@@ -3,6 +3,7 @@ package com.artivisi.paymentgateway.web;
 import com.artivisi.paymentgateway.dto.ChargeResponse;
 import com.artivisi.paymentgateway.dto.CreateChargeRequest;
 import com.artivisi.paymentgateway.dto.ExtendChargeRequest;
+import com.artivisi.paymentgateway.dto.RepriceChargeRequest;
 import com.artivisi.paymentgateway.entity.Consumer;
 import com.artivisi.paymentgateway.service.ChargeService;
 import com.artivisi.paymentgateway.service.ConsumerAuthService;
@@ -73,5 +74,16 @@ public class ChargeController {
             @Valid @RequestBody ExtendChargeRequest request) {
         Consumer consumer = consumerAuthService.authenticate(clientId, clientSecret);
         return chargeService.extendExpiry(consumer, id, request.expiresAt());
+    }
+
+    /** Change the amount an open charge answers on inquiry; the VA number and deadline stay. */
+    @PostMapping("/{id}/reprice")
+    public ChargeResponse reprice(
+            @RequestHeader(value = CLIENT_ID_HEADER, required = false) String clientId,
+            @RequestHeader(value = CLIENT_SECRET_HEADER, required = false) String clientSecret,
+            @PathVariable String id,
+            @Valid @RequestBody RepriceChargeRequest request) {
+        Consumer consumer = consumerAuthService.authenticate(clientId, clientSecret);
+        return chargeService.reprice(consumer, id, request.amount());
     }
 }
