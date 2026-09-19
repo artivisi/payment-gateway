@@ -20,13 +20,13 @@ Spring Boot 4 · Java 25 · PostgreSQL 18 + Flyway · Spring WebClient · Thymel
 - transport + auth: REST/JSON | SOAP/XML; SNAP | proprietary
 - endpoints (sandbox / prod)
 - settlement: physical bank account
-- number space: company id + prefix + available digits
+- number space: company id + prefix + digit layout (allocation strategy, slot width, payer width + padding) — the gateway allocates within it
 - grouping tags: merchant, institution — labels for reporting/attribution, **not** aggregates
 
 Other entities:
 
 - `Charge` — the unit of money owed, created by a `Consumer`. Carries `payer`, `type` (`OPEN` | `CLOSED`), `amount` (target), `cumulativePaid`, `status`, `expiresAt` (**soft** — see below), and `consumerReference` (the consumer's own bill id; unique per consumer — idempotency key). A charge is payable through **one or more** sibling `VirtualAccount`s across different escrows (pay-via-any-bank). Type and amount live here, not on the VA, because they describe one debt regardless of which bank rail settles it. One escrow hosts both charge types simultaneously.
-- `VirtualAccount` — one bank payment instrument for a charge: `charge` + `escrowAccount` (selects the adapter) + consumer-supplied `vaNumber` (validated within the escrow's number space) + `status`. The effective amount answered on inquiry is `charge.amount − charge.cumulativePaid`. A single-bank charge is just a charge with one VA.
+- `VirtualAccount` — one bank payment instrument for a charge: `charge` + `escrowAccount` (selects the adapter) + gateway-allocated `vaNumber` (composed in the escrow's number space from the charge's payer and slot keys — see VA number allocation) + `status`. The effective amount answered on inquiry is `charge.amount − charge.cumulativePaid`. A single-bank charge is just a charge with one VA.
 - `Payment` — one received transaction, against a `VirtualAccount` (and its `charge`). One settles a CLOSED charge; many accumulate for OPEN.
 - `Consumer` — a client application (registration, academic, …): client id/secret + webhook URL. Creates charges, receives notifications.
 - `ReconciliationRun`, `AuditEvent`.
@@ -54,8 +54,8 @@ reconciliation: pullSettlement(escrow, period) | importStatement(file)
 Launch adapters (all `SELF_HOSTED`): `maybank` (SNAP/REST), `bsi` (proprietary REST/JSON), `cimb` (proprietary SOAP/XML). The `BANK_HOSTED` path (e.g. BNI) is part of the interface; implement it when a bank-hosted deal lands.
 
 `Payment` creation branches on the escrow's `hostingModel`:
-- `SELF_HOSTED` → validate space + local availability → reserve locally (gateway answers inquiries).
-- `BANK_HOSTED` → validate space → `createVa` at bank → reserve on success (bank is authoritative; gateway keeps a VA↔payment mirror for notification matching + reconciliation).
+- `SELF_HOSTED` → allocate in space + check local availability → reserve locally (gateway answers inquiries).
+- `BANK_HOSTED` → allocate in space → `createVa` at bank → reserve on success (bank is authoritative; gateway keeps a VA↔payment mirror for notification matching + reconciliation).
 
 ## Charge lifecycle & pay-via-any-bank
 
@@ -96,7 +96,32 @@ and enforces it itself — so the field is required there regardless of our own 
 
 ## VA number allocation
 
-Consumers compute the number; the gateway validates it (within the escrow's company-id / prefix / digit space, and available) and registers it. A charge supplies **one `vaNumber` per target escrow**. **The gateway does not generate numbers.**
+**The gateway allocates VA numbers; consumers never compute them.** Decided 2026-09-19, reversing
+the earlier consumer-computes design; implementation is issue #1. Until it lands, the code still
+takes a consumer-supplied `vaNumber` and `NumberSpaceValidator` only validates it.
+
+The split follows what each side knows. Everything specific to a bank's number space — company id,
+prefix, total digits, segment widths, padding, how the interbank form is composed — lives on the
+escrow, and the gateway is the only component that knows it. The consumer supplies only
+bank-agnostic facts it owns:
+
+- `payerKey` — its stable identifier for the payer;
+- `slotKey` — a short numeric key distinguishing a payer's concurrent VAs. The consumer maps its own
+  vocabulary (bill category, invoice type) to slots; the gateway never learns what a slot means.
+
+The gateway composes one number per target escrow, each in that escrow's own layout, and returns
+`vaNumber` plus `interbankVaNumber` per account. A consumer must never concatenate a prefix itself:
+that copies a bank fact out of the escrow, and it is right only until the layout changes or a second
+escrow exists.
+
+The one strategy is `PAYER_ENCODED`: `vaPrefix + leftPad(slotKey, slotDigits) +
+pad(payerKey, payerDigits, payerPadding)`. It is deterministic — the same payer and slot get the same
+number on every charge, because payers keep that number in their banking app. `payerPadding`
+(`LEFT` | `RIGHT`) is explicit per escrow; `RIGHT` exists to reproduce numbers already issued under
+that rule. Every layout field is required. A non-numeric key, or one that overflows its segment, is
+rejected rather than truncated. There is no sequential ("last number") strategy; add one when a
+deployment without standing payer identities needs it, allocating the counter inside the
+charge-create transaction so a rejected charge does not burn a number.
 
 **VA numbers are reusable.** A number may back several `VirtualAccount`s over time (one per successive charge), but at most **one ACTIVE** per escrow+number (enforced by `uq_va_escrow_number_active`); the rest are retired (PAID/CANCELLED/EXPIRED). Every lookup is therefore **generation-aware**: inquiry resolves the ACTIVE generation; payment/reversal/reconciliation prefer the ACTIVE generation and check idempotency across all generations of the number. Never assume a `(escrow, vaNumber)` maps to a single VA row.
 
