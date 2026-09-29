@@ -223,7 +223,7 @@ public class ReconciliationService {
     }
 
     /**
-     * Second key for the same payment. Two references identify a BANK_A payment and which one you hold
+     * Second key for the same payment. Two references can identify one payment, and which one you hold
      * depends on which document you were given: the payment callback carries {@code idTransaksi},
      * stored as {@code bankReference}, while the bank's transaction portal exports
      * {@code nomorJurnalPembukuan}. The two numbering spaces have no overlap, so a portal export

@@ -20,7 +20,7 @@ import java.util.List;
  * Fails loud on malformed rows.
  *
  * <p>The reference column may carry either reference a bank identifies the payment by: the one from
- * the payment callback ({@code idTransaksi} for BANK_A) or its core-banking journal number, which is
+ * the payment callback (the transaction id, under whatever name the bank gives it) or its core-banking journal number, which is
  * what a transaction-portal export carries instead. Reconciliation tries both, so the column needs
  * no per-file declaration. The <em>amount</em> column does — see
  * {@link com.artivisi.paymentgateway.dto.SettlementAmountBasis}.

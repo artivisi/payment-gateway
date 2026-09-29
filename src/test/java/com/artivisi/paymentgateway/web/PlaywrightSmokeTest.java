@@ -116,7 +116,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
 
     private EscrowAccountRequest escrowRequest(String code) {
         return new EscrowAccountRequest(
-                code, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                code, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "900900111", "Settle", "90099", "900", 10, null, null);
     }
@@ -310,7 +310,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         int n = SEQ.incrementAndGet();
         // Escrow matching the settlement-sample.csv VA number space (prefix=940, length=10)
         escrowAccountService.create(new EscrowAccountRequest(
-                "pw-recon-" + n, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                "pw-recon-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "940090111", "Settle", "90001", "940", 10, null, null,
                 // This stub bank keeps nothing, stated explicitly: reconciliation refuses to run
@@ -339,7 +339,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
     void settlementClaimShowsWhatTheBankIsBeingAskedToConfirm() {
         int n = SEQ.incrementAndGet();
         var escrow = escrowAccountService.create(new EscrowAccountRequest(
-                "pw-claim-" + n, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                "pw-claim-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "9990001234", "Settlement Account", "90001", "941", 10,
                 null, null, new java.math.BigDecimal("2000")));
@@ -394,7 +394,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
     void discrepancyReviewListsWhatTheBankHasNotSettled() {
         int n = SEQ.incrementAndGet();
         var escrow = escrowAccountService.create(new EscrowAccountRequest(
-                "pw-disc-" + n, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                "pw-disc-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "9990001234", "Settlement Account", "90001", "942", 10,
                 null, null, new java.math.BigDecimal("2000")));
@@ -435,7 +435,7 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
     void auditLogNamesChargesByBillNumberAndVaRatherThanUuid() {
         int n = SEQ.incrementAndGet();
         var escrow = escrowAccountService.create(new EscrowAccountRequest(
-                "pw-audit-" + n, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                "pw-audit-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "9990001234", "Settlement Account", "90001", "943", 10,
                 null, null, new java.math.BigDecimal("2000")));

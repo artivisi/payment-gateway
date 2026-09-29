@@ -41,15 +41,15 @@ absent — see the linked report's §6 for what "0 mismatches" here does and doe
 
 - **Load tool**: [k6](https://k6.io) v0.55+, `ramping-arrival-rate` executor, 50 → 500 → 1,000 →
   2,000 TPS target over 90 seconds.
-- **Protocol under test**: the real production BANK_A adapter (`/api/bank/bank_a`), full SHA-1 checksum
+- **Protocol under test**: the real production a bank adapter (`/api/bank/bank`), full SHA-1 checksum
   verification, six seeded VA/amount pairs (CLOSED, OPEN, INSTALLMENT charge types) — not a
   synthetic or unauthenticated endpoint.
 - **Test script**: [`scenarios/suite-rdbms.js`](https://github.com/artivisi/payment-gateway-evtsrc/blob/main/scenarios/suite-rdbms.js),
   which lives in the `payment-gateway-evtsrc` repo alongside its own equivalent script
-  (`suite-bank_a.js`) so both systems are driven by the same request shape, checksum scheme, VA/amount
+  (`suite-bank.js`) so both systems are driven by the same request shape, checksum scheme, VA/amount
   pairs, and ramp profile. Run against this repo's app on port 8080.
 - **Fresh database**: the app's database (both schema and containers) was rebuilt from scratch
-  immediately before this run, then reseeded, then given a freshly generated BANK_A secret encrypted
+  immediately before this run, then reseeded, then given a freshly generated a bank secret encrypted
   and written to the escrow row and verified via a live checksum round-trip.
 - **Environment check**: `docker ps -a` and `uptime` checked twice before running, specifically to
   rule out the kind of unrelated background container churn that contaminated the morning's runs.
@@ -116,7 +116,7 @@ twice more (p99 9.19ms / 8.65ms), again no measurable cost.
 
 ## A note on the test secret
 
-The BANK_A sandbox escrow (`escrow_account.code = 'BANK_A'`, `active_environment = 'SANDBOX'`) has no
+The a bank sandbox escrow (`escrow_account.code = 'a bank'`, `active_environment = 'SANDBOX'`) has no
 usable `client_secret` in freshly-seeded data (a `NULL`/empty secret makes the checksum trivially
 guessable, so it can't be used for a real checksum-verified load test). A fresh, disposable random
 secret is generated per run and written to that one sandbox row, encrypted with this app's own

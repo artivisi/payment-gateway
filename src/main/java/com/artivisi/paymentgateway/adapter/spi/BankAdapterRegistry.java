@@ -60,7 +60,11 @@ public class BankAdapterRegistry {
 
     @PostConstruct
     void everyConfiguredEscrowHasAnAdapter() {
+        // Enabled escrows only. A disabled one collects nothing, so a missing adapter costs nothing
+        // either, and refusing to start over a bank the operator has already retired would make
+        // decommissioning a deployment harder than commissioning it.
         List<String> orphans = escrowAccounts.findAll().stream()
+                .filter(EscrowAccount::isEnabled)
                 .filter(e -> !byProvider.containsKey(e.getProvider()))
                 .map(e -> e.getCode() + " (provider '" + e.getProvider() + "')")
                 .sorted()

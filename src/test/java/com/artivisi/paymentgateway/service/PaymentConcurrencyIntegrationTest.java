@@ -57,13 +57,13 @@ class PaymentConcurrencyIntegrationTest extends AbstractIntegrationTest {
     @Autowired PaymentRepository paymentRepository;
 
     private Consumer consumer;
-    private EscrowAccount bank_a;
-    private EscrowAccount bank_b;
-    private String bank_aVa;
-    private String bank_bVa;
+    private EscrowAccount primary;
+    private EscrowAccount altEscrow;
+    private String primaryVa;
+    private String altVa;
 
     private static EscrowAccountRequest escrowRequest(String code) {
-        return new EscrowAccountRequest(code, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+        return new EscrowAccountRequest(code, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "910900111", "Operator Settlement", "91099", "910", 10, null, null);
     }
@@ -74,17 +74,17 @@ class PaymentConcurrencyIntegrationTest extends AbstractIntegrationTest {
         consumer = consumerService.create(new ConsumerRequest(
                 "race-consumer-" + n, "Academic", "race-client-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
-        bank_a = escrowService.create(escrowRequest("race-bank_a-" + n));
-        bank_b = escrowService.create(escrowRequest("race-bank_b-" + n));
-        bank_aVa = "910000000" + (n % 10);
-        bank_bVa = "910000001" + (n % 10);
+        primary = escrowService.create(escrowRequest("race-demo-" + n));
+        altEscrow = escrowService.create(escrowRequest("race-altEscrow-" + n));
+        primaryVa = "910000000" + (n % 10);
+        altVa = "910000001" + (n % 10);
     }
 
     private Charge createCharge(ChargeType type, BigDecimal amount) {
         var outcome = chargeService.create(consumer, new CreateChargeRequest(
                 "race-ref-" + SEQ.get(), "Student", null, null, type, amount, null,
-                List.of(new ChargeAccountRequest(bank_a.getCode(), bank_aVa),
-                        new ChargeAccountRequest(bank_b.getCode(), bank_bVa))));
+                List.of(new ChargeAccountRequest(primary.getCode(), primaryVa),
+                        new ChargeAccountRequest(altEscrow.getCode(), altVa))));
         return chargeRepository.findById(outcome.response().id()).orElseThrow();
     }
 
@@ -127,8 +127,8 @@ class PaymentConcurrencyIntegrationTest extends AbstractIntegrationTest {
         Charge charge = createCharge(ChargeType.CLOSED, amount);
 
         List<Outcome> outcomes = race(List.of(
-                () -> paymentService.apply(bank_a, bank_aVa, amount, "RACE-BANK_A-1", Instant.now()),
-                () -> paymentService.apply(bank_b, bank_bVa, amount, "RACE-BANK_B-1", Instant.now())));
+                () -> paymentService.apply(primary, primaryVa, amount, "RACE-the primary escrow-1", Instant.now()),
+                () -> paymentService.apply(altEscrow, altVa, amount, "RACE-the sibling escrow-1", Instant.now())));
 
         assertThat(outcomes).filteredOn(o -> o.payment() != null).hasSize(1);
         assertThat(outcomes).filteredOn(o -> o.error() != null).singleElement()
@@ -148,7 +148,7 @@ class PaymentConcurrencyIntegrationTest extends AbstractIntegrationTest {
         Charge charge = createCharge(ChargeType.CLOSED, amount);
 
         Callable<Payment> replay =
-                () -> paymentService.apply(bank_a, bank_aVa, amount, "RACE-REPLAY-1", Instant.now());
+                () -> paymentService.apply(primary, primaryVa, amount, "RACE-REPLAY-1", Instant.now());
         List<Outcome> outcomes = race(List.of(replay, replay));
 
         // BOTH deliveries must answer with the recorded payment. Rejecting the loser as
@@ -168,7 +168,7 @@ class PaymentConcurrencyIntegrationTest extends AbstractIntegrationTest {
         Charge charge = createCharge(ChargeType.OPEN, new BigDecimal("100000"));
 
         Callable<Payment> replay =
-                () -> paymentService.apply(bank_a, bank_aVa, new BigDecimal("50000"), "RACE-REPLAY-2", Instant.now());
+                () -> paymentService.apply(primary, primaryVa, new BigDecimal("50000"), "RACE-REPLAY-2", Instant.now());
         List<Outcome> outcomes = race(List.of(replay, replay));
 
         // OPEN accumulates without an already-paid guard, so before the under-lock idempotency
@@ -187,10 +187,10 @@ class PaymentConcurrencyIntegrationTest extends AbstractIntegrationTest {
         BigDecimal amount = new BigDecimal("1000000");
         Charge charge = createCharge(ChargeType.CLOSED, amount);
 
-        // The sequential case: BANK_A re-sends a notification hours after the charge settled. It must
+        // The sequential case: the primary escrow re-sends a notification hours after the charge settled. It must
         // still answer 00 with the recorded payment, not 13 "already paid".
-        Payment first = paymentService.apply(bank_a, bank_aVa, amount, "RETRY-1", Instant.now());
-        Payment retry = paymentService.apply(bank_a, bank_aVa, amount, "RETRY-1", Instant.now());
+        Payment first = paymentService.apply(primary, primaryVa, amount, "RETRY-1", Instant.now());
+        Payment retry = paymentService.apply(primary, primaryVa, amount, "RETRY-1", Instant.now());
 
         assertThat(retry.getId()).isEqualTo(first.getId());
         Charge reloaded = chargeRepository.findById(charge.getId()).orElseThrow();

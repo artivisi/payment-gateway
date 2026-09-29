@@ -1,5 +1,7 @@
 package com.artivisi.paymentgateway.config;
 
+import com.artivisi.paymentgateway.adapter.spi.BankAdapter;
+import com.artivisi.paymentgateway.adapter.spi.BankAdapterRegistry;
 import com.artivisi.paymentgateway.repository.BankIpRuleRepository;
 import com.artivisi.paymentgateway.repository.OperatorRepository;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -130,12 +132,24 @@ public class SecurityConfig {
         return http.build();
     }
 
-    /** Registers the per-provider bank IP allowlist on the bank-callback paths only. */
+    /**
+     * Registers the per-provider bank IP allowlist on the bank-callback paths only.
+     *
+     * <p>The paths come from the adapters this build has, not from a list written here. {@code
+     * /api/bank/*} stays as the conventional namespace, and anything outside it — a SOAP endpoint
+     * under {@code /ws}, say — is added because its adapter declares where the bank reaches it.
+     * Hardcoding them meant an adapter in a private assembly served traffic the allowlist never saw.
+     */
     @Bean
-    public FilterRegistrationBean<BankIpAllowlistFilter> bankIpAllowlistFilter(BankIpRuleRepository repository) {
+    public FilterRegistrationBean<BankIpAllowlistFilter> bankIpAllowlistFilter(
+            BankIpRuleRepository repository, BankAdapterRegistry adapters) {
         FilterRegistrationBean<BankIpAllowlistFilter> registration =
-                new FilterRegistrationBean<>(new BankIpAllowlistFilter(repository));
-        registration.addUrlPatterns("/api/bank/*", "/ws/bank_b/*");
+                new FilterRegistrationBean<>(new BankIpAllowlistFilter(repository, adapters));
+        registration.addUrlPatterns("/api/bank/*");
+        adapters.adapters().values().stream()
+                .map(BankAdapter::inboundPath)
+                .filter(path -> !path.startsWith("/api/bank/"))
+                .forEach(path -> registration.addUrlPatterns(path, path + "/*"));
         registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
         return registration;
     }

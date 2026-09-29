@@ -86,7 +86,7 @@ class ReconciliationCsvImportTest extends AbstractIntegrationTest {
                 .formParam("period", "2026-06-25")
                 // The fixtures are an account statement: amounts are what the account received.
                 .formParam("amountBasis", "NET_OF_FEE")
-                .when().post("/api/escrow-accounts/{code}/reconciliations/import", "demo-bank_a")
+                .when().post("/api/escrow-accounts/{code}/reconciliations/import", "demo-one")
                 .then().statusCode(201)
                 .body("matchedCount", equalTo(1))
                 .body("recoveredCount", equalTo(1))

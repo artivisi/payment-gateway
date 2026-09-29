@@ -69,7 +69,7 @@ public class PaymentApplicationService {
      * purpose is to be quoted back to the bank.
      *
      * <p>Annotated in its own right, not only on the five-argument delegate: adapters call this one
-     * directly, and without it the payment ran outside a transaction. The BANK_A tests caught that
+     * directly, and without it the payment ran outside a transaction. The adapter tests caught that
      * immediately — every payment and reversal failed with "No active transaction" while inquiries,
      * which take a different path, went on passing.
      */

@@ -14,7 +14,10 @@ This gateway provides one API across many banks, self-hosted, with no per-transa
 ## Scope
 
 - **Channel:** Virtual Account, inbound collection.
-- **Banks at launch:** BankC (SNAP / REST), BANK_A (proprietary REST/JSON), BANK_B (proprietary SOAP/XML).
+- **Banks:** any bank with an adapter. Adapters for real banks are built from those banks' own
+  integration specifications and live in private assemblies; this repository ships the adapter seam
+  and a complete worked adapter for an invented bank (SNAP, proprietary REST/JSON and SOAP/XML are
+  all supported shapes).
 - **Out of scope:** QRIS (percentage MDR is prohibitive for enrollment-scale amounts; flat VA pricing fits that case), outbound disbursement (separate product), credit cards, e-wallets.
 
 ## VA hosting models
@@ -56,7 +59,7 @@ A Thymeleaf admin UI manages escrows, consumers, charges/payments, reconciliatio
 
 - **Operator accounts** with **permission-based roles** — a fixed permission vocabulary (feature → permission) bundled into **data-driven roles** (ADMIN / OPERATOR / AUDITOR built-in, plus custom roles created at runtime). One role per operator.
 - **TOTP MFA** required for all operators; forced password change + MFA enrolment on first login. bcrypt passwords, account lockout, idle-session timeout. No default credential — the first admin is seeded from required config.
-- **Bank-callback IP allowlist** — per-provider source-IP rules (managed in the UI) gate the bank endpoints, replacing network-layer filtering for banks without message-level auth (BANK_A checksum-only, BANK_B none; BankC uses SNAP signatures).
+- **Bank-callback IP allowlist** — per-provider source-IP rules (managed in the UI) gate the bank endpoints, replacing network-layer filtering for banks whose protocol carries weak or no message-level authentication. Both the guarded paths and the known providers come from the adapters present, so an adapter added by a private assembly is covered without editing the engine.
 - Every audited action records the authenticated operator. This is a PCI-DSS-aligned control baseline; the app is out of PCI scope (no card data). See [`docs/security/pci-dss.md`](docs/security/pci-dss.md).
 
 ## Running
@@ -102,9 +105,9 @@ flowchart TD
     ADMIN[Web admin<br/>escrows · consumers · transactions · recon · audit]
     ADP[BankProvider adapters<br/>Model 1 / Model 2 · REST/JSON · SOAP/XML]
   end
-  B1[BankC<br/>SNAP/REST]
-  B2[BANK_A<br/>REST/JSON]
-  B3[BANK_B<br/>SOAP/XML]
+  B1[Bank A<br/>SNAP/REST]
+  B2[Bank B<br/>REST/JSON]
+  B3[Bank C<br/>SOAP/XML]
   S1 -->|raise receivable| AR
   S2 -->|raise receivable| AR
   AR -->|create charge + VAs| API
@@ -127,7 +130,7 @@ flowchart TD
 - Spring WebClient
 - Spring Security (operator auth, TOTP MFA)
 - Thymeleaf + HTMX + Tailwind (admin)
-- Testcontainers + RestAssured + Playwright + [snap-provider-simulator](https://github.com/artivisi/snap-provider-simulator) (tests)
+- Testcontainers + RestAssured + Playwright (tests); the engine publishes its integration-test harness as a test-jar so adapter assemblies test against the same setup
 
 ## Status
 
@@ -137,7 +140,7 @@ Implemented:
 
 - charge + sibling-VA lifecycle and Consumer API
 - webhook delivery (signed, retried, per-consumer isolation)
-- the three launch adapters (BankC SNAP, BANK_A REST, BANK_B SOAP)
+- the adapter seam, a fail-loud registry, and a worked demo-bank adapter (real banks: private assemblies)
 - reconciliation with CSV import
 - admin UI with operator auth, RBAC and MFA
 

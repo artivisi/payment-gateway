@@ -61,7 +61,7 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
 
     /** {@code fee} is what the bank keeps per payment; ZERO says "this one keeps nothing". */
     private static EscrowAccountRequest escrowRequest(String code, BigDecimal fee) {
-        return new EscrowAccountRequest(code, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+        return new EscrowAccountRequest(code, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "930900111", "Operator Settlement", "93099", "930", 10, null, null, fee);
     }
@@ -69,7 +69,7 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
     @BeforeEach
     void seed() {
         int n = SEQ.incrementAndGet();
-        escrow = escrowService.create(escrowRequest("recon-bank_a-" + n, BigDecimal.ZERO));
+        escrow = escrowService.create(escrowRequest("recon-demo-" + n, BigDecimal.ZERO));
         consumer = consumerService.create(new ConsumerRequest(
                 "recon-consumer-" + n, "Academic", "recon-client-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));

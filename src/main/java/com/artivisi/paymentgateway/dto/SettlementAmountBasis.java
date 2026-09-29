@@ -18,7 +18,7 @@ public enum SettlementAmountBasis {
 
     /**
      * The amount the payer sent, before any fee. This is what a bank's own transaction list carries
-     * — BANK_A's portal export, for one — and comparing it against the settlement account's credits
+     * — a bank's cash-management portal export, for one — and comparing it against the settlement account's credits
      * would be off by the fee on every row.
      *
      * <p>A file on this basis proves the bank <em>processed</em> the payment, not that the money

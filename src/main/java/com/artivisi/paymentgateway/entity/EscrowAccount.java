@@ -34,7 +34,7 @@ public class EscrowAccount {
 
     private String code;
 
-    /** Selects the adapter: bank_c | bank_a | bank_b. */
+    /** Selects the adapter: matched against {@code BankAdapter.provider()} of the adapters present. */
     private String provider;
 
     @Enumerated(EnumType.STRING)
@@ -72,7 +72,8 @@ public class EscrowAccount {
     private String settlementAccountName;
 
     /**
-     * What the bank keeps from each payment before crediting the settlement account (BANK_A: Rp 2.000
+     * What the bank keeps from each payment before crediting the settlement account (one deployment's
+     * bank charges a flat Rp 2.000
      * per VA payment). NULL means not configured, not zero — reconciliation refuses to run rather
      * than guess, because guessing zero silently mismatches every row at a bank that does charge.
      */

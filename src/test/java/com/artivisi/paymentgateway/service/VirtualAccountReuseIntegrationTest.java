@@ -55,7 +55,7 @@ class VirtualAccountReuseIntegrationTest extends AbstractIntegrationTest {
                 "reuse-consumer-" + n, "Academic", "reuse-client-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
         escrow = escrowService.create(new EscrowAccountRequest(
-                "reuse-bank_a-" + n, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                "reuse-demo-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "920900111", "Operator Settlement", "92099", "920", 10, null, null));
         vaNumber = "920000000" + (n % 10);

@@ -20,7 +20,7 @@ public interface PaymentRepository extends JpaRepository<Payment, String> {
     Optional<Payment> findByVirtualAccountIdAndBankReference(String virtualAccountId, String bankReference);
 
     /**
-     * Resolve a payment by BANK_A's core-banking journal reference ({@code nomorJurnalPembukuan}).
+     * Resolve a payment by the bank's core-banking journal reference.
      * A settlement file exported from the bank's own transaction portal carries this instead of the
      * {@code idTransaksi} the payment callback carried, and the two numbering spaces do not overlap.
      */

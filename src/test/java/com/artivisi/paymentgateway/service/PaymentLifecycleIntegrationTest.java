@@ -47,13 +47,13 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     @Autowired VirtualAccountRepository virtualAccountRepository;
 
     private Consumer consumer;
-    private EscrowAccount bank_a;
-    private EscrowAccount bank_b;
-    private String bank_aVa;
-    private String bank_bVa;
+    private EscrowAccount primary;
+    private EscrowAccount altEscrow;
+    private String primaryVa;
+    private String altVa;
 
     private static EscrowAccountRequest escrowRequest(String code) {
-        return new EscrowAccountRequest(code, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+        return new EscrowAccountRequest(code, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "900900111", "Operator Settlement", "90099", "900", 10, null, null);
     }
@@ -64,10 +64,10 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
         consumer = consumerService.create(new ConsumerRequest(
                 "pl-consumer-" + n, "Academic", "pl-client-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
-        bank_a = escrowService.create(escrowRequest("pl-bank_a-" + n));
-        bank_b = escrowService.create(escrowRequest("pl-bank_b-" + n));
-        bank_aVa = "900000000" + (n % 10);
-        bank_bVa = "900000001" + (n % 10);
+        primary = escrowService.create(escrowRequest("pl-demo-" + n));
+        altEscrow = escrowService.create(escrowRequest("pl-alt-" + n));
+        primaryVa = "900000000" + (n % 10);
+        altVa = "900000001" + (n % 10);
     }
 
     private Charge createCharge(ChargeType type, BigDecimal amount) {
@@ -77,8 +77,8 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     private Charge createCharge(ChargeType type, BigDecimal amount, Instant expiresAt) {
         var outcome = chargeService.create(consumer, new CreateChargeRequest(
                 "ref-" + SEQ.get(), "Student", null, null, type, amount, expiresAt,
-                List.of(new ChargeAccountRequest(bank_a.getCode(), bank_aVa),
-                        new ChargeAccountRequest(bank_b.getCode(), bank_bVa))));
+                List.of(new ChargeAccountRequest(primary.getCode(), primaryVa),
+                        new ChargeAccountRequest(altEscrow.getCode(), altVa))));
         return chargeRepository.findById(outcome.response().id()).orElseThrow();
     }
 
@@ -91,27 +91,27 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     void closed_firstPaymentPaysChargeAndCancelsSiblings() {
         Charge charge = createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
 
-        paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", Instant.now());
+        paymentService.apply(primary, primaryVa, new BigDecimal("1000000"), "the primary escrow-REF-1", Instant.now());
 
         Charge reloaded = chargeRepository.findById(charge.getId()).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(ChargeStatus.PAID);
         assertThat(reloaded.getCumulativePaid()).isEqualByComparingTo("1000000");
-        assertThat(vaStatus(bank_a.getId(), bank_aVa)).isEqualTo(VirtualAccountStatus.PAID);
-        assertThat(vaStatus(bank_b.getId(), bank_bVa)).isEqualTo(VirtualAccountStatus.CANCELLED);
+        assertThat(vaStatus(primary.getId(), primaryVa)).isEqualTo(VirtualAccountStatus.PAID);
+        assertThat(vaStatus(altEscrow.getId(), altVa)).isEqualTo(VirtualAccountStatus.CANCELLED);
     }
 
     @Test
     void closed_replayedNotificationIsIdempotent() {
         createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
-        var first = paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", Instant.now());
-        var second = paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", Instant.now());
+        var first = paymentService.apply(primary, primaryVa, new BigDecimal("1000000"), "the primary escrow-REF-1", Instant.now());
+        var second = paymentService.apply(primary, primaryVa, new BigDecimal("1000000"), "the primary escrow-REF-1", Instant.now());
         assertThat(second.getId()).isEqualTo(first.getId());
     }
 
     @Test
     void closed_wrongAmountIsRejected() {
         createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
-        assertThatThrownBy(() -> paymentService.apply(bank_a, bank_aVa, new BigDecimal("999"), "BANK_A-REF-1", Instant.now()))
+        assertThatThrownBy(() -> paymentService.apply(primary, primaryVa, new BigDecimal("999"), "the primary escrow-REF-1", Instant.now()))
                 .isInstanceOf(InvalidPaymentException.class)
                 .hasMessageContaining("exact amount");
     }
@@ -119,8 +119,8 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     @Test
     void closed_payingCancelledSiblingIsRejected() {
         createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
-        paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", Instant.now());
-        assertThatThrownBy(() -> paymentService.apply(bank_b, bank_bVa, new BigDecimal("1000000"), "BANK_B-REF-1", Instant.now()))
+        paymentService.apply(primary, primaryVa, new BigDecimal("1000000"), "the primary escrow-REF-1", Instant.now());
+        assertThatThrownBy(() -> paymentService.apply(altEscrow, altVa, new BigDecimal("1000000"), "the sibling escrow-REF-1", Instant.now()))
                 .isInstanceOf(InvalidPaymentException.class)
                 .hasMessageContaining("CANCELLED");
     }
@@ -132,22 +132,22 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     @Test
     void closed_repriceChangesWhatInquiryAnswers_andPaymentMustMatchTheNewAmount() {
         Charge charge = createCharge(ChargeType.CLOSED, new BigDecimal("2166667"));
-        assertThat(inquiryService.inquire(bank_a, bank_aVa).remainingAmount()).isEqualByComparingTo("2166667");
+        assertThat(inquiryService.inquire(primary, primaryVa).remainingAmount()).isEqualByComparingTo("2166667");
 
         chargeService.reprice(charge.getConsumer(), charge.getId(), new BigDecimal("4333334"));
 
-        assertThat(inquiryService.inquire(bank_a, bank_aVa).remainingAmount()).isEqualByComparingTo("4333334");
-        assertThatThrownBy(() -> paymentService.apply(bank_a, bank_aVa, new BigDecimal("2166667"), "BANK_A-OLD", Instant.now()))
+        assertThat(inquiryService.inquire(primary, primaryVa).remainingAmount()).isEqualByComparingTo("4333334");
+        assertThatThrownBy(() -> paymentService.apply(primary, primaryVa, new BigDecimal("2166667"), "the primary escrow-OLD", Instant.now()))
                 .isInstanceOf(InvalidPaymentException.class)
                 .hasMessageContaining("exact amount");
-        paymentService.apply(bank_a, bank_aVa, new BigDecimal("4333334"), "BANK_A-NEW", Instant.now());
+        paymentService.apply(primary, primaryVa, new BigDecimal("4333334"), "the primary escrow-NEW", Instant.now());
         assertThat(chargeRepository.findById(charge.getId()).orElseThrow().getStatus()).isEqualTo(ChargeStatus.PAID);
     }
 
     @Test
     void reprice_isRefusedOncePaidOrCancelled() {
         Charge charge = createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
-        paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", Instant.now());
+        paymentService.apply(primary, primaryVa, new BigDecimal("1000000"), "the primary escrow-REF-1", Instant.now());
         assertThatThrownBy(() -> chargeService.reprice(charge.getConsumer(), charge.getId(), new BigDecimal("5")))
                 .isInstanceOf(com.artivisi.paymentgateway.exception.InvalidRequestException.class)
                 .hasMessageContaining("PAID");
@@ -156,20 +156,20 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     @Test
     void open_accumulatesAndKeepsSiblingsOpen() {
         Charge charge = createCharge(ChargeType.OPEN, new BigDecimal("100000"));
-        paymentService.apply(bank_a, bank_aVa, new BigDecimal("50000"), "BANK_A-REF-1", Instant.now());
-        paymentService.apply(bank_a, bank_aVa, new BigDecimal("70000"), "BANK_A-REF-2", Instant.now());
+        paymentService.apply(primary, primaryVa, new BigDecimal("50000"), "the primary escrow-REF-1", Instant.now());
+        paymentService.apply(primary, primaryVa, new BigDecimal("70000"), "the primary escrow-REF-2", Instant.now());
 
         Charge reloaded = chargeRepository.findById(charge.getId()).orElseThrow();
         assertThat(reloaded.getCumulativePaid()).isEqualByComparingTo("120000");
         assertThat(reloaded.getStatus()).isEqualTo(ChargeStatus.ACTIVE);
-        assertThat(vaStatus(bank_b.getId(), bank_bVa)).isEqualTo(VirtualAccountStatus.ACTIVE);
+        assertThat(vaStatus(altEscrow.getId(), altVa)).isEqualTo(VirtualAccountStatus.ACTIVE);
     }
 
     @Test
     void payment_pastExpiryIsRejectedBeforeReaperRuns() {
         // expiresAt is in the past but the reaper has not swept yet: charge and VA are still ACTIVE.
         createCharge(ChargeType.CLOSED, new BigDecimal("1000000"), Instant.now().minusSeconds(60));
-        assertThatThrownBy(() -> paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", Instant.now()))
+        assertThatThrownBy(() -> paymentService.apply(primary, primaryVa, new BigDecimal("1000000"), "the primary escrow-REF-1", Instant.now()))
                 .isInstanceOf(InvalidPaymentException.class)
                 .hasMessageContaining("expired");
     }
@@ -177,22 +177,22 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     @Test
     void inquiry_pastExpiryIsNotFound() {
         createCharge(ChargeType.CLOSED, new BigDecimal("1000000"), Instant.now().minusSeconds(60));
-        assertThatThrownBy(() -> inquiryService.inquire(bank_a, bank_aVa))
+        assertThatThrownBy(() -> inquiryService.inquire(primary, primaryVa))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("expired");
     }
 
     @Test
     void inquiry_unknownVaIsNotFound() {
-        assertThatThrownBy(() -> inquiryService.inquire(bank_a, "9009999999"))
+        assertThatThrownBy(() -> inquiryService.inquire(primary, "9009999999"))
                 .isInstanceOf(NotFoundException.class);
     }
 
     @Test
     void inquiry_cancelledSiblingIsNotFound() {
         createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
-        paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", Instant.now());
-        assertThatThrownBy(() -> inquiryService.inquire(bank_b, bank_bVa))
+        paymentService.apply(primary, primaryVa, new BigDecimal("1000000"), "the primary escrow-REF-1", Instant.now());
+        assertThatThrownBy(() -> inquiryService.inquire(altEscrow, altVa))
                 .isInstanceOf(NotFoundException.class);
     }
 
@@ -200,25 +200,25 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     void reversal_reopensChargeAndReactivatesSiblings() {
         Charge charge = createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
         Instant payTime = Instant.now();
-        paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", payTime);
-        paymentService.reverse(bank_a, bank_aVa, "BANK_A-REF-1", new BigDecimal("1000000"), payTime.plusSeconds(60));
+        paymentService.apply(primary, primaryVa, new BigDecimal("1000000"), "the primary escrow-REF-1", payTime);
+        paymentService.reverse(primary, primaryVa, "the primary escrow-REF-1", new BigDecimal("1000000"), payTime.plusSeconds(60));
 
         Charge reloaded = chargeRepository.findById(charge.getId()).orElseThrow();
         assertThat(reloaded.getStatus()).isEqualTo(ChargeStatus.ACTIVE);
         assertThat(reloaded.getCumulativePaid()).isEqualByComparingTo("0");
-        assertThat(vaStatus(bank_a.getId(), bank_aVa)).isEqualTo(VirtualAccountStatus.ACTIVE);
-        assertThat(vaStatus(bank_b.getId(), bank_bVa)).isEqualTo(VirtualAccountStatus.ACTIVE);
+        assertThat(vaStatus(primary.getId(), primaryVa)).isEqualTo(VirtualAccountStatus.ACTIVE);
+        assertThat(vaStatus(altEscrow.getId(), altVa)).isEqualTo(VirtualAccountStatus.ACTIVE);
         // payable again
-        assertThat(inquiryService.inquire(bank_a, bank_aVa).remainingAmount()).isEqualByComparingTo("1000000");
+        assertThat(inquiryService.inquire(primary, primaryVa).remainingAmount()).isEqualByComparingTo("1000000");
     }
 
     @Test
     void reversal_isIdempotent() {
         createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
         Instant payTime = Instant.now();
-        paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", payTime);
-        var first = paymentService.reverse(bank_a, bank_aVa, "BANK_A-REF-1", new BigDecimal("1000000"), payTime.plusSeconds(10));
-        var second = paymentService.reverse(bank_a, bank_aVa, "BANK_A-REF-1", new BigDecimal("1000000"), payTime.plusSeconds(20));
+        paymentService.apply(primary, primaryVa, new BigDecimal("1000000"), "the primary escrow-REF-1", payTime);
+        var first = paymentService.reverse(primary, primaryVa, "the primary escrow-REF-1", new BigDecimal("1000000"), payTime.plusSeconds(10));
+        var second = paymentService.reverse(primary, primaryVa, "the primary escrow-REF-1", new BigDecimal("1000000"), payTime.plusSeconds(20));
         assertThat(second.getId()).isEqualTo(first.getId());
     }
 
@@ -226,8 +226,8 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     void reversal_amountMismatchIsRejected() {
         createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
         Instant payTime = Instant.now();
-        paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", payTime);
-        assertThatThrownBy(() -> paymentService.reverse(bank_a, bank_aVa, "BANK_A-REF-1", new BigDecimal("999"), payTime.plusSeconds(10)))
+        paymentService.apply(primary, primaryVa, new BigDecimal("1000000"), "the primary escrow-REF-1", payTime);
+        assertThatThrownBy(() -> paymentService.reverse(primary, primaryVa, "the primary escrow-REF-1", new BigDecimal("999"), payTime.plusSeconds(10)))
                 .isInstanceOf(InvalidPaymentException.class)
                 .hasMessageContaining("does not match");
     }
@@ -236,8 +236,8 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     void reversal_outsideWindowIsRejected() {
         createCharge(ChargeType.CLOSED, new BigDecimal("1000000"));
         Instant payTime = Instant.now();
-        paymentService.apply(bank_a, bank_aVa, new BigDecimal("1000000"), "BANK_A-REF-1", payTime);
-        assertThatThrownBy(() -> paymentService.reverse(bank_a, bank_aVa, "BANK_A-REF-1", new BigDecimal("1000000"), payTime.plus(Duration.ofMinutes(61))))
+        paymentService.apply(primary, primaryVa, new BigDecimal("1000000"), "the primary escrow-REF-1", payTime);
+        assertThatThrownBy(() -> paymentService.reverse(primary, primaryVa, "the primary escrow-REF-1", new BigDecimal("1000000"), payTime.plus(Duration.ofMinutes(61))))
                 .isInstanceOf(InvalidPaymentException.class)
                 .hasMessageContaining("window");
     }

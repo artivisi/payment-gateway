@@ -22,7 +22,7 @@ public class BankIpRule {
     @UuidGenerator
     private String id;
 
-    /** Bank provider key: bank_a | bank_b | bank_c (matches escrow.provider). */
+    /** Bank provider key; matches escrow.provider and an adapter's provider(). */
     private String provider;
 
     private String cidr;

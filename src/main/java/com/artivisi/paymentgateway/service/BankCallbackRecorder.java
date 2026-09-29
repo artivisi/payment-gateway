@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 /**
  * Keeps what the bank actually sent, and says so when it sends something we do not model.
  *
- * <p>A typed DTO discards unknown properties without a word. BANK_A sent {@code nomorJurnalPembukuan} on
+ * <p>A typed DTO discards unknown properties without a word. One bank sent an unmodelled journal number on
  * every payment notification from launch until 2026-08-25 and nothing in this system saw it; it came
  * to light only because the legacy service being retired logged raw request text. This exists so the
  * next such field is visible the first time it arrives.

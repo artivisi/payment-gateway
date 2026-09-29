@@ -38,7 +38,7 @@ class EscrowEditIntegrationTest extends AbstractIntegrationTest {
 
     private EscrowAccount seedEscrow(String secret) {
         int n = SEQ.incrementAndGet();
-        return escrowService.create(new EscrowAccountRequest("ee-bank_a-" + n, "bank_a", HostingModel.SELF_HOSTED,
+        return escrowService.create(new EscrowAccountRequest("ee-demo-" + n, "demo", HostingModel.SELF_HOSTED,
                 TransportProtocol.REST_JSON, AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX,
                 "cid", secret, null, null, null, null, null, null,
                 "900900111", "Operator Settlement", "90099", "900", 10, null, null));
@@ -81,7 +81,7 @@ class EscrowEditIntegrationTest extends AbstractIntegrationTest {
                 ChargeType.CLOSED, new BigDecimal("1000000"), null,
                 List.of(new ChargeAccountRequest(e.getCode(), "9000000001"))));
 
-        EscrowUpdateRequest changedProvider = new EscrowUpdateRequest("bank_b", e.getHostingModel(), e.getTransport(),
+        EscrowUpdateRequest changedProvider = new EscrowUpdateRequest("other-bank", e.getHostingModel(), e.getTransport(),
                 e.getAuthScheme(), e.getActiveEnvironment(), e.getClientId(), null, null, null, null, null, null, null,
                 e.getSettlementAccountNumber(), e.getSettlementAccountName(), e.getCompanyId(), e.getVaPrefix(),
                 e.getVaDigitLength(), null, null);

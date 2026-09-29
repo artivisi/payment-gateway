@@ -42,7 +42,7 @@ class AuditLoggingIntegrationTest extends AbstractIntegrationTest {
         String va = "9500000" + String.format("%03d", n);
 
         EscrowAccount escrow = escrowService.create(new EscrowAccountRequest(
-                "audit-bank_a-" + n, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                "audit-demo-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, "audit-client", "audit-secret", null, null,
                 null, null, null, null, "950900111", "Operator Settlement", "95099", "950", 10, null, null));
         Consumer consumer = consumerService.create(new ConsumerRequest(
@@ -50,7 +50,7 @@ class AuditLoggingIntegrationTest extends AbstractIntegrationTest {
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
         String chargeId = chargeService.create(consumer, new CreateChargeRequest(
                         "audit-ref-" + n, "Student", null, null, ChargeType.CLOSED, new BigDecimal("100000"), null,
-                        List.of(new ChargeAccountRequest("audit-bank_a-" + n, va)))).response().id();
+                        List.of(new ChargeAccountRequest("audit-demo-" + n, va)))).response().id();
         Payment payment = paymentService.apply(escrow, va, new BigDecimal("100000"), "AUD-R1", Instant.now());
 
         assertThat(eventTypes(escrow.getId())).contains("ESCROW_CREATED");

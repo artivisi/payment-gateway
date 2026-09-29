@@ -51,7 +51,26 @@ BANK_HOSTED (Model 2) — bank is VA source of truth:
 reconciliation: pullSettlement(escrow, period) | importStatement(file)
 ```
 
-Launch adapters (all `SELF_HOSTED`): `bank_c` (SNAP/REST), `bank_a` (proprietary REST/JSON), `bank_b` (proprietary SOAP/XML). The `BANK_HOSTED` path (e.g. BNI) is part of the interface; implement it when a bank-hosted deal lands.
+**Real bank adapters are not in this repository.** A bank's integration specification arrives under
+that bank's terms, and its message shapes, checksums and response codes come straight out of it — so
+they live in a private assembly that depends on this engine as a library and builds the deployable
+jar. This repository ships the seam and one worked adapter for an invented bank:
+
+- `adapter/spi/BankAdapter` — what a controller cannot express: the provider it serves, its hosting
+  model, and the path its bank calls. `BankAdapterRegistry` collects them and **refuses to start**
+  when an enabled escrow names a provider no adapter claims, because the alternative is a bank
+  posting payments to a 404 while the money sits settled at the bank.
+- `adapter/demo` — a complete `SELF_HOSTED` REST/JSON adapter for an invented bank, deliberately as
+  awkward as a real one. It is the reference for writing the next adapter, the engine's own
+  end-to-end test subject, and the payment simulator for non-production environments.
+
+Anything that must know which banks exist asks the registry: the callback IP allowlist derives both
+its URL patterns and its known providers from the adapters present. Hardcoding them was how an
+adapter added privately ended up with no allowlist protection at all.
+
+The `BANK_HOSTED` path (e.g. BNI) is part of the interface; implement it when a bank-hosted deal
+lands. The demo adapter deliberately does not pretend to demonstrate it, because the engine does not
+implement it yet either.
 
 `Payment` creation branches on the escrow's `hostingModel`:
 - `SELF_HOSTED` → allocate in space + check local availability → reserve locally (gateway answers inquiries).
@@ -150,7 +169,10 @@ reserves 1 GiB and 4 CPUs per container. Testcontainers cannot pull through sock
 test images must already be local (`container image pull --platform linux/arm64 …`). Full runbook:
 `whitelist-alert-manager/docs/apple-container-runbook.md`.
 
-Functional-first: RestAssured + Testcontainers + Playwright. Bank simulators: [snap-provider-simulator](https://github.com/artivisi/snap-provider-simulator) for SNAP (BankC); WireMock stubs for the proprietary banks (BANK_A REST, BANK_B SOAP). docker-compose drives end-to-end.
+Functional-first: RestAssured + Testcontainers + Playwright. The bank-facing path is covered here
+against the demo adapter; each real adapter's tests live with that adapter in its private assembly,
+which depends on this repository's **test-jar** so those tests run against the same container, stub
+and seeding rather than a copy that drifts.
 
 ## Security / DevSecOps
 
@@ -158,7 +180,7 @@ SpotBugs (0 findings), CodeQL, OWASP ZAP DAST, OWASP Dependency-Check, SonarClou
 
 **Admin auth (PCI control baseline — not in PCI scope, no card data; see `docs/security/pci-dss.md`).** Spring Security gates `/admin`: per-operator accounts, bcrypt + min-12 passwords, lockout, 15-min idle session, forced password change + **TOTP MFA** on first login, fail-loud bootstrap admin (no default credential). Every `AuditEvent` carries the authenticated actor. Authorization is **permission-based**: a fixed `Permission` enum (feature → permission, checked via `hasAuthority`), with **data-driven roles** (`role`/`role_permission`, one per operator) editable at runtime via the admin Roles UI — built-in `ADMIN`/`OPERATOR`/`AUDITOR` seeded, custom roles addable.
 
-**Bank-callback access control.** BankC has SNAP signatures; BANK_A a checksum; BANK_B nothing in-message. App-layer **per-provider IP allowlist** (`bank_ip_rule`, admin-managed) gates `/api/bank/*` + `/ws/bank_b/*` — source IP not allowlisted → 403, no rule = unrestricted. Needs `server.forward-headers-strategy` + a trusted proxy behind a load balancer.
+**Bank-callback access control.** Callback authentication differs per bank and some carry none at all; which bank is which belongs with that bank's adapter, not here. App-layer **per-provider IP allowlist** (`bank_ip_rule`, admin-managed) gates `/api/bank/*` plus whatever paths the registered adapters declare — source IP not allowlisted → 403, no rule = unrestricted. Needs `server.forward-headers-strategy` + a trusted proxy behind a load balancer.
 
 ## Governance
 
@@ -167,7 +189,10 @@ removed from the tree and from history; the history was rewritten and force-push
 predating that no longer resolve.
 
 No client names, credentials, endpoints, or sample data; neutral domain naming throughout. The
-product ships to more than one operator — anything deployment-specific belongs in the deploy repo.
+product ships to more than one operator — anything deployment-specific belongs in the deploy repo,
+and **a bank's protocol belongs in a private adapter assembly**, not here. Removing the launch
+adapters from HEAD on 2026-09-29 does not remove them from this repository's history; only a rewrite
+and a recreated remote would, and the detached public fork is beyond the reach of either.
 Test fixtures count, and they are how every leak so far happened: a real settlement account number,
 a payer name, and the operator's bank-assigned company id all reached this repo as fixture values.
 A third party's name in a fixture is PII whatever the repository's visibility.
@@ -181,6 +206,7 @@ public regardless of what this repository does.
 
 0. **Scaffold** — SB4/Java25, PostgreSQL+Flyway, escrow + consumer registry (runtime admin), fail-loud config.
 1. **Core** — `Charge` + sibling-VA lifecycle (create / validate / reserve / inquiry / cancel / expire), the three charge types, shared-cumulative accounting + first-paid-cancels-siblings; Consumer API; webhook-forward framework.
-2. **Adapters** — BankC (SNAP/REST), BANK_A (REST/JSON), BANK_B (SOAP/XML); all self-hosted (inquiry + payment notification).
+2. **Adapters** — the `BankAdapter` seam, the registry's fail-loud check, and the demo bank
+   (inquiry + payment notification, self-hosted). Real banks are built in a private assembly.
 3. **Reconciliation** — settlement pull/import, matching, discrepancy handling + recovery, for all three banks.
 4. **Web admin UI** — escrow + consumer management, transaction list, reconciliation dashboard, audit log.

@@ -16,7 +16,7 @@ class RegistryIntegrationTest extends AbstractIntegrationTest {
     private static Map<String, Object> escrowRequest(String code) {
         Map<String, Object> body = new HashMap<>();
         body.put("code", code);
-        body.put("provider", "bank_a");
+        body.put("provider", "demo");
         body.put("hostingModel", "SELF_HOSTED");
         body.put("transport", "REST_JSON");
         body.put("authScheme", "PROPRIETARY");
@@ -45,11 +45,11 @@ class RegistryIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void createAndReadEscrowAccount_neverReturnsSecrets() {
-        String id = given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(escrowRequest("bank_a-launch"))
+        String id = given().header("Authorization", "Bearer " + managementToken()).contentType("application/json").body(escrowRequest("demo-launch"))
                 .when().post("/api/escrow-accounts")
                 .then().statusCode(201)
                 .body("id", notNullValue())
-                .body("code", equalTo("bank_a-launch"))
+                .body("code", equalTo("demo-launch"))
                 .body("clientId", equalTo("client-123"))
                 .body("clientSecret", nullValue())
                 .body("privateKey", nullValue())
@@ -57,7 +57,7 @@ class RegistryIntegrationTest extends AbstractIntegrationTest {
 
         given().header("Authorization", "Bearer " + managementToken()).when().get("/api/escrow-accounts/{id}", id)
                 .then().statusCode(200)
-                .body("code", equalTo("bank_a-launch"))
+                .body("code", equalTo("demo-launch"))
                 .body("vaDigitLength", equalTo(16))
                 .body("clientSecret", nullValue());
     }

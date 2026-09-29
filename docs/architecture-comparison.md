@@ -28,7 +28,7 @@ flowchart TD
   subgraph Gateway [Option A: Modular Monolith]
     API[Consumer API Controller]
     Core[Domain Core<br/>Charge & VA Lifecycle]
-    Adapters[In-Process Bank Adapters<br/>SNAP REST / BANK_A REST / BANK_B SOAP]
+    Adapters[In-Process Bank Adapters<br/>SNAP REST / proprietary REST / SOAP]
     Outbox[Transactional Outbox Table]
     WebhookWorker[Webhook Dispatcher<br/>Virtual Threads]
   end
@@ -38,9 +38,9 @@ flowchart TD
   end
 
   subgraph ExternalBanks [External Bank Core Networks]
-    Bank1[BankC SNAP REST]
-    Bank2[BANK_A REST]
-    Bank3[BANK_B SOAP]
+    Bank1[Bank A SNAP REST]
+    Bank2[Bank B REST]
+    Bank3[Bank C SOAP]
   end
 
   AR -->|POST /charges| API
@@ -68,9 +68,9 @@ flowchart TD
 ```mermaid
 flowchart TD
   AR[Receivables Subledger / Client App] -->|POST /charges| ChargeApi[Charge API]
-  Bank1[BankC SNAP REST] <-->|Sync Callback, checksum verified| CallbackApi[Bank Callback API]
-  Bank2[BANK_A REST] <-->|Sync Callback, checksum verified| CallbackApi
-  Bank3[BANK_B SOAP] <-->|Sync Callback, checksum verified| CallbackApi
+  Bank1[Bank A SNAP REST] <-->|Sync Callback, checksum verified| CallbackApi[Bank Callback API]
+  Bank2[Bank B REST] <-->|Sync Callback, checksum verified| CallbackApi
+  Bank3[Bank C SOAP] <-->|Sync Callback, checksum verified| CallbackApi
 
   subgraph JVM [Single Spring Boot Process]
     ChargeApi --> KafkaProducer[Kafka Producer]
@@ -181,7 +181,7 @@ the retraction), and "Seventh gap" (the deeper fix and its re-benchmark).
 
 | Trade-off argument (above) | Measured outcome |
 |---|---|
-| Section 1 — synchronous protocols favor fewer hops | Confirmed on median latency: this system's median (1.01ms) was lower than the event-sourced variant's (3.83–3.96ms) under the identical BANK_A protocol workload, consistent with the extra Kafka produce-and-acknowledge hop. Not confirmed on tail latency this run: this system's p99 (112ms) was higher than the event-sourced variant's (8.5–9.4ms) — most likely explained by residual environment noise (see the retraction note above) rather than a reversal of the general pattern, but the data doesn't support a stronger claim than that. |
+| Section 1 — synchronous protocols favor fewer hops | Confirmed on median latency: this system's median (1.01ms) was lower than the event-sourced variant's (3.83–3.96ms) under an identical proprietary-REST protocol workload, consistent with the extra Kafka produce-and-acknowledge hop. Not confirmed on tail latency this run: this system's p99 (112ms) was higher than the event-sourced variant's (8.5–9.4ms) — most likely explained by residual environment noise (see the retraction note above) rather than a reversal of the general pattern, but the data doesn't support a stronger claim than that. |
 | Section 2 — row locking is simpler/safer than distributed invariant enforcement | Confirmed, three times over, by the same underlying pattern recurring in three unrelated places: (1) the event-sourced variant once had OPEN-vs-INSTALLMENT closing logic implemented in two separate stores (its Kafka Streams topology and its Postgres projection) that silently disagreed; (2) its `PostgresProjectionSink` had two independent write paths that could disagree about one payment's outcome; (3) even after (2) was patched downstream, the actual cause was a request thread that could tell the bank "accepted" before a separate, later Kafka Streams decision could disagree with it — fixed only by rearchitecting the write path onto a single atomic RocksDB transaction, eliminating the second decision-maker entirely. This system's single `PaymentApplicationService`, backed by one ACID transaction, never had two decision-makers to begin with — it didn't need three iterations to reach the property RDBMS gets by default. Its audit has passed with zero mismatches in every run to date. |
 | Section 3 — RDBMS throughput is sufficient, Kafka-scale is premature at this workload | Confirmed as originally stated, once the contaminated-environment measurement is set aside: on the identical 2,000 TPS ramp, both systems ran comfortably within capacity — this system never exceeded 288 of 2,000 allotted VUs, the event-sourced variant never exceeded 122 (one run never left its 100-VU pre-allocation at all). Neither system was pushed to an actual hardware-limited ceiling, so the "5,000-10,000+ TPS" figure in section 3 above remains unverified, but "comparable capacity" is the better-supported reading of the data — this project's own dramatic-looking counter-evidence turned out to be a measurement artifact, not a real ceiling. |
 | Section 4 — lower operational footprint | Confirmed in effort, not just infrastructure: getting the event-sourced comparison implementation to correct behavior took substantially more fixes (a missing framework dependency that silently broke persistence, three iterations to get its own test harness right, the two-store invariant bug above) than this system needed at any point. |
@@ -192,7 +192,7 @@ Every argument above was made before either option was built, then checked again
 independently-benchmarked comparison implementation — not skipped because event-sourced/CQRS was
 assumed to be out of reach. [`payment-gateway-evtsrc`](https://github.com/artivisi/payment-gateway-evtsrc)
 demonstrates that capability directly: a working Kafka Streams/RocksDB write path, a CQRS Postgres
-projection, benchmarked head-to-head through the identical BANK_A protocol, with its own correctness
+projection, benchmarked head-to-head through an identical proprietary-REST protocol, with its own correctness
 defects found and fixed along the way. This repo runs on the relational, ACID-transaction design
 because that is what the evidence supports for this workload's scale — lower latency, no
 multi-write-path correctness risk class, less operational surface — not because the alternative

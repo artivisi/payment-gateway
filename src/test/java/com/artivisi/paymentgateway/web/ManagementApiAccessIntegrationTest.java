@@ -50,10 +50,11 @@ class ManagementApiAccessIntegrationTest extends AbstractIntegrationTest {
 
     @Test
     void bankCallbacksStayOpen() {
-        // The whole point of the original rule. BANK_A has no session and cannot get one; it
-        // authenticates by checksum and source IP. A 401 here would stop payment collection.
-        given().contentType("application/json").body(Map.of("action", "inquiry", "nomorPembayaran", "000000000000"))
-                .when().post("/api/bank/bank_a").then().statusCode(200);
+        // The whole point of the original rule. A bank has no session and cannot get one; it
+        // authenticates by signature and source IP. A 401 here would stop payment collection.
+        given().contentType("application/json")
+                .body(Map.of("action", "inquiry", "accountNumber", "000000000000", "signature", "x"))
+                .when().post("/api/bank/demo").then().statusCode(200);
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.artivisi.paymentgateway.config;
 
+import com.artivisi.paymentgateway.adapter.spi.BankAdapter;
+import com.artivisi.paymentgateway.adapter.spi.BankAdapterRegistry;
 import com.artivisi.paymentgateway.entity.BankIpRule;
 import com.artivisi.paymentgateway.repository.BankIpRuleRepository;
 import jakarta.servlet.FilterChain;
@@ -27,9 +29,11 @@ public class BankIpAllowlistFilter extends OncePerRequestFilter {
     private static final Logger log = LoggerFactory.getLogger(BankIpAllowlistFilter.class);
 
     private final BankIpRuleRepository repository;
+    private final BankAdapterRegistry adapters;
 
-    public BankIpAllowlistFilter(BankIpRuleRepository repository) {
+    public BankIpAllowlistFilter(BankIpRuleRepository repository, BankAdapterRegistry adapters) {
         this.repository = repository;
+        this.adapters = adapters;
     }
 
     @Override
@@ -55,17 +59,20 @@ public class BankIpAllowlistFilter extends OncePerRequestFilter {
         chain.doFilter(request, response);
     }
 
-    private static String resolveProvider(String uri) {
-        if (uri.startsWith("/api/bank/bank_a")) {
-            return "bank_a";
-        }
-        if (uri.startsWith("/api/bank/bank_c")) {
-            return "bank_c";
-        }
-        if (uri.startsWith("/ws/bank_b")) {
-            return "bank_b";
-        }
-        return null;
+    /**
+     * Which bank's callback this is, asked of the adapters themselves.
+     *
+     * <p>The paths used to be listed here, which quietly tied the engine to the set of banks one
+     * deployment happened to have: an adapter added in a private assembly got no allowlist protection
+     * at all, because this method did not know its path and returned null — and null means
+     * unrestricted, so the failure was an open endpoint rather than a broken one.
+     */
+    private String resolveProvider(String uri) {
+        return adapters.adapters().values().stream()
+                .filter(a -> uri.startsWith(a.inboundPath()))
+                .map(BankAdapter::provider)
+                .findFirst()
+                .orElse(null);
     }
 
     private static boolean matches(String cidr, String ip) {

@@ -113,7 +113,7 @@ public class AdminReconciliationController {
     /**
      * What the bank has not settled, across every run — the question finance actually asks.
      *
-     * <p>Discrepancies otherwise live one run at a time, so chasing "which payments has BANK_A not
+     * <p>Discrepancies otherwise live one run at a time, so chasing "which payments has the bank not
      * settled" means opening each period in turn and remembering what was in the last one.
      */
     @GetMapping("/discrepancies")

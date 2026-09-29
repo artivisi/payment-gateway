@@ -127,18 +127,24 @@ public class DemoBankController implements BankAdapter {
     }
 
     private DemoBankMessages.Response payment(EscrowAccount escrow, DemoBankMessages.Request request) {
+        // Absence is checked, not caught: a missing field is an ordinary thing for a bank to send, and
+        // catching the NullPointerException it would cause hides real ones from the code underneath.
+        if (request.transactionTime() == null || request.amount() == null) {
+            return DemoBankMessages.Response.error(DemoBankMessages.Code.INVALID_AMOUNT,
+                    "transactionTime and amount are both required for a payment");
+        }
         Instant transactionTime;
         try {
             transactionTime = LocalDateTime.parse(request.transactionTime(), TIMESTAMP)
                     .atZone(ZONE).toInstant();
-        } catch (DateTimeParseException | NullPointerException e) {
+        } catch (DateTimeParseException e) {
             return DemoBankMessages.Response.error(DemoBankMessages.Code.INVALID_AMOUNT,
                     "transactionTime must be yyyyMMddHHmmss: " + request.transactionTime());
         }
         BigDecimal amount;
         try {
             amount = new BigDecimal(request.amount());
-        } catch (NumberFormatException | NullPointerException e) {
+        } catch (NumberFormatException e) {
             return DemoBankMessages.Response.error(DemoBankMessages.Code.INVALID_AMOUNT,
                     "amount is not a number: " + request.amount());
         }

@@ -34,9 +34,12 @@ Cardholder Data Environment. The moment card data is stored, scope expands acros
 Bank → gateway callbacks cannot always carry authentication (the bank controls the client). Controls
 available per provider:
 
-- **BankC** — SNAP RSA token + HMAC-SHA512 transaction signatures (strong).
-- **BANK_A** — SHA1 checksum (integrity only).
-- **BANK_B** — none in-message; relies on the IP allowlist.
+- **Signed** — an RSA-issued token plus per-transaction HMAC signatures (strong).
+- **Checksummed** — a shared-secret digest over selected fields (integrity only, no freshness).
+- **Unauthenticated** — nothing in the message; the IP allowlist is the only control.
+
+Which bank falls in which class is not recorded here: it is a property of that bank's integration
+specification, and publishing it names a weakness in someone else's system.
 
 App-layer per-provider IP allowlisting (`bank_ip_rule`, `BankIpAllowlistFilter`) replaces network-layer
 filtering: a source IP not in a provider's enabled rules gets HTTP 403; no enabled rule = unrestricted.

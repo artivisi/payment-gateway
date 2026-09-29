@@ -1,5 +1,6 @@
 package com.artivisi.paymentgateway.service;
 
+import com.artivisi.paymentgateway.adapter.spi.BankAdapterRegistry;
 import com.artivisi.paymentgateway.entity.BankIpRule;
 import com.artivisi.paymentgateway.exception.NotFoundException;
 import com.artivisi.paymentgateway.repository.BankIpRuleRepository;
@@ -8,20 +9,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Set;
 
 /** Manage the per-provider bank IP allowlist (admin UI). Validates CIDR and provider; audits changes. */
 @Service
 public class BankIpRuleService {
 
-    private static final Set<String> PROVIDERS = Set.of("bank_a", "bank_b", "bank_c");
-
     private final BankIpRuleRepository repository;
     private final AuditService auditService;
+    private final BankAdapterRegistry adapters;
 
-    public BankIpRuleService(BankIpRuleRepository repository, AuditService auditService) {
+    public BankIpRuleService(BankIpRuleRepository repository, AuditService auditService,
+                             BankAdapterRegistry adapters) {
         this.repository = repository;
         this.auditService = auditService;
+        this.adapters = adapters;
     }
 
     @Transactional(readOnly = true)
@@ -31,8 +32,13 @@ public class BankIpRuleService {
 
     @Transactional
     public BankIpRule create(String provider, String cidr, String label) {
-        if (!PROVIDERS.contains(provider)) {
-            throw new IllegalArgumentException("Unknown provider: " + provider);
+        // What this build can actually serve, not a list written down here. The names used to be
+        // hardcoded, which meant an operator could allowlist an IP for a bank this deployment has no
+        // adapter for and believe the callback was protected, while a real adapter added later was
+        // rejected until someone edited this class.
+        if (adapters.forProvider(provider).isEmpty()) {
+            throw new IllegalArgumentException("Unknown provider: " + provider
+                    + ". This build serves " + adapters.adapters().keySet());
         }
         validateCidr(cidr);
         BankIpRule rule = new BankIpRule();

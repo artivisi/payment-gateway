@@ -86,7 +86,7 @@ class WebhookBulkheadTest extends AbstractIntegrationTest {
         Consumer consumer = consumerService.create(new ConsumerRequest(
                 "bh-consumer-" + n, "Academic", "bh-client-" + n, "bh-secret-" + n, webhookUrl, ConsumerStatus.ACTIVE));
         EscrowAccount escrow = escrowService.create(new EscrowAccountRequest(
-                "bh-bank_a-" + n, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON, AuthScheme.PROPRIETARY,
+                "bh-demo-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON, AuthScheme.PROPRIETARY,
                 EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "900900111", "Operator Settlement", "90099", "900", 10, null, null));
         return new Fixture(consumer, escrow, "900000000" + (n % 10));
@@ -124,12 +124,12 @@ class WebhookBulkheadTest extends AbstractIntegrationTest {
     @Test
     void claimBatch_capsPerConsumerSoOneBacklogCannotMonopolize() throws Exception {
         Fixture heavy = seed(startReceiver(200));
-        String heavyCharge = createAndPay(heavy, ChargeType.CLOSED, "1000000", "BANK_A-H");
+        String heavyCharge = createAndPay(heavy, ChargeType.CLOSED, "1000000", "BANK-H");
         // Push the heavy consumer well past the per-consumer cap (4) with extra due rows.
         addDueDeliveries(heavy.consumer(), chargeRepository.findById(heavyCharge).orElseThrow(), 8);
 
         Fixture light = seed(startReceiver(200));
-        createAndPay(light, ChargeType.OPEN, "50000", "BANK_A-L");
+        createAndPay(light, ChargeType.OPEN, "50000", "BANK-L");
 
         List<WebhookSendTask> claimed = webhookService.claimBatch();
 
@@ -146,7 +146,7 @@ class WebhookBulkheadTest extends AbstractIntegrationTest {
     @Test
     void suspendedConsumer_isExcludedFromClaim_thenResumed() throws Exception {
         Fixture f = seed(startReceiver(200));
-        createAndPay(f, ChargeType.CLOSED, "1000000", "BANK_A-S");
+        createAndPay(f, ChargeType.CLOSED, "1000000", "BANK-S");
 
         consumerService.setWebhookSuspended(f.consumer().getId(), true);
         assertThat(webhookService.claimBatch())
@@ -160,7 +160,7 @@ class WebhookBulkheadTest extends AbstractIntegrationTest {
     @Test
     void terminalFailure_recordsAuditAlert() throws Exception {
         Fixture f = seed(startReceiver(500));
-        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BANK_A-F");
+        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BANK-F");
         WebhookDelivery d = webhookRepository.findByChargeIdOrderByCreatedAtAsc(chargeId).getFirst();
         d.setAttempts(d.getMaxAttempts() - 1);
         webhookRepository.save(d);
@@ -176,7 +176,7 @@ class WebhookBulkheadTest extends AbstractIntegrationTest {
     @Test
     void replayFailed_requeuesAndAudits() throws Exception {
         Fixture f = seed(startReceiver(500));
-        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BANK_A-R");
+        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BANK-R");
         WebhookDelivery d = webhookRepository.findByChargeIdOrderByCreatedAtAsc(chargeId).getFirst();
         d.setAttempts(d.getMaxAttempts() - 1);
         webhookRepository.save(d);
@@ -196,7 +196,7 @@ class WebhookBulkheadTest extends AbstractIntegrationTest {
     @Test
     void failedCount_andAnalysisListing_surfaceFailedDeliveries() throws Exception {
         Fixture f = seed(startReceiver(500));
-        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BANK_A-FC");
+        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BANK-FC");
         WebhookDelivery d = webhookRepository.findByChargeIdOrderByCreatedAtAsc(chargeId).getFirst();
         d.setAttempts(d.getMaxAttempts() - 1);
         webhookRepository.save(d);
@@ -210,7 +210,7 @@ class WebhookBulkheadTest extends AbstractIntegrationTest {
     @Test
     void replayDelivery_requeuesSingleFailed() throws Exception {
         Fixture f = seed(startReceiver(500));
-        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BANK_A-RD");
+        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BANK-RD");
         WebhookDelivery d = webhookRepository.findByChargeIdOrderByCreatedAtAsc(chargeId).getFirst();
         d.setAttempts(d.getMaxAttempts() - 1);
         webhookRepository.save(d);
@@ -237,7 +237,7 @@ class WebhookBulkheadTest extends AbstractIntegrationTest {
     @Test
     void dispatcher_deliversClaimedBatchThroughBulkhead() throws Exception {
         Fixture f = seed(startReceiver(200));
-        String chargeId = createAndPay(f, ChargeType.CLOSED, "1000000", "BANK_A-D");
+        String chargeId = createAndPay(f, ChargeType.CLOSED, "1000000", "BANK-D");
 
         webhookDispatcher.dispatchDueAndAwait();
 

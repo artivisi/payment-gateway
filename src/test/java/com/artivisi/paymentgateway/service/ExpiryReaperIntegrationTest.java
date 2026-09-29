@@ -50,9 +50,9 @@ class ExpiryReaperIntegrationTest extends AbstractIntegrationTest {
     @BeforeEach
     void seed() {
         int n = SEQ.incrementAndGet();
-        escrowCode = "reaper-bank_a-" + n;
+        escrowCode = "reaper-demo-" + n;
         escrowService.create(new EscrowAccountRequest(
-                escrowCode, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+                escrowCode, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX,
                 null, null, null, null, null, null, null, null,
                 "900900111", "Operator", "90099", "900", 10, null, null));
@@ -130,7 +130,7 @@ class ExpiryReaperIntegrationTest extends AbstractIntegrationTest {
 
     /**
      * Moving the deadline has to put the VA back, or the charge is payable in principle and
-     * unreachable in practice. This is the gap that refused a real BANK_A payment on 2026-07-29: a
+     * unreachable in practice. This is the gap that refused a real the primary escrow payment on 2026-07-29: a
      * bill whose due date was corrected upstream had already had its VA retired.
      */
     @Test

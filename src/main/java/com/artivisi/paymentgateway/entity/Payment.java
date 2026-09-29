@@ -43,7 +43,7 @@ public class Payment {
     private String bankReference;
 
     /**
-     * The bank's own bookkeeping reference, when its notification carries one (BANK_A:
+     * The bank's own bookkeeping reference, when its notification carries one (one bank sends it as
      * {@code nomorJurnalPembukuan}). NULL for payments recorded before this existed, for payments
      * recovered from a settlement file rather than a notification, and for banks that send nothing
      * equivalent. Never derived — it is the bank's number or nothing.

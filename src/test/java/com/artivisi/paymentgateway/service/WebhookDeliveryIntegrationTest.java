@@ -78,7 +78,7 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
     }
 
     private static EscrowAccountRequest escrowRequest(String code) {
-        return new EscrowAccountRequest(code, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+        return new EscrowAccountRequest(code, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "900900111", "Operator Settlement", "90099", "900", 10, null, null);
     }
@@ -91,7 +91,7 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
         String secret = "wh-secret-" + n;
         Consumer consumer = consumerService.create(new ConsumerRequest(
                 "wh-consumer-" + n, "Academic", "wh-client-" + n, secret, webhookUrl, ConsumerStatus.ACTIVE));
-        EscrowAccount escrow = escrowService.create(escrowRequest("wh-bank_a-" + n));
+        EscrowAccount escrow = escrowService.create(escrowRequest("wh-demo-" + n));
         return new Fixture(consumer, escrow, secret, "900000000" + (n % 10));
     }
 
@@ -118,7 +118,7 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
     @Test
     void closedPayment_deliversSignedPaymentAndPaidEvents() throws Exception {
         Fixture f = seed(startReceiver(200));
-        String chargeId = createAndPay(f, ChargeType.CLOSED, "1000000", "BANK_A-REF-1");
+        String chargeId = createAndPay(f, ChargeType.CLOSED, "1000000", "the primary escrow-REF-1");
 
         // Outbox has both events pending before dispatch.
         List<WebhookDelivery> before = webhookRepository.findByChargeIdOrderByCreatedAtAsc(chargeId);
@@ -140,7 +140,7 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
     @Test
     void failedDelivery_incrementsAttemptsAndBacksOff() throws Exception {
         Fixture f = seed(startReceiver(500));
-        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BANK_A-REF-1");
+        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "the primary escrow-REF-1");
 
         dispatchOwn(chargeId);
 
@@ -154,7 +154,7 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
     @Test
     void delivery_failsTerminallyAfterMaxAttempts() throws Exception {
         Fixture f = seed(startReceiver(500));
-        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "BANK_A-REF-1");
+        String chargeId = createAndPay(f, ChargeType.OPEN, "50000", "the primary escrow-REF-1");
 
         WebhookDelivery delivery = webhookRepository.findByChargeIdOrderByCreatedAtAsc(chargeId).getFirst();
         delivery.setAttempts(delivery.getMaxAttempts() - 1);

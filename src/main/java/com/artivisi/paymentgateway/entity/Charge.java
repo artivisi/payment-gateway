@@ -39,7 +39,7 @@ public class Charge {
     /** The consumer's own bill id; unique per consumer (idempotency key). */
     private String consumerReference;
 
-    /** Human-meaningful bill/invoice number for finance + payer display (BANK_A {@code nomorInvoice}). */
+    /** Human-meaningful bill/invoice number for finance + payer display (what one bank calls the invoice number). */
     private String billNumber;
 
     private String payerName;
@@ -48,7 +48,7 @@ public class Charge {
 
     private String payerPhone;
 
-    /** Bill description shown to the payer (BANK_A {@code keterangan}); optional. */
+    /** Bill description shown to the payer (what one bank calls the description); optional. */
     private String description;
 
     @Enumerated(EnumType.STRING)

@@ -66,14 +66,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webflux</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web-services</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish.jaxb</groupId>
-            <artifactId>jaxb-runtime</artifactId>
-        </dependency>
 
         <!-- Spring Boot 4 modularized autoconfiguration: the Flyway autoconfig
              lives in this module and must be present for migrations to run. -->
@@ -144,6 +136,21 @@
     <build>
         <plugins>
             <plugin>
+                <!-- The integration-test harness (AbstractIntegrationTest and its gateway stub) ships as
+                     a test-jar so a private adapter assembly can write bank tests against the same
+                     container, stub and seeding this repository tests itself with, instead of copying
+                     them and letting the two drift. -->
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>test-jar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
@@ -160,6 +167,11 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <!-- The runnable jar is payment-gateway-<version>-boot.jar; the plain jar stays the
+                         main artifact so a private assembly can depend on this engine as a library and
+                         add its own bank adapters. Without a classifier the repacked jar replaces the
+                         plain one, and nothing can compile against it. -->
+                    <classifier>boot</classifier>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>

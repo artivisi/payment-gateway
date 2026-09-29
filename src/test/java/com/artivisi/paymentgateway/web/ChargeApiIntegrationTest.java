@@ -37,12 +37,12 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
     private String clientId;
     private String clientSecret;
     private String bank_aCode;
-    private String bank_bCode;
+    private String altCode;
     private final String bank_aVa = "9000000001";
-    private final String bank_bVa = "9000000002";
+    private final String altVa = "9000000002";
 
     private static EscrowAccountRequest escrowRequest(String code) {
-        return new EscrowAccountRequest(code, "bank_a", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
+        return new EscrowAccountRequest(code, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "900900111", "Operator Settlement", "90099", "900", 10, null, null);
     }
@@ -52,12 +52,12 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
         int n = SEQ.incrementAndGet();
         clientId = "api-client-" + n;
         clientSecret = "secret-" + n;
-        bank_aCode = "api-bank_a-" + n;
-        bank_bCode = "api-bank_b-" + n;
+        bank_aCode = "api-demo-" + n;
+        altCode = "api-alt-" + n;
         consumerService.create(new ConsumerRequest(
                 "api-consumer-" + n, "Academic", clientId, clientSecret, "https://hook.example/" + n, ConsumerStatus.ACTIVE));
         escrowService.create(escrowRequest(bank_aCode));
-        escrowService.create(escrowRequest(bank_bCode));
+        escrowService.create(escrowRequest(altCode));
     }
 
     private Map<String, Object> chargeBody(String reference, String bank_aNumber) {
@@ -68,7 +68,7 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
                 "amount", 1000000,
                 "accounts", List.of(
                         Map.of("escrowCode", bank_aCode, "vaNumber", bank_aNumber),
-                        Map.of("escrowCode", bank_bCode, "vaNumber", bank_bVa)));
+                        Map.of("escrowCode", altCode, "vaNumber", altVa)));
     }
 
     @Test
@@ -80,7 +80,7 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
                 .body("id", notNullValue())
                 .body("status", equalTo("ACTIVE"))
                 .body("accounts.size()", equalTo(2))
-                .body("accounts.escrowCode", hasItems(bank_aCode, bank_bCode))
+                .body("accounts.escrowCode", hasItems(bank_aCode, altCode))
                 .body("accounts.status", hasItems("ACTIVE"));
     }
 
