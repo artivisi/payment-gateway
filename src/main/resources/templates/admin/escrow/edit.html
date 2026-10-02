@@ -30,7 +30,7 @@
             <div>
                 <label class="label">Provider</label>
                 <select th:if="${!structuralLocked}" class="input" name="provider" data-testid="provider">
-                    <option th:each="p : ${ {'bank_c','bank_a','bank_b'} }" th:value="${p}" th:text="${p}"
+                    <option th:each="p : ${providers}" th:value="${p}" th:text="${p}"
                             th:selected="${escrow.provider == p}">p</option>
                 </select>
                 <input th:if="${structuralLocked}" class="input bg-slate-50" type="text" th:value="${escrow.provider}" readonly/>

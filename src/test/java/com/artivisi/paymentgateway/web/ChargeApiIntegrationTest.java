@@ -36,9 +36,9 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
 
     private String clientId;
     private String clientSecret;
-    private String bank_aCode;
+    private String primaryCode;
     private String altCode;
-    private final String bank_aVa = "9000000001";
+    private final String primaryVa = "9000000001";
     private final String altVa = "9000000002";
 
     private static EscrowAccountRequest escrowRequest(String code) {
@@ -52,11 +52,11 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
         int n = SEQ.incrementAndGet();
         clientId = "api-client-" + n;
         clientSecret = "secret-" + n;
-        bank_aCode = "api-demo-" + n;
+        primaryCode = "api-demo-" + n;
         altCode = "api-alt-" + n;
         consumerService.create(new ConsumerRequest(
                 "api-consumer-" + n, "Academic", clientId, clientSecret, "https://hook.example/" + n, ConsumerStatus.ACTIVE));
-        escrowService.create(escrowRequest(bank_aCode));
+        escrowService.create(escrowRequest(primaryCode));
         escrowService.create(escrowRequest(altCode));
     }
 
@@ -67,45 +67,45 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
                 "chargeType", "CLOSED",
                 "amount", 1000000,
                 "accounts", List.of(
-                        Map.of("escrowCode", bank_aCode, "vaNumber", bank_aNumber),
+                        Map.of("escrowCode", primaryCode, "vaNumber", bank_aNumber),
                         Map.of("escrowCode", altCode, "vaNumber", altVa)));
     }
 
     @Test
     void createCharge_fansOutAcrossEscrows() {
         given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
-                .contentType("application/json").body(chargeBody("ref-1", bank_aVa))
+                .contentType("application/json").body(chargeBody("ref-1", primaryVa))
                 .when().post("/api/charges")
                 .then().statusCode(201)
                 .body("id", notNullValue())
                 .body("status", equalTo("ACTIVE"))
                 .body("accounts.size()", equalTo(2))
-                .body("accounts.escrowCode", hasItems(bank_aCode, altCode))
+                .body("accounts.escrowCode", hasItems(primaryCode, altCode))
                 .body("accounts.status", hasItems("ACTIVE"));
     }
 
     @Test
     void createCharge_isIdempotentOnConsumerReference() {
         String id = given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
-                .contentType("application/json").body(chargeBody("ref-dup", bank_aVa))
+                .contentType("application/json").body(chargeBody("ref-dup", primaryVa))
                 .when().post("/api/charges").then().statusCode(201).extract().path("id");
 
         given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
-                .contentType("application/json").body(chargeBody("ref-dup", bank_aVa))
+                .contentType("application/json").body(chargeBody("ref-dup", primaryVa))
                 .when().post("/api/charges")
                 .then().statusCode(200).body("id", equalTo(id));
     }
 
     @Test
     void createCharge_withoutCredentials_is401() {
-        given().contentType("application/json").body(chargeBody("ref-1", bank_aVa))
+        given().contentType("application/json").body(chargeBody("ref-1", primaryVa))
                 .when().post("/api/charges").then().statusCode(401);
     }
 
     @Test
     void createCharge_withWrongSecret_is401() {
         given().header("X-Client-Id", clientId).header("X-Client-Secret", "wrong")
-                .contentType("application/json").body(chargeBody("ref-1", bank_aVa))
+                .contentType("application/json").body(chargeBody("ref-1", primaryVa))
                 .when().post("/api/charges").then().statusCode(401);
     }
 
@@ -119,7 +119,7 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
     @Test
     void getAndCancelCharge() {
         String id = given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
-                .contentType("application/json").body(chargeBody("ref-cancel", bank_aVa))
+                .contentType("application/json").body(chargeBody("ref-cancel", primaryVa))
                 .when().post("/api/charges").then().statusCode(201).extract().path("id");
 
         given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
@@ -140,7 +140,7 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
     @Test
     void cancellingACharge_notifiesTheConsumerExactlyOnce() {
         String id = given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
-                .contentType("application/json").body(chargeBody("ref-cancel-webhook", bank_aVa))
+                .contentType("application/json").body(chargeBody("ref-cancel-webhook", primaryVa))
                 .when().post("/api/charges").then().statusCode(201).extract().path("id");
 
         given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)

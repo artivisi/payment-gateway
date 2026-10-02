@@ -58,8 +58,8 @@ absent — see the linked report's §6 for what "0 mismatches" here does and doe
 ```bash
 # from payment-gateway-evtsrc, targeting this repo's app:
 RUN_ID=$(date +%Y%m%d%H%M%S) \
-BANK_A_SHARED_SECRET=<real escrow secret> \
-k6 run -e RUN_ID="$RUN_ID" -e BANK_A_SHARED_SECRET="$BANK_A_SHARED_SECRET" \
+BANK_SHARED_SECRET=<real escrow secret> \
+k6 run -e RUN_ID="$RUN_ID" -e BANK_SHARED_SECRET="$BANK_SHARED_SECRET" \
   -e TARGET_URL=http://localhost:8080 \
   --summary-export=scenarios/results/$(date +%Y-%m-%d)-rdbms-summary.json \
   --out json=scenarios/results/$(date +%Y-%m-%d)-rdbms-raw.json \

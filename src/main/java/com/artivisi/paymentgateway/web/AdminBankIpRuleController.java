@@ -1,5 +1,6 @@
 package com.artivisi.paymentgateway.web;
 
+import com.artivisi.paymentgateway.adapter.spi.BankAdapterRegistry;
 import com.artivisi.paymentgateway.service.BankIpRuleService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -16,14 +17,19 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class AdminBankIpRuleController {
 
     private final BankIpRuleService service;
+    private final BankAdapterRegistry adapters;
 
-    public AdminBankIpRuleController(BankIpRuleService service) {
+    public AdminBankIpRuleController(BankIpRuleService service, BankAdapterRegistry adapters) {
+        this.adapters = adapters;
         this.service = service;
     }
 
     @GetMapping
     public String list(Model model) {
         model.addAttribute("rules", service.list());
+        // The providers this build serves. A hardcoded list here let an operator write a rule for a
+        // bank the gateway cannot answer, which looks like protection and is not.
+        model.addAttribute("providers", adapters.adapters().keySet());
         return "admin/bank-ip-rule/list";
     }
 

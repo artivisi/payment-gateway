@@ -19,9 +19,7 @@
         <div>
             <label for="provider" class="label">Provider</label>
             <select id="provider" name="provider" class="input">
-                <option value="bank_a">bank_a</option>
-                <option value="bank_b">bank_b</option>
-                <option value="bank_c">bank_c</option>
+                <option th:each="p : ${providers}" th:value="${p}" th:text="${p}"></option>
             </select>
         </div>
         <div>
@@ -41,7 +39,7 @@
              th:classappend="${r.enabled} ? 'item-card-on' : 'item-card-off'">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <p class="text-base font-semibold text-slate-900" th:text="${r.provider}">bank_a</p>
+                    <p class="text-base font-semibold text-slate-900" th:text="${r.provider}">provider</p>
                     <p class="font-mono text-sm text-slate-600" th:text="${r.cidr}">cidr</p>
                 </div>
                 <span th:classappend="${r.enabled} ? 'badge-ok' : 'badge-muted'"

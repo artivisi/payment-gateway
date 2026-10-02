@@ -6,6 +6,7 @@ import com.artivisi.paymentgateway.entity.AuthScheme;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.adapter.spi.BankAdapterRegistry;
 import com.artivisi.paymentgateway.service.EscrowAccountService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -21,8 +22,10 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 public class AdminEscrowController {
 
     private final EscrowAccountService escrowAccountService;
+    private final BankAdapterRegistry adapters;
 
-    public AdminEscrowController(EscrowAccountService escrowAccountService) {
+    public AdminEscrowController(EscrowAccountService escrowAccountService, BankAdapterRegistry adapters) {
+        this.adapters = adapters;
         this.escrowAccountService = escrowAccountService;
     }
 
@@ -33,7 +36,8 @@ public class AdminEscrowController {
     }
 
     @GetMapping("/new")
-    public String form() {
+    public String form(Model model) {
+        model.addAttribute("providers", adapters.adapters().keySet());
         return "admin/escrow/form";
     }
 
@@ -77,6 +81,7 @@ public class AdminEscrowController {
     public String edit(@PathVariable String id, Model model) {
         model.addAttribute("escrow", escrowAccountService.get(id));
         model.addAttribute("structuralLocked", escrowAccountService.hasVirtualAccounts(id));
+        model.addAttribute("providers", adapters.adapters().keySet());
         return "admin/escrow/edit";
     }
 

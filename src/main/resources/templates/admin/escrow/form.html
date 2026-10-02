@@ -17,9 +17,7 @@
             <div>
                 <label class="label" for="provider">Provider</label>
                 <select class="input" id="provider" name="provider">
-                    <option value="bank_c">bank_c</option>
-                    <option value="bank_a">bank_a</option>
-                    <option value="bank_b">bank_b</option>
+                    <option th:each="p : ${providers}" th:value="${p}" th:text="${p}"></option>
                 </select>
             </div>
             <div>
