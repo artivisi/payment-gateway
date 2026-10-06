@@ -1,6 +1,6 @@
 -- What the bank keeps from each payment before crediting the settlement account.
 --
--- BANK_A deducts Rp 2.000 per VA payment: a student pays 2.000.000 and the account receives 1.998.000.
+-- A launch bank deducts Rp 2.000 per VA payment: a student pays 2.000.000 and the account receives 1.998.000.
 -- Reconciliation compared the two figures directly, so the first real settlement import would have
 -- reported EVERY row as an AMOUNT_MISMATCH — a report that is wrong about everything gets read as a
 -- broken feature and thrown away, which is worse than no report. Measured on 2026-08-25 against seven

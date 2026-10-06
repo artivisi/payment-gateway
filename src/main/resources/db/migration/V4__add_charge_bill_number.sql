@@ -1,5 +1,5 @@
--- Human-meaningful bill/invoice number for finance traceability, shown to the payer as the BANK_A
--- nomorInvoice. Distinct from consumer_reference (the consumer's idempotency key, which may be a UUID).
+-- Human-meaningful bill/invoice number for finance traceability, shown to the payer as the bank's
+-- invoice number. Distinct from consumer_reference (the consumer's idempotency key, which may be a UUID).
 -- Backfilled from legacy virtual_account.invoice_number for migrated charges; supplied by the consumer
--- on create for new charges. Nullable; omitted from the BANK_A response when absent (no fallback).
+-- on create for new charges. Nullable; omitted from the bank response when absent (no fallback).
 alter table charge add column bill_number varchar(128);

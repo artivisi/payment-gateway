@@ -6,7 +6,7 @@
 create table escrow_account (
     id                        varchar(36)   primary key,
     code                      varchar(64)   not null unique,
-    provider                  varchar(32)   not null,   -- bank_c | bank_a | bank_b
+    provider                  varchar(32)   not null,   -- must match a registered BankAdapter
     hosting_model             varchar(20)   not null,   -- SELF_HOSTED | BANK_HOSTED
     transport                 varchar(20)   not null,   -- REST_JSON | SOAP_XML
     auth_scheme               varchar(20)   not null,   -- SNAP | PROPRIETARY
@@ -175,7 +175,7 @@ create table snap_external_id (
 -- provider = unrestricted. CIDR validated in the application before persistence.
 create table bank_ip_rule (
     id         varchar(36)  primary key,
-    provider   varchar(32)  not null,   -- bank_a | bank_b | bank_c
+    provider   varchar(32)  not null,   -- must match a registered BankAdapter
     cidr       varchar(64)  not null,
     label      varchar(200),
     enabled    boolean      not null,

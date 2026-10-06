@@ -60,14 +60,14 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
         escrowService.create(escrowRequest(altCode));
     }
 
-    private Map<String, Object> chargeBody(String reference, String bank_aNumber) {
+    private Map<String, Object> chargeBody(String reference, String vaNumber) {
         return Map.of(
                 "consumerReference", reference,
                 "payerName", "Student",
                 "chargeType", "CLOSED",
                 "amount", 1000000,
                 "accounts", List.of(
-                        Map.of("escrowCode", primaryCode, "vaNumber", bank_aNumber),
+                        Map.of("escrowCode", primaryCode, "vaNumber", vaNumber),
                         Map.of("escrowCode", altCode, "vaNumber", altVa)));
     }
 

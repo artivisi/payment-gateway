@@ -1,8 +1,8 @@
 -- Every inbound bank message, as the bank sent it.
 --
--- Exists because a typed DTO throws away what it does not model, silently. BANK_A sent
--- `nomorJurnalPembukuan` on every payment notification since launch; BankARequest had no such
--- component, Jackson ignored it by default, and the field left no trace anywhere in this system. It
+-- Exists because a typed DTO throws away what it does not model, silently. A launch bank sent a
+-- core-banking journal number on every payment notification since launch; its request record had no
+-- such component, Jackson ignored it by default, and the field left no trace in this system. It
 -- surfaced on 2026-08-25 only because the legacy service being retired happened to log
 -- raw request text at DEBUG. That log reaches back five weeks and dies with the service.
 --

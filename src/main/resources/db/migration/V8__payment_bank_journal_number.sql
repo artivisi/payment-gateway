@@ -1,16 +1,17 @@
 -- The bank's own bookkeeping reference for a payment.
 --
--- BANK_A sends `nomorJurnalPembukuan` on every payment notification — e.g. 8877420825173803000451,
--- which decodes as a six-digit journal sequence, MMDDHHMMSS, and BANK_A's bank code 451. The gateway
--- never modelled the field, so Jackson dropped it silently on every callback since launch.
+-- A launch bank sends a core-banking journal number on every payment notification: 22 digits, which
+-- decode as a six-digit journal sequence, MMDDHHMMSS, and the bank's clearing code zero-padded to
+-- six. The gateway never modelled the field, so Jackson dropped it silently on every callback since
+-- launch.
 --
--- It matters because BANK_A keeps three separate numbering schemes and none of them overlap: idTransaksi
--- belongs to the VA collection system (what we store as bank_reference), nomorJurnalPembukuan to core
--- banking, and the FT Number that appears on the account statement to funds transfer. Tested on the
--- every payment in the window where both sources survive: no journal number appears in the statement
--- and no FT number appears in a callback. So reconciling an account statement exactly is
--- impossible today, and the journal number is the reference a BANK_A operator can actually trace when
--- asked where a payment went.
+-- It matters because that bank keeps three separate numbering schemes and none of them overlap: the
+-- transaction id belongs to the VA collection system (what we store as bank_reference), the journal
+-- number to core banking, and the transfer number printed on the account statement to funds transfer.
+-- Tested on every payment in the window where both sources survive: no journal number appears in the
+-- statement and no transfer number appears in a callback. So reconciling an account statement exactly
+-- is impossible today, and the journal number is the reference a bank operator can actually trace
+-- when asked where a payment went.
 --
 -- Until now the only copy lived in the legacy service's DEBUG log, which reaches back to 19 July 2026 and
 -- disappears when that service is retired.
