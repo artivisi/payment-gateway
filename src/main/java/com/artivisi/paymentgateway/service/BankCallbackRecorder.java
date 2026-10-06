@@ -56,8 +56,15 @@ public class BankCallbackRecorder {
      * afterwards. Recording must never be the reason a callback fails, so a failure here is logged
      * and swallowed — losing the copy is bad, refusing the bank's money because we could not file it
      * is worse.
+     *
+     * <p>{@code sourceIp} is the caller's address as the allowlist saw it ({@code getRemoteAddr()},
+     * which honours the trusted proxy's forwarded headers). It is required: an adapter that cannot
+     * say where a payment came from is a coding error, and is refused before anything is processed.
      */
-    public <T> T record(String provider, String rawBody, Class<T> type) {
+    public <T> T record(String provider, String sourceIp, String rawBody, Class<T> type) {
+        if (sourceIp == null || sourceIp.isBlank()) {
+            throw new IllegalArgumentException(provider + " callback recorded without a source IP");
+        }
         JsonNode tree;
         try {
             tree = objectMapper.readTree(rawBody);
@@ -65,7 +72,7 @@ public class BankCallbackRecorder {
             throw new InvalidRequestException("unparseable " + provider + " callback: " + e.getMessage());
         }
         try {
-            save(provider, tree, unknownFields(tree, type));
+            save(provider, sourceIp, tree, unknownFields(tree, type));
         } catch (RuntimeException e) {
             log.error("Could not record the {} callback; processing it anyway", provider, e);
         }
@@ -73,7 +80,7 @@ public class BankCallbackRecorder {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    protected void save(String provider, JsonNode tree, List<String> unknown) {
+    protected void save(String provider, String sourceIp, JsonNode tree, List<String> unknown) {
         if (!unknown.isEmpty()) {
             // Loud, but not fatal. Refusing a real payment because the bank added a field would be a
             // far worse failure than not modelling it yet.
@@ -87,6 +94,7 @@ public class BankCallbackRecorder {
         BankCallback row = new BankCallback();
         row.setProvider(provider);
         row.setReceivedAt(Instant.now());
+        row.setSourceIp(sourceIp);
         row.setAction(text(tree, "action"));
         row.setVaNumber(text(tree, "nomorPembayaran"));
         row.setBankReference(text(tree, "idTransaksi"));

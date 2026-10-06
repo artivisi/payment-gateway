@@ -11,6 +11,7 @@ import com.artivisi.paymentgateway.service.BankCallbackRecorder;
 import com.artivisi.paymentgateway.service.EscrowResolver;
 import com.artivisi.paymentgateway.service.InquiryService;
 import com.artivisi.paymentgateway.service.PaymentApplicationService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,9 +33,10 @@ import java.util.Locale;
  * a lesson paid for in production:
  *
  * <ul>
- *   <li><b>Record the raw message before parsing it.</b> A typed binding silently discards every
- *       field it does not model, and a field nobody modelled is exactly the one finance asks about
- *       later.</li>
+ *   <li><b>Record the raw message before parsing it, and where it came from.</b> A typed binding
+ *       silently discards every field it does not model, and a field nobody modelled is exactly the
+ *       one finance asks about later. The source address is the one the allowlist checked; the
+ *       proxy log that also has it rotates long before anyone disputes a payment.</li>
  *   <li><b>Authenticate before doing anything.</b> Resolve the escrow first, because the shared
  *       secret lives on it, then check the signature; an adapter that acts first and checks after is
  *       an open payment endpoint.</li>
@@ -90,9 +92,9 @@ public class DemoBankController implements BankAdapter {
     }
 
     @PostMapping
-    public DemoBankMessages.Response handle(@RequestBody String rawBody) {
-        DemoBankMessages.Request request =
-                callbackRecorder.record(PROVIDER, rawBody, DemoBankMessages.Request.class);
+    public DemoBankMessages.Response handle(@RequestBody String rawBody, HttpServletRequest http) {
+        DemoBankMessages.Request request = callbackRecorder.record(
+                PROVIDER, http.getRemoteAddr(), rawBody, DemoBankMessages.Request.class);
 
         EscrowAccount escrow;
         try {

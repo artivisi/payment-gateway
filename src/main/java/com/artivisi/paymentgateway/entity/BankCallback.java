@@ -30,6 +30,12 @@ public class BankCallback {
 
     private Instant receivedAt;
 
+    /**
+     * The address the message arrived from, as the bank-IP allowlist saw it. Null only on rows
+     * recorded before it was captured (V11); the nginx log that held it until then keeps 14 days.
+     */
+    private String sourceIp;
+
     private String action;
 
     private String vaNumber;

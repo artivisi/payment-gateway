@@ -175,4 +175,31 @@ class DemoBankAdapterIntegrationTest extends AbstractIntegrationTest {
                 .as("what the bank sent is a fact worth keeping whatever we made of it")
                 .isEqualTo(before + 1);
     }
+
+    @Test
+    void theSourceAddressIsKeptWithTheMessage() {
+        post(body("inquiry", vaNumber, null, sign(vaNumber, null))).statusCode(200);
+
+        assertThat(recordedForThisVa().getSourceIp())
+                .as("the proxy log that also holds it rotates long before anyone disputes a payment")
+                .isEqualTo("127.0.0.1");
+    }
+
+    @Test
+    void behindTheTrustedProxyTheSourceIsTheBanksAddressNotTheProxys() {
+        // The same address the allowlist checked: nginx forwards the caller, and recording the
+        // proxy's own loopback instead would make every row say the payment came from ourselves.
+        given().header("X-Forwarded-For", "203.0.113.7")
+                .contentType("application/json").body(body("inquiry", vaNumber, null, sign(vaNumber, null)))
+                .when().post("/api/bank/demo").then().statusCode(200);
+
+        assertThat(recordedForThisVa().getSourceIp()).isEqualTo("203.0.113.7");
+    }
+
+    private com.artivisi.paymentgateway.entity.BankCallback recordedForThisVa() {
+        return callbackRepository.findAll().stream()
+                .filter(c -> c.getPayload().contains("\"TRX-" + vaNumber + "\""))
+                .reduce((first, second) -> second)
+                .orElseThrow();
+    }
 }
