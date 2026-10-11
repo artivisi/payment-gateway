@@ -11,7 +11,9 @@ import com.artivisi.paymentgateway.entity.Consumer;
 import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.repository.PaymentRepository;
 import com.artivisi.paymentgateway.service.ChargeService;
 import com.artivisi.paymentgateway.service.ConsumerService;
@@ -71,10 +73,12 @@ class DemoBankAdapterIntegrationTest extends AbstractIntegrationTest {
         escrowService.create(new EscrowAccountRequest(escrowCode, "demo", HostingModel.SELF_HOSTED,
                 TransportProtocol.REST_JSON, AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX,
                 "demo-client", SECRET, null, null, null, null, null, null,
-                "920900111", "Operator Settlement", "92099", "920", 10, null, null));
+                "920900111", "Operator Settlement", "92099", "920", 10, null, null, null,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, ""));
         chargeService.create(consumer, new CreateChargeRequest(
                 "demoadp-ref-" + n, "Student", null, null, ChargeType.CLOSED, AMOUNT, null,
-                List.of(new ChargeAccountRequest(escrowCode, vaNumber)), "SPP Semester Ganjil", billNumber));
+                List.of(new ChargeAccountRequest(escrowCode)), "SPP Semester Ganjil", billNumber,
+                payerKeyOf("920", vaNumber), slotKeyOf("920", vaNumber)));
     }
 
     private Map<String, Object> body(String action, String va, BigDecimal amount, String signature) {

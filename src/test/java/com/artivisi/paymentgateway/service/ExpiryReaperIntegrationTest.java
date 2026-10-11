@@ -12,7 +12,9 @@ import com.artivisi.paymentgateway.entity.Consumer;
 import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.entity.VirtualAccountStatus;
 import com.artivisi.paymentgateway.repository.AuditEventRepository;
 import com.artivisi.paymentgateway.repository.ChargeRepository;
@@ -55,7 +57,8 @@ class ExpiryReaperIntegrationTest extends AbstractIntegrationTest {
                 escrowCode, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX,
                 null, null, null, null, null, null, null, null,
-                "900900111", "Operator", "90099", "900", 10, null, null));
+                "900900111", "Operator", "90099", "900", 10, null, null, null,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, ""));
         String clientId = "reaper-client-" + n;
         consumerService.create(new ConsumerRequest(
                 "reaper-consumer-" + n, "Test", clientId, "secret-" + n,
@@ -67,7 +70,8 @@ class ExpiryReaperIntegrationTest extends AbstractIntegrationTest {
         var request = new CreateChargeRequest(
                 ref, "Payer", null, null, ChargeType.CLOSED, new BigDecimal("500000"),
                 expiresAt,
-                List.of(new ChargeAccountRequest(escrowCode, vaNumber)));
+                List.of(new ChargeAccountRequest(escrowCode)), null, null,
+                payerKeyOf("900", vaNumber), slotKeyOf("900", vaNumber));
         return chargeService.create(consumer, request).response().id();
     }
 

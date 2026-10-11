@@ -11,6 +11,19 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * {@code payerKey} and {@code slotKey} are what the gateway allocates every target escrow's VA
+ * number from, and they are deliberately the only number-space inputs a consumer provides.
+ *
+ * <p>{@code payerKey} is the consumer's own stable identifier for the payer — a student id, a member
+ * id. It must stay the same across that payer's charges, because the number is derived from it and
+ * payers keep the number in their banking app. {@code slotKey} is a short numeric key separating one
+ * payer's concurrent VAs; a consumer maps its own vocabulary (bill category, invoice type) onto slot
+ * values, and the gateway never learns what a slot means.
+ *
+ * <p>Neither is a bank fact, which is the point: the same pair allocates a number at every escrow
+ * named in {@code accounts}, each in that escrow's own layout.
+ */
 public record CreateChargeRequest(
         @NotBlank String consumerReference,
         @NotBlank String payerName,
@@ -21,12 +34,8 @@ public record CreateChargeRequest(
         Instant expiresAt,
         @NotEmpty List<@Valid ChargeAccountRequest> accounts,
         String description,
-        String billNumber
+        String billNumber,
+        @NotBlank String payerKey,
+        @NotBlank String slotKey
 ) {
-    /** Source-compatibility overload for callers predating {@code description}/{@code billNumber} (default null). */
-    public CreateChargeRequest(String consumerReference, String payerName, String payerEmail, String payerPhone,
-                               ChargeType chargeType, BigDecimal amount, Instant expiresAt,
-                               List<ChargeAccountRequest> accounts) {
-        this(consumerReference, payerName, payerEmail, payerPhone, chargeType, amount, expiresAt, accounts, null, null);
-    }
 }

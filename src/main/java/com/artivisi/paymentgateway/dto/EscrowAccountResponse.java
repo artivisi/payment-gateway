@@ -4,6 +4,8 @@ import com.artivisi.paymentgateway.entity.AuthScheme;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
 
 import java.time.Instant;
@@ -34,6 +36,10 @@ public record EscrowAccountResponse(
         String merchantTag,
         String institutionTag,
         java.math.BigDecimal settlementFee,
+        VaAllocationStrategy allocationStrategy,
+        Integer slotDigits,
+        PayerPadding payerPadding,
+        String interbankPrefix,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -44,6 +50,7 @@ public record EscrowAccountResponse(
                 e.getChannelId(), e.getPublicKey(), e.getSandboxBaseUrl(), e.getProductionBaseUrl(),
                 e.getSettlementAccountNumber(), e.getSettlementAccountName(), e.getCompanyId(),
                 e.getVaPrefix(), e.getVaDigitLength(), e.getMerchantTag(), e.getInstitutionTag(), e.getSettlementFee(),
+                e.getAllocationStrategy(), e.getSlotDigits(), e.getPayerPadding(), e.getInterbankPrefix(),
                 e.getCreatedAt(), e.getUpdatedAt());
     }
 }

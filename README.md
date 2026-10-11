@@ -45,7 +45,7 @@ One charge is payable through **1..N sibling virtual accounts**, one per target 
 
 ## VA number allocation
 
-The gateway allocates VA numbers; client applications stay bank-agnostic. Each escrow account carries its bank's number space — company id, prefix, total digits, segment widths and padding. A client supplies only facts it owns: a stable payer key (e.g. a member or student id) and a short slot key that separates one payer's concurrent VAs (e.g. by bill category). The gateway composes one number per target bank, each in that bank's layout, and returns both the VA number and its interbank form. The same payer and slot always get the same number, so a payer can keep it saved in their banking app. Planned in [#1](https://github.com/artivisi/payment-gateway/issues/1); the current release still takes a client-computed number and validates it against the escrow's number space.
+The gateway allocates VA numbers; client applications stay bank-agnostic. Each escrow account carries its bank's number space — company id, prefix, total digits, segment widths and padding. A client supplies only facts it owns: a stable payer key (e.g. a member or student id) and a short slot key that separates one payer's concurrent VAs (e.g. by bill category). The gateway composes one number per target bank, each in that bank's layout, and returns both the VA number and its interbank form. The same payer and slot always get the same number, so a payer can keep it saved in their banking app. A key that is not numeric, or too long for the segment the layout leaves it, is refused rather than truncated: a truncated key composes a well-formed number belonging to a different payer. Implemented in [#1](https://github.com/artivisi/payment-gateway/issues/1).
 
 ## Reconciliation
 

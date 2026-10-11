@@ -12,10 +12,13 @@ import com.artivisi.paymentgateway.entity.ChargeType;
 import com.artivisi.paymentgateway.entity.Consumer;
 import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
+import com.artivisi.paymentgateway.exception.DuplicateException;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.Payment;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.repository.ChargeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,6 +30,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * VA numbers are reusable once a generation is no longer ACTIVE (the billing system reissues the
@@ -57,7 +61,8 @@ class VirtualAccountReuseIntegrationTest extends AbstractIntegrationTest {
         escrow = escrowService.create(new EscrowAccountRequest(
                 "reuse-demo-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
-                "920900111", "Operator Settlement", "92099", "920", 10, null, null));
+                "920900111", "Operator Settlement", "92099", "920", 10, null, null, null,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, ""));
         vaNumber = "920000000" + (n % 10);
     }
 
@@ -65,7 +70,8 @@ class VirtualAccountReuseIntegrationTest extends AbstractIntegrationTest {
         var outcome = chargeService.create(consumer, new CreateChargeRequest(
                 "reuse-ref-" + SEQ.get() + "-" + amount, "Student", null, null,
                 ChargeType.CLOSED, amount, null,
-                List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber))));
+                List.of(new ChargeAccountRequest(escrow.getCode())), null, null,
+                payerKeyOf("920", vaNumber), slotKeyOf("920", vaNumber)));
         return outcome.response().id();
     }
 
@@ -108,5 +114,45 @@ class VirtualAccountReuseIntegrationTest extends AbstractIntegrationTest {
         Payment payment = paymentService.apply(escrow, vaNumber,
                 new BigDecimal("750000"), "REF-C", Instant.now());
         assertThat(payment.getCharge().getId()).isEqualTo(second);
+    }
+
+    /**
+     * The conflict a consumer has to be able to act on.
+     *
+     * <p>A second live charge for the same payer and slot would need the same number, and only one
+     * generation may be ACTIVE. Since the consumer no longer composes the number, the refusal is the
+     * only place it can learn which number it collided on and which of its own bills is holding it —
+     * without that, the one thing it can do about it, supersede that bill, is not reachable.
+     */
+    @Test
+    void aSecondLiveChargeOnTheSameKeys_isRefusedWithTheNumberAndTheBillHoldingIt() {
+        String first = createCharge(new BigDecimal("500000"));
+        String heldBy = chargeRepository.findById(first).orElseThrow().getConsumerReference();
+
+        assertThatThrownBy(() -> createCharge(new BigDecimal("600000")))
+                .isInstanceOf(DuplicateException.class)
+                .hasMessageContaining(escrow.getCode())
+                .hasMessageContaining(vaNumber)
+                .hasMessageContaining(heldBy);
+    }
+
+    @Test
+    void anotherConsumersBillIdIsNotDisclosed_onlyTheEscrowAndTheNumber() {
+        createCharge(new BigDecimal("500000"));
+        int n = SEQ.incrementAndGet();
+        Consumer other = consumerService.create(new ConsumerRequest(
+                "reuse-other-" + n, "Other", "reuse-other-client-" + n, "secret-" + n,
+                "https://hook.example/other-" + n, ConsumerStatus.ACTIVE));
+
+        // One consumer's bill ids are not another's to read. The escrow and the number are enough to
+        // report the clash to an operator, which is whose problem a cross-consumer clash is.
+        assertThatThrownBy(() -> chargeService.create(other, new CreateChargeRequest(
+                "reuse-other-ref-" + n, "Student", null, null, ChargeType.CLOSED,
+                new BigDecimal("600000"), null,
+                List.of(new ChargeAccountRequest(escrow.getCode())), null, null,
+                payerKeyOf("920", vaNumber), slotKeyOf("920", vaNumber))))
+                .isInstanceOf(DuplicateException.class)
+                .hasMessageContaining(vaNumber)
+                .hasMessageNotContaining("held by charge");
     }
 }

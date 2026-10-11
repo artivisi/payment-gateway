@@ -19,8 +19,10 @@ import com.artivisi.paymentgateway.entity.DiscrepancyType;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.ReconciliationRun;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.repository.ChargeRepository;
 import com.artivisi.paymentgateway.repository.ReconciliationDiscrepancyRepository;
 import com.artivisi.paymentgateway.repository.WebhookDeliveryRepository;
@@ -63,7 +65,8 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
     private static EscrowAccountRequest escrowRequest(String code, BigDecimal fee) {
         return new EscrowAccountRequest(code, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
-                "930900111", "Operator Settlement", "93099", "930", 10, null, null, fee);
+                "930900111", "Operator Settlement", "93099", "930", 10, null, null, fee,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, "");
     }
 
     @BeforeEach
@@ -78,7 +81,8 @@ class ReconciliationIntegrationTest extends AbstractIntegrationTest {
     private void createCharge(String vaNumber, String amount) {
         chargeService.create(consumer, new CreateChargeRequest(
                 "recon-ref-" + vaNumber, "Student", null, null, ChargeType.CLOSED, new BigDecimal(amount), null,
-                List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber))));
+                List.of(new ChargeAccountRequest(escrow.getCode())), null, null,
+                payerKeyOf("930", vaNumber), slotKeyOf("930", vaNumber)));
     }
 
     private static SettlementCredit credit(String va, String ref, String amount) {

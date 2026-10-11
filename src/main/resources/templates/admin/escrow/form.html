@@ -65,6 +65,34 @@
                     <label class="label" for="vaDigitLength">VA digit length</label>
                     <input class="input" id="vaDigitLength" name="vaDigitLength" type="number" required/>
                 </div>
+                <div>
+                    <label class="label" for="allocationStrategy">Allocation strategy</label>
+                    <select class="input" id="allocationStrategy" name="allocationStrategy" required>
+                        <option value="PAYER_ENCODED">PAYER_ENCODED</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="label" for="slotDigits">Slot digits</label>
+                    <input class="input" id="slotDigits" name="slotDigits" type="number" min="0" required/>
+                    <p class="mt-1 text-xs text-slate-400">Digits between the prefix and the payer segment. The payer key takes
+                        whatever the digit length leaves.</p>
+                </div>
+                <div>
+                    <label class="label" for="payerPadding">Payer padding</label>
+                    <select class="input" id="payerPadding" name="payerPadding" required>
+                        <option value="LEFT">LEFT</option>
+                        <option value="RIGHT">RIGHT</option>
+                    </select>
+                    <p class="mt-1 text-xs text-slate-400">Which end of the payer segment is zero-filled. RIGHT reproduces
+                        numbers already issued under that rule — changing it changes whose number
+                        each future VA is.</p>
+                </div>
+                <div>
+                    <label class="label" for="interbankPrefix">Interbank prefix</label>
+                    <input class="input" id="interbankPrefix" name="interbankPrefix"/>
+                    <p class="mt-1 text-xs text-slate-400">Prefixed to the VA number for payers at other banks. Leave empty if
+                        the interbank form is the VA number itself.</p>
+                </div>
                 <div class="sm:col-span-2">
                     <label class="label" for="settlementAccountNumber">Settlement account number</label>
                     <input class="input" id="settlementAccountNumber" name="settlementAccountNumber" required/>

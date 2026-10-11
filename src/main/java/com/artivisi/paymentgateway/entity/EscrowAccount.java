@@ -85,6 +85,32 @@ public class EscrowAccount {
 
     private Integer vaDigitLength;
 
+    /**
+     * The number space this escrow allocates in. Every field is required before the escrow can
+     * collect: {@code VaNumberAllocator} refuses an incomplete layout rather than filling a gap,
+     * because a guessed segment width mints a number belonging to a different payer.
+     */
+    @Enumerated(EnumType.STRING)
+    private VaAllocationStrategy allocationStrategy;
+
+    /** Width of the slot segment, between the prefix and the payer segment. */
+    private Integer slotDigits;
+
+    @Enumerated(EnumType.STRING)
+    private PayerPadding payerPadding;
+
+    /**
+     * Prefixed to the VA number to form what a payer uses from another bank. An empty string means
+     * the interbank form is the number itself, which is a decision rather than an absence — null is
+     * the absence, and it is refused.
+     */
+    private String interbankPrefix;
+
+    /** Digits the payer key gets, after the prefix and the slot segment have taken theirs. */
+    public int payerDigits() {
+        return vaDigitLength - vaPrefix.length() - slotDigits;
+    }
+
     private String merchantTag;
 
     private String institutionTag;

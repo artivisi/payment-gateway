@@ -13,7 +13,9 @@ import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.entity.VirtualAccountStatus;
 import com.artivisi.paymentgateway.dto.ConsumerRequest;
 import com.artivisi.paymentgateway.entity.Charge;
@@ -51,11 +53,14 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     private EscrowAccount altEscrow;
     private String primaryVa;
     private String altVa;
+    private String payerKey;
+    private String slotKey;
 
-    private static EscrowAccountRequest escrowRequest(String code) {
+    private static EscrowAccountRequest escrowRequest(String code, String vaPrefix) {
         return new EscrowAccountRequest(code, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
-                "900900111", "Operator Settlement", "90099", "900", 10, null, null);
+                "900900111", "Operator Settlement", "90099", vaPrefix, 10, null, null, null,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, "");
     }
 
     @BeforeEach
@@ -64,10 +69,14 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
         consumer = consumerService.create(new ConsumerRequest(
                 "pl-consumer-" + n, "Academic", "pl-client-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
-        primary = escrowService.create(escrowRequest("pl-demo-" + n));
-        altEscrow = escrowService.create(escrowRequest("pl-alt-" + n));
-        primaryVa = "900000000" + (n % 10);
-        altVa = "900000001" + (n % 10);
+        primary = escrowService.create(escrowRequest("pl-demo-" + n, "900"));
+        altEscrow = escrowService.create(escrowRequest("pl-alt-" + n, "905"));
+        // One payer, one slot, two banks: the gateway composes a number per escrow, each in
+        // that escrow's own layout. The consumer never sees either layout.
+        payerKey = String.format("%06d", n);
+        slotKey = "0";
+        primaryVa = "900" + slotKey + payerKey;
+        altVa = "905" + slotKey + payerKey;
     }
 
     private Charge createCharge(ChargeType type, BigDecimal amount) {
@@ -77,8 +86,9 @@ class PaymentLifecycleIntegrationTest extends AbstractIntegrationTest {
     private Charge createCharge(ChargeType type, BigDecimal amount, Instant expiresAt) {
         var outcome = chargeService.create(consumer, new CreateChargeRequest(
                 "ref-" + SEQ.get(), "Student", null, null, type, amount, expiresAt,
-                List.of(new ChargeAccountRequest(primary.getCode(), primaryVa),
-                        new ChargeAccountRequest(altEscrow.getCode(), altVa))));
+                List.of(new ChargeAccountRequest(primary.getCode()),
+                        new ChargeAccountRequest(altEscrow.getCode())), null, null,
+                payerKey, slotKey));
         return chargeRepository.findById(outcome.response().id()).orElseThrow();
     }
 

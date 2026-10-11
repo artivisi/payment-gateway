@@ -12,7 +12,9 @@ import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,7 +47,8 @@ class EscrowResolverIntegrationTest extends AbstractIntegrationTest {
     private EscrowAccountRequest escrowRequest(String code, String prefix) {
         return new EscrowAccountRequest(code, provider, HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
-                "960900111", "Operator Settlement", "96099", prefix, 10, null, null);
+                "960900111", "Operator Settlement", "96099", prefix, 10, null, null, null,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, "");
     }
 
     @BeforeEach
@@ -83,7 +86,8 @@ class EscrowResolverIntegrationTest extends AbstractIntegrationTest {
         // The VA is registered in escrow B only.
         chargeService.create(consumer, new CreateChargeRequest(
                 "rslv-ref-" + SEQ.get(), "Student", null, null, ChargeType.CLOSED, new BigDecimal("100000"), null,
-                List.of(new ChargeAccountRequest(b.getCode(), "9603000001"))));
+                List.of(new ChargeAccountRequest(b.getCode())), null, null,
+                payerKeyOf("9603", "9603000001"), slotKeyOf("9603", "9603000001")));
 
         assertThat(escrowResolver.resolveForVaNumber(provider, "9603000001").getId())
                 .isEqualTo(b.getId());

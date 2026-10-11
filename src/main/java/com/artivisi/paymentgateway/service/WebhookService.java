@@ -224,6 +224,9 @@ public class WebhookService {
         if (payment != null) {
             body.put("escrowCode", payment.getVirtualAccount().getEscrowAccount().getCode());
             body.put("vaNumber", payment.getVirtualAccount().getVaNumber());
+            // Both forms, because a consumer no longer composes either and a payer may quote the
+            // interbank one on a receipt. Null on VAs allocated before the gateway composed numbers.
+            body.put("interbankVaNumber", payment.getVirtualAccount().getInterbankVaNumber());
             body.put("bankReference", payment.getBankReference());
             body.put("paymentAmount", payment.getAmount());
         }

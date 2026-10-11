@@ -79,4 +79,25 @@ public abstract class AbstractIntegrationTest {
     void configureRestAssured() {
         RestAssured.port = port;
     }
+
+    // ---------------------------------------------------------------- VA number layout for tests
+    //
+    // Every escrow these tests create allocates with one slot digit, so a VA number is its prefix,
+    // one slot digit, and a right-filled payer key taking the rest. The two helpers below split a VA
+    // number a test wants into the keys that make the gateway allocate exactly that number.
+    //
+    // Expressed this way on purpose. A literal number in a test no longer exercises anything a
+    // consumer can do, because consumers do not compose numbers any more. Splitting a known-good
+    // number into its keys is also the check the rollout itself depends on: the allocator, given the
+    // keys behind a number already issued, must produce that number back.
+
+    /** The single slot digit of {@code vaNumber}, which follows {@code vaPrefix}. */
+    protected static String slotKeyOf(String vaPrefix, String vaNumber) {
+        return vaNumber.substring(vaPrefix.length(), vaPrefix.length() + 1);
+    }
+
+    /** The payer segment of {@code vaNumber}, with its right-fill zeros still on it. */
+    protected static String payerKeyOf(String vaPrefix, String vaNumber) {
+        return vaNumber.substring(vaPrefix.length() + 1);
+    }
 }

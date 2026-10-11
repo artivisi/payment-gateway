@@ -29,6 +29,10 @@ class RegistryIntegrationTest extends AbstractIntegrationTest {
         body.put("companyId", "90099");
         body.put("vaPrefix", "900");
         body.put("vaDigitLength", 16);
+        body.put("allocationStrategy", "PAYER_ENCODED");
+        body.put("slotDigits", 2);
+        body.put("payerPadding", "RIGHT");
+        body.put("interbankPrefix", "8888001");
         return body;
     }
 
@@ -59,6 +63,10 @@ class RegistryIntegrationTest extends AbstractIntegrationTest {
                 .then().statusCode(200)
                 .body("code", equalTo("demo-launch"))
                 .body("vaDigitLength", equalTo(16))
+                .body("allocationStrategy", equalTo("PAYER_ENCODED"))
+                .body("slotDigits", equalTo(2))
+                .body("payerPadding", equalTo("RIGHT"))
+                .body("interbankPrefix", equalTo("8888001"))
                 .body("clientSecret", nullValue());
     }
 

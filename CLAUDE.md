@@ -116,8 +116,9 @@ and enforces it itself — so the field is required there regardless of our own 
 ## VA number allocation
 
 **The gateway allocates VA numbers; consumers never compute them.** Decided 2026-09-19, reversing
-the earlier consumer-computes design; implementation is issue #1. Until it lands, the code still
-takes a consumer-supplied `vaNumber` and `NumberSpaceValidator` only validates it.
+the earlier consumer-computes design; implemented in `VaNumberAllocator` (issue #1). A consumer
+sends `payerKey` + `slotKey` on the charge and names the escrows in `accounts`; it never sends a
+number and never receives a layout.
 
 The split follows what each side knows. Everything specific to a bank's number space — company id,
 prefix, total digits, segment widths, padding, how the interbank form is composed — lives on the
@@ -137,10 +138,28 @@ The one strategy is `PAYER_ENCODED`: `vaPrefix + leftPad(slotKey, slotDigits) +
 pad(payerKey, payerDigits, payerPadding)`. It is deterministic — the same payer and slot get the same
 number on every charge, because payers keep that number in their banking app. `payerPadding`
 (`LEFT` | `RIGHT`) is explicit per escrow; `RIGHT` exists to reproduce numbers already issued under
-that rule. Every layout field is required. A non-numeric key, or one that overflows its segment, is
-rejected rather than truncated. There is no sequential ("last number") strategy; add one when a
-deployment without standing payer identities needs it, allocating the counter inside the
-charge-create transaction so a rejected charge does not burn a number.
+that rule. A non-numeric key, or one that overflows its segment, is rejected rather than truncated.
+There is no sequential ("last number") strategy; add one when a deployment without standing payer
+identities needs it, allocating the counter inside the charge-create transaction so a rejected
+charge does not burn a number.
+
+`interbankVaNumber` is composed too, as `interbankPrefix + vaNumber`, and stored on the VA rather
+than derived at read time — a payer is told the number once, so a later prefix change must not
+rewrite what past charges reported. An empty `interbankPrefix` means the interbank form *is* the
+number; null means nobody has said, and the allocator refuses.
+
+**An incomplete layout is refused, never filled in.** The layout cannot be derived from anything the
+gateway holds, so `VaNumberAllocator` names the escrow and the missing field instead of guessing a
+segment width — a guessed width composes a well-formed number belonging to a different payer, which
+the bank accepts and settles. Escrows that predate this (V12 sets `allocation_strategy` and leaves
+the rest null) therefore cannot be enabled until an operator records the layout they have been
+issuing under; the layout is frozen *once set* and VAs exist, which is deliberately not the same as
+frozen whenever VAs exist.
+
+**The 409 on a number conflict carries the allocated number and, for the same consumer, the
+`consumerReference` of the charge holding it.** Once a consumer no longer computes the number, that
+refusal is the only way it can find the bill it needs to supersede. Another consumer's reference is
+withheld; a cross-consumer clash on a shared escrow is an operator's problem.
 
 **VA numbers are reusable.** A number may back several `VirtualAccount`s over time (one per successive charge), but at most **one ACTIVE** per escrow+number (enforced by `uq_va_escrow_number_active`); the rest are retired (PAID/CANCELLED/EXPIRED). Every lookup is therefore **generation-aware**: inquiry resolves the ACTIVE generation; payment/reversal/reconciliation prefer the ACTIVE generation and check idempotency across all generations of the number. Never assume a `(escrow, vaNumber)` maps to a single VA row.
 

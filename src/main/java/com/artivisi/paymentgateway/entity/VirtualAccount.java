@@ -17,9 +17,9 @@ import org.hibernate.annotations.UuidGenerator;
 import java.time.Instant;
 
 /**
- * One bank payment instrument for a {@link Charge}. The consumer-supplied {@code vaNumber}
- * is validated within the escrow's number space. Effective amount on inquiry is
- * {@code charge.amount - charge.cumulativePaid}.
+ * One bank payment instrument for a {@link Charge}. The {@code vaNumber} is allocated by the
+ * gateway inside this escrow's number space, from the charge's payer and slot keys. Effective amount
+ * on inquiry is {@code charge.amount - charge.cumulativePaid}.
  */
 @Getter
 @Setter
@@ -40,6 +40,15 @@ public class VirtualAccount {
     private EscrowAccount escrowAccount;
 
     private String vaNumber;
+
+    /**
+     * The form a payer uses from a different bank, as composed when this VA was allocated.
+     *
+     * <p>Stored rather than derived: the payer was told this number once and keeps it, so a later
+     * change to the escrow's interbank prefix must not rewrite what past charges reported. Null on
+     * VAs created before the gateway allocated numbers, when the consumer composed both forms.
+     */
+    private String interbankVaNumber;
 
     @Enumerated(EnumType.STRING)
     private VirtualAccountStatus status;

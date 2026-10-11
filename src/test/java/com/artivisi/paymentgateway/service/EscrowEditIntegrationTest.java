@@ -13,7 +13,9 @@ import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.exception.InvalidRequestException;
 import com.artivisi.paymentgateway.repository.EscrowAccountRepository;
 import org.junit.jupiter.api.Test;
@@ -41,7 +43,8 @@ class EscrowEditIntegrationTest extends AbstractIntegrationTest {
         return escrowService.create(new EscrowAccountRequest("ee-demo-" + n, "demo", HostingModel.SELF_HOSTED,
                 TransportProtocol.REST_JSON, AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX,
                 "cid", secret, null, null, null, null, null, null,
-                "900900111", "Operator Settlement", "90099", "900", 10, null, null));
+                "900900111", "Operator Settlement", "90099", "900", 10, null, null, null,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, ""));
     }
 
     private EscrowUpdateRequest update(EscrowAccount e, String settlementName, String clientSecret) {
@@ -49,7 +52,8 @@ class EscrowEditIntegrationTest extends AbstractIntegrationTest {
                 e.getActiveEnvironment(), e.getClientId(), clientSecret, e.getPartnerId(), e.getChannelId(),
                 null, e.getPublicKey(), e.getSandboxBaseUrl(), e.getProductionBaseUrl(),
                 e.getSettlementAccountNumber(), settlementName, e.getCompanyId(), e.getVaPrefix(),
-                e.getVaDigitLength(), e.getMerchantTag(), e.getInstitutionTag());
+                e.getVaDigitLength(), e.getMerchantTag(), e.getInstitutionTag(), e.getSettlementFee(),
+                e.getAllocationStrategy(), e.getSlotDigits(), e.getPayerPadding(), e.getInterbankPrefix());
     }
 
     @Test
@@ -79,12 +83,14 @@ class EscrowEditIntegrationTest extends AbstractIntegrationTest {
                 "ee-con-" + n, "C", "ee-cid-" + n, "sec", "https://h/x", ConsumerStatus.ACTIVE));
         chargeService.create(consumer, new CreateChargeRequest("ee-ref-" + n, "Payer", null, null,
                 ChargeType.CLOSED, new BigDecimal("1000000"), null,
-                List.of(new ChargeAccountRequest(e.getCode(), "9000000001"))));
+                List.of(new ChargeAccountRequest(e.getCode())), null, null,
+                payerKeyOf("900", "9000000001"), slotKeyOf("900", "9000000001")));
 
         EscrowUpdateRequest changedProvider = new EscrowUpdateRequest("other-bank", e.getHostingModel(), e.getTransport(),
                 e.getAuthScheme(), e.getActiveEnvironment(), e.getClientId(), null, null, null, null, null, null, null,
                 e.getSettlementAccountNumber(), e.getSettlementAccountName(), e.getCompanyId(), e.getVaPrefix(),
-                e.getVaDigitLength(), null, null);
+                e.getVaDigitLength(), null, null, null,
+                e.getAllocationStrategy(), e.getSlotDigits(), e.getPayerPadding(), e.getInterbankPrefix());
 
         assertThatThrownBy(() -> escrowService.update(e.getId(), changedProvider))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -100,7 +106,8 @@ class EscrowEditIntegrationTest extends AbstractIntegrationTest {
 
         assertThatThrownBy(() -> chargeService.create(consumer, new CreateChargeRequest("ee-ref-" + n, "Payer",
                 null, null, ChargeType.CLOSED, new BigDecimal("1000000"), null,
-                List.of(new ChargeAccountRequest(e.getCode(), "9000000002")))))
+                List.of(new ChargeAccountRequest(e.getCode())), null, null,
+                payerKeyOf("900", "9000000002"), slotKeyOf("900", "9000000002"))))
                 .isInstanceOf(InvalidRequestException.class);
     }
 }

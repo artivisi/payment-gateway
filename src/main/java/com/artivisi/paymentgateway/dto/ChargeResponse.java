@@ -26,12 +26,20 @@ public record ChargeResponse(
         List<Account> accounts,
         Instant createdAt
 ) {
-    public record Account(String escrowCode, String vaNumber, VirtualAccountStatus status) {
+    /**
+     * {@code interbankVaNumber} is the form a payer uses from a different bank, and it is returned
+     * rather than left to the consumer to build. Composing it needs the escrow's interbank prefix,
+     * which is a bank fact; a consumer that concatenates its own copy is right until the prefix
+     * changes or a second escrow exists.
+     */
+    public record Account(String escrowCode, String vaNumber, String interbankVaNumber,
+                          VirtualAccountStatus status) {
     }
 
     public static ChargeResponse from(Charge c, List<VirtualAccount> vas) {
         List<Account> accounts = vas.stream()
-                .map(va -> new Account(va.getEscrowAccount().getCode(), va.getVaNumber(), va.getStatus()))
+                .map(va -> new Account(va.getEscrowAccount().getCode(), va.getVaNumber(),
+                        va.getInterbankVaNumber(), va.getStatus()))
                 .toList();
         return new ChargeResponse(
                 c.getId(), c.getConsumerReference(), c.getBillNumber(), c.getPayerName(), c.getPayerEmail(),

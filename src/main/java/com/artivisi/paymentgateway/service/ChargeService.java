@@ -32,20 +32,20 @@ public class ChargeService {
     private final ChargeRepository chargeRepository;
     private final VirtualAccountRepository virtualAccountRepository;
     private final EscrowAccountRepository escrowAccountRepository;
-    private final NumberSpaceValidator numberSpaceValidator;
+    private final VaNumberAllocator vaNumberAllocator;
     private final AuditService auditService;
     private final WebhookService webhookService;
 
     public ChargeService(ChargeRepository chargeRepository,
                          VirtualAccountRepository virtualAccountRepository,
                          EscrowAccountRepository escrowAccountRepository,
-                         NumberSpaceValidator numberSpaceValidator,
+                         VaNumberAllocator vaNumberAllocator,
                          AuditService auditService,
                          WebhookService webhookService) {
         this.chargeRepository = chargeRepository;
         this.virtualAccountRepository = virtualAccountRepository;
         this.escrowAccountRepository = escrowAccountRepository;
-        this.numberSpaceValidator = numberSpaceValidator;
+        this.vaNumberAllocator = vaNumberAllocator;
         this.auditService = auditService;
         this.webhookService = webhookService;
     }
@@ -94,17 +94,19 @@ public class ChargeService {
             if (!escrow.isEnabled()) {
                 throw new InvalidRequestException("escrow is disabled: " + account.escrowCode());
             }
-            numberSpaceValidator.validate(escrow, account.vaNumber());
-            if (virtualAccountRepository
-                    .findByEscrowAccountIdAndVaNumberAndStatus(escrow.getId(), account.vaNumber(),
-                            VirtualAccountStatus.ACTIVE).isPresent()) {
-                throw new DuplicateException(
-                        "vaNumber already active for escrow " + escrow.getCode() + ": " + account.vaNumber());
-            }
+            VaNumberAllocator.AllocatedNumber allocated =
+                    vaNumberAllocator.allocate(escrow, request.payerKey(), request.slotKey());
+            virtualAccountRepository
+                    .findByEscrowAccountIdAndVaNumberAndStatus(escrow.getId(), allocated.vaNumber(),
+                            VirtualAccountStatus.ACTIVE)
+                    .ifPresent(held -> {
+                        throw new DuplicateException(conflictMessage(consumer, escrow, allocated, held));
+                    });
             VirtualAccount va = new VirtualAccount();
             va.setCharge(savedCharge);
             va.setEscrowAccount(escrow);
-            va.setVaNumber(account.vaNumber());
+            va.setVaNumber(allocated.vaNumber());
+            va.setInterbankVaNumber(allocated.interbankVaNumber());
             va.setStatus(VirtualAccountStatus.ACTIVE);
             vas.add(virtualAccountRepository.save(va));
         }
@@ -113,6 +115,28 @@ public class ChargeService {
                 "consumerReference=" + savedCharge.getConsumerReference()
                         + " type=" + savedCharge.getChargeType() + " amount=" + savedCharge.getAmount());
         return new CreateChargeOutcome(ChargeResponse.from(savedCharge, vas), true);
+    }
+
+    /**
+     * What a consumer needs to resolve a number conflict on its own.
+     *
+     * <p>The allocated number is in the message because the consumer no longer computes it and
+     * otherwise has no way to know which number it collided on. The holding charge's
+     * {@code consumerReference} is there too, but only when that charge belongs to the same
+     * consumer: it is the key the consumer can act on — supersede that bill, or wait for it to be
+     * paid — and this is the only place it can learn it. Another consumer's reference is withheld,
+     * because one consumer's bill ids are not another's to read; a conflict across consumers on a
+     * shared escrow is an operator's problem, and the escrow and number are enough to report it.
+     */
+    private static String conflictMessage(Consumer consumer, EscrowAccount escrow,
+                                          VaNumberAllocator.AllocatedNumber allocated, VirtualAccount held) {
+        String message = "vaNumber already active for escrow " + escrow.getCode() + ": " + allocated.vaNumber();
+        Charge holder = held.getCharge();
+        if (holder != null && holder.getConsumer() != null
+                && holder.getConsumer().getId().equals(consumer.getId())) {
+            return message + " (held by charge " + holder.getConsumerReference() + ")";
+        }
+        return message;
     }
 
     @Transactional(readOnly = true)

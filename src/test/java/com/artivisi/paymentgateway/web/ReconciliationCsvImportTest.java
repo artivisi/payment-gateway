@@ -13,7 +13,9 @@ import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.service.ChargeService;
 import com.artivisi.paymentgateway.service.ConsumerService;
 import com.artivisi.paymentgateway.service.EscrowAccountService;
@@ -56,7 +58,8 @@ class ReconciliationCsvImportTest extends AbstractIntegrationTest {
                     null, null, null, null, null, null, null, null,
                     row.get("settlementAccountNumber"), row.get("settlementAccountName"),
                     row.get("companyId"), row.get("vaPrefix"),
-                    Integer.parseInt(row.get("vaDigitLength")), null, null, java.math.BigDecimal.ZERO));
+                    Integer.parseInt(row.get("vaDigitLength")), null, null, java.math.BigDecimal.ZERO,
+                    VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, ""));
             escrows.put(escrow.getCode(), escrow);
         }
 
@@ -72,7 +75,9 @@ class ReconciliationCsvImportTest extends AbstractIntegrationTest {
             chargeService.create(consumers.get(row.get("consumerCode")), new CreateChargeRequest(
                     row.get("consumerReference"), row.get("payerName"), null, null,
                     ChargeType.valueOf(row.get("chargeType")), new BigDecimal(row.get("amount")), null,
-                    List.of(new ChargeAccountRequest(row.get("escrowCode"), row.get("vaNumber")))));
+                    List.of(new ChargeAccountRequest(row.get("escrowCode"))), null, null,
+                    payerKeyOf(escrows.get(row.get("escrowCode")).getVaPrefix(), row.get("vaNumber")),
+                    slotKeyOf(escrows.get(row.get("escrowCode")).getVaPrefix(), row.get("vaNumber"))));
         }
 
         for (Map<String, String> row : CsvFixtures.rows("/testdata/payments.csv")) {

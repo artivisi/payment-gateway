@@ -91,6 +91,44 @@
                            name="vaDigitLength" type="number" th:value="${escrow.vaDigitLength}"
                            th:readonly="${structuralLocked}" required/>
                 </div>
+                <div>
+                    <label class="label">Allocation strategy</label>
+                    <select th:if="${!structuralLocked}" class="input" name="allocationStrategy" required>
+                        <option th:each="a : ${T(com.artivisi.paymentgateway.entity.VaAllocationStrategy).values()}"
+                                th:value="${a}" th:text="${a}" th:selected="${escrow.allocationStrategy == a}">a</option>
+                    </select>
+                    <input th:if="${layoutLocked}" class="input bg-slate-50" type="text"
+                           th:value="${escrow.allocationStrategy}" readonly/>
+                    <input th:if="${layoutLocked}" type="hidden" name="allocationStrategy"
+                           th:value="${escrow.allocationStrategy}"/>
+                </div>
+                <div>
+                    <label class="label" for="slotDigits">Slot digits</label>
+                    <input class="input" th:classappend="${layoutLocked} ? 'bg-slate-50' : ''" id="slotDigits"
+                           name="slotDigits" type="number" min="0" th:value="${escrow.slotDigits}"
+                           th:readonly="${layoutLocked}" required/>
+                    <p class="mt-1 text-xs text-slate-400">Digits between the prefix and the payer segment.</p>
+                </div>
+                <div>
+                    <label class="label">Payer padding</label>
+                    <select th:if="${!structuralLocked}" class="input" name="payerPadding" required>
+                        <option th:each="pp : ${T(com.artivisi.paymentgateway.entity.PayerPadding).values()}"
+                                th:value="${pp}" th:text="${pp}" th:selected="${escrow.payerPadding == pp}">pp</option>
+                    </select>
+                    <input th:if="${layoutLocked}" class="input bg-slate-50" type="text"
+                           th:value="${escrow.payerPadding}" readonly/>
+                    <input th:if="${layoutLocked}" type="hidden" name="payerPadding"
+                           th:value="${escrow.payerPadding}"/>
+                    <p class="mt-1 text-xs text-slate-400">Frozen once VAs exist: changing it changes whose
+                        number each future VA is.</p>
+                </div>
+                <div>
+                    <label class="label" for="interbankPrefix">Interbank prefix</label>
+                    <input class="input" th:classappend="${layoutLocked} ? 'bg-slate-50' : ''"
+                           id="interbankPrefix" name="interbankPrefix" th:value="${escrow.interbankPrefix}"
+                           th:readonly="${layoutLocked}"/>
+                    <p class="mt-1 text-xs text-slate-400">Empty means the interbank form is the VA number itself.</p>
+                </div>
                 <div class="sm:col-span-2">
                     <label class="label" for="settlementAccountNumber">Settlement account number</label>
                     <input class="input" id="settlementAccountNumber" name="settlementAccountNumber"

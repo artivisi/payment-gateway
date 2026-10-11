@@ -13,8 +13,10 @@ import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.Payment;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.repository.AuditEventRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,13 +46,15 @@ class AuditLoggingIntegrationTest extends AbstractIntegrationTest {
         EscrowAccount escrow = escrowService.create(new EscrowAccountRequest(
                 "audit-demo-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, "audit-client", "audit-secret", null, null,
-                null, null, null, null, "950900111", "Operator Settlement", "95099", "950", 10, null, null));
+                null, null, null, null, "950900111", "Operator Settlement", "95099", "950", 10, null, null, null,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, ""));
         Consumer consumer = consumerService.create(new ConsumerRequest(
                 "audit-consumer-" + n, "Academic", "audit-consumer-client-" + n, "audit-consumer-secret",
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
         String chargeId = chargeService.create(consumer, new CreateChargeRequest(
                         "audit-ref-" + n, "Student", null, null, ChargeType.CLOSED, new BigDecimal("100000"), null,
-                        List.of(new ChargeAccountRequest("audit-demo-" + n, va)))).response().id();
+                        List.of(new ChargeAccountRequest("audit-demo-" + n)), null, null,
+                        payerKeyOf("950", va), slotKeyOf("950", va))).response().id();
         Payment payment = paymentService.apply(escrow, va, new BigDecimal("100000"), "AUD-R1", Instant.now());
 
         assertThat(eventTypes(escrow.getId())).contains("ESCROW_CREATED");

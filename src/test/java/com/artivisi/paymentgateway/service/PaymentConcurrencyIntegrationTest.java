@@ -14,9 +14,11 @@ import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.Payment;
 import com.artivisi.paymentgateway.entity.PaymentStatus;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.entity.VirtualAccountStatus;
 import com.artivisi.paymentgateway.exception.InvalidPaymentException;
 import com.artivisi.paymentgateway.repository.ChargeRepository;
@@ -61,11 +63,14 @@ class PaymentConcurrencyIntegrationTest extends AbstractIntegrationTest {
     private EscrowAccount altEscrow;
     private String primaryVa;
     private String altVa;
+    private String payerKey;
+    private String slotKey;
 
-    private static EscrowAccountRequest escrowRequest(String code) {
+    private static EscrowAccountRequest escrowRequest(String code, String vaPrefix) {
         return new EscrowAccountRequest(code, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
-                "910900111", "Operator Settlement", "91099", "910", 10, null, null);
+                "910900111", "Operator Settlement", "91099", vaPrefix, 10, null, null, null,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, "");
     }
 
     @BeforeEach
@@ -74,17 +79,22 @@ class PaymentConcurrencyIntegrationTest extends AbstractIntegrationTest {
         consumer = consumerService.create(new ConsumerRequest(
                 "race-consumer-" + n, "Academic", "race-client-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
-        primary = escrowService.create(escrowRequest("race-demo-" + n));
-        altEscrow = escrowService.create(escrowRequest("race-altEscrow-" + n));
-        primaryVa = "910000000" + (n % 10);
-        altVa = "910000001" + (n % 10);
+        primary = escrowService.create(escrowRequest("race-demo-" + n, "910"));
+        altEscrow = escrowService.create(escrowRequest("race-altEscrow-" + n, "915"));
+        // One payer, one slot, two banks: the gateway composes a number per escrow, each in
+        // that escrow's own layout. The consumer never sees either layout.
+        payerKey = String.format("%06d", n);
+        slotKey = "0";
+        primaryVa = "910" + slotKey + payerKey;
+        altVa = "915" + slotKey + payerKey;
     }
 
     private Charge createCharge(ChargeType type, BigDecimal amount) {
         var outcome = chargeService.create(consumer, new CreateChargeRequest(
                 "race-ref-" + SEQ.get(), "Student", null, null, type, amount, null,
-                List.of(new ChargeAccountRequest(primary.getCode(), primaryVa),
-                        new ChargeAccountRequest(altEscrow.getCode(), altVa))));
+                List.of(new ChargeAccountRequest(primary.getCode()),
+                        new ChargeAccountRequest(altEscrow.getCode())), null, null,
+                payerKey, slotKey));
         return chargeRepository.findById(outcome.response().id()).orElseThrow();
     }
 

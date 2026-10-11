@@ -13,8 +13,10 @@ import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.Operator;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.repository.OperatorRepository;
 import com.artivisi.paymentgateway.repository.RoleRepository;
 import com.artivisi.paymentgateway.service.ChargeService;
@@ -118,7 +120,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         return new EscrowAccountRequest(
                 code, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
-                "900900111", "Settle", "90099", "900", 10, null, null);
+                "900900111", "Settle", "90099", "900", 10, null, null, null,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, "");
     }
 
     @Test
@@ -259,7 +262,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         String chargeId = chargeService.create(consumer, new CreateChargeRequest(
                 "CHR-REF-" + n, "Test Payer", null, null,
                 ChargeType.CLOSED, new BigDecimal("500000"), null,
-                List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber)))).response().id();
+                List.of(new ChargeAccountRequest(escrow.getCode())), null, null,
+                payerKeyOf("900", vaNumber), slotKeyOf("900", vaNumber))).response().id();
 
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch();
@@ -286,7 +290,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         chargeService.create(consumer, new CreateChargeRequest(
                 "PAY-REF-" + n, "Payer", null, null,
                 ChargeType.OPEN, new BigDecimal("500000"), null,
-                List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber))));
+                List.of(new ChargeAccountRequest(escrow.getCode())), null, null,
+                payerKeyOf("900", vaNumber), slotKeyOf("900", vaNumber)));
         String bankRef = "BANK-" + n;
         String paymentId = paymentApplicationService.apply(
                 escrow, vaNumber, new BigDecimal("100000"), bankRef, Instant.now()).getId();
@@ -315,7 +320,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                 "940090111", "Settle", "90001", "940", 10, null, null,
                 // This stub bank keeps nothing, stated explicitly: reconciliation refuses to run
                 // against an escrow whose fee is unknown rather than compare gross against net.
-                java.math.BigDecimal.ZERO));
+                java.math.BigDecimal.ZERO,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, ""));
 
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch();
@@ -342,7 +348,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                 "pw-claim-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "9990001234", "Settlement Account", "90001", "941", 10,
-                null, null, new java.math.BigDecimal("2000")));
+                null, null, new java.math.BigDecimal("2000"),
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, ""));
         var consumer = consumerService.create(new ConsumerRequest(
                 "pw-claim-c-" + n, "Academic", "pw-claim-cid-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
@@ -353,7 +360,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         chargeService.create(consumer, new CreateChargeRequest(
                 "pw-claim-ref-" + n, "Student", null, null, ChargeType.CLOSED,
                 new java.math.BigDecimal("500000"), null,
-                java.util.List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber))));
+                java.util.List.of(new ChargeAccountRequest(escrow.getCode())), null, null,
+                payerKeyOf("941", vaNumber), slotKeyOf("941", vaNumber)));
         paymentApplicationService.apply(escrow, vaNumber, new java.math.BigDecimal("500000"),
                 "CLAIM-REF-" + n, java.time.Instant.parse("2026-06-25T03:00:00Z"));
 
@@ -397,7 +405,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                 "pw-disc-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "9990001234", "Settlement Account", "90001", "942", 10,
-                null, null, new java.math.BigDecimal("2000")));
+                null, null, new java.math.BigDecimal("2000"),
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, ""));
         var consumer = consumerService.create(new ConsumerRequest(
                 "pw-disc-c-" + n, "Academic", "pw-disc-cid-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
@@ -405,7 +414,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         chargeService.create(consumer, new CreateChargeRequest(
                 "pw-disc-ref-" + n, "Student", null, null, ChargeType.CLOSED,
                 new java.math.BigDecimal("750000"), null,
-                java.util.List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber))));
+                java.util.List.of(new ChargeAccountRequest(escrow.getCode())), null, null,
+                payerKeyOf("942", vaNumber), slotKeyOf("942", vaNumber)));
         paymentApplicationService.apply(escrow, vaNumber, new java.math.BigDecimal("750000"),
                 "DISC-REF-" + n, java.time.Instant.parse("2026-06-26T03:00:00Z"));
         reconciliationService.reconcile(escrow, java.time.LocalDate.parse("2026-06-26"),
@@ -438,7 +448,8 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
                 "pw-audit-" + n, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
                 "9990001234", "Settlement Account", "90001", "943", 10,
-                null, null, new java.math.BigDecimal("2000")));
+                null, null, new java.math.BigDecimal("2000"),
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, ""));
         var consumer = consumerService.create(new ConsumerRequest(
                 "pw-audit-c-" + n, "Academic", "pw-audit-cid-" + n, "secret-" + n,
                 "https://hook.example/" + n, ConsumerStatus.ACTIVE));
@@ -451,8 +462,9 @@ class PlaywrightSmokeTest extends AbstractIntegrationTest {
         var created = chargeService.create(consumer, new CreateChargeRequest(
                 java.util.UUID.randomUUID().toString(), payerName, null, null,
                 ChargeType.CLOSED, new java.math.BigDecimal("250000"), null,
-                java.util.List.of(new ChargeAccountRequest(escrow.getCode(), vaNumber)),
-                "Daftar ulang", billNumber));
+                java.util.List.of(new ChargeAccountRequest(escrow.getCode())),
+                "Daftar ulang", billNumber,
+                payerKeyOf("943", vaNumber), slotKeyOf("943", vaNumber)));
 
         try (Playwright playwright = Playwright.create()) {
             Browser browser = playwright.chromium().launch();

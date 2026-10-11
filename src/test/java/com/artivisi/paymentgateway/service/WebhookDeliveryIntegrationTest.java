@@ -12,7 +12,9 @@ import com.artivisi.paymentgateway.entity.ConsumerStatus;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.EscrowEnvironment;
 import com.artivisi.paymentgateway.entity.HostingModel;
+import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.TransportProtocol;
+import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
 import com.artivisi.paymentgateway.entity.WebhookDelivery;
 import com.artivisi.paymentgateway.entity.WebhookStatus;
 import com.artivisi.paymentgateway.repository.WebhookDeliveryRepository;
@@ -80,7 +82,8 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
     private static EscrowAccountRequest escrowRequest(String code) {
         return new EscrowAccountRequest(code, "demo", HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON,
                 AuthScheme.PROPRIETARY, EscrowEnvironment.SANDBOX, null, null, null, null, null, null, null, null,
-                "900900111", "Operator Settlement", "90099", "900", 10, null, null);
+                "900900111", "Operator Settlement", "90099", "900", 10, null, null, null,
+                VaAllocationStrategy.PAYER_ENCODED, 1, PayerPadding.RIGHT, "");
     }
 
     private record Fixture(Consumer consumer, EscrowAccount escrow, String secret, String vaNumber) {
@@ -98,7 +101,8 @@ class WebhookDeliveryIntegrationTest extends AbstractIntegrationTest {
     private String createAndPay(Fixture f, ChargeType type, String amount, String bankRef) {
         var outcome = chargeService.create(f.consumer(), new CreateChargeRequest(
                 "wh-ref-" + SEQ.get(), "Student", null, null, type, new java.math.BigDecimal(amount), null,
-                List.of(new ChargeAccountRequest(f.escrow().getCode(), f.vaNumber()))));
+                List.of(new ChargeAccountRequest(f.escrow().getCode())), null, null,
+                payerKeyOf("900", f.vaNumber()), slotKeyOf("900", f.vaNumber())));
         paymentService.apply(f.escrow(), f.vaNumber(), new java.math.BigDecimal(amount), bankRef, Instant.now());
         return outcome.response().id();
     }
