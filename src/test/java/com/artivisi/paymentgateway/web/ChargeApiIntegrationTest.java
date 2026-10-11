@@ -133,6 +133,26 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
                 .when().post("/api/charges").then().statusCode(400);
     }
 
+    /**
+     * The conflict a consumer reads fields out of, not prose. It cannot compose the number any more,
+     * so this response is where it learns the number and which of its own bills is holding it.
+     */
+    @Test
+    void createCharge_onANumberAlreadyActive_is409WithTheNumberAndTheHoldingReference() {
+        given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
+                .contentType("application/json").body(chargeBody("ref-busy-first"))
+                .when().post("/api/charges").then().statusCode(201);
+
+        given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
+                .contentType("application/json").body(chargeBody("ref-busy-second"))
+                .when().post("/api/charges")
+                .then().statusCode(409)
+                .body("code", equalTo("VA_NUMBER_BUSY"))
+                .body("vaNumber", equalTo(expectedVa))
+                .body("escrowCode", notNullValue())
+                .body("heldByConsumerReference", equalTo("ref-busy-first"));
+    }
+
     @Test
     void createCharge_withANonNumericPayerKey_is400() {
         given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)

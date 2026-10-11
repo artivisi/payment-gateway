@@ -5,6 +5,7 @@ import com.artivisi.paymentgateway.exception.InvalidPaymentException;
 import com.artivisi.paymentgateway.exception.InvalidRequestException;
 import com.artivisi.paymentgateway.exception.NotFoundException;
 import com.artivisi.paymentgateway.exception.UnauthorizedException;
+import com.artivisi.paymentgateway.exception.VaNumberBusyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -24,6 +25,27 @@ public class ApiExceptionHandler {
     @ExceptionHandler(DuplicateException.class)
     public ProblemDetail handleDuplicate(DuplicateException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+    }
+
+    /**
+     * The number conflict, with its parts as fields rather than only inside the sentence.
+     *
+     * <p>A consumer no longer composes the VA number, so this response is the only place it can
+     * learn which number it collided on and which of its own bills is holding it. Reading that out
+     * of prose would make the message format part of the contract, and it would break the moment
+     * the wording improved.
+     */
+    @ExceptionHandler(VaNumberBusyException.class)
+    public ProblemDetail handleVaNumberBusy(VaNumberBusyException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, e.getMessage());
+        problem.setTitle("VA number busy");
+        problem.setProperty("code", "VA_NUMBER_BUSY");
+        problem.setProperty("escrowCode", e.getEscrowCode());
+        problem.setProperty("vaNumber", e.getVaNumber());
+        if (e.getHeldByConsumerReference() != null) {
+            problem.setProperty("heldByConsumerReference", e.getHeldByConsumerReference());
+        }
+        return problem;
     }
 
     @ExceptionHandler(UnauthorizedException.class)

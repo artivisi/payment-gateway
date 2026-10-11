@@ -10,7 +10,7 @@ import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.VirtualAccount;
 import com.artivisi.paymentgateway.entity.VirtualAccountStatus;
 import com.artivisi.paymentgateway.entity.WebhookEventType;
-import com.artivisi.paymentgateway.exception.DuplicateException;
+import com.artivisi.paymentgateway.exception.VaNumberBusyException;
 import com.artivisi.paymentgateway.exception.InvalidRequestException;
 import com.artivisi.paymentgateway.exception.NotFoundException;
 import com.artivisi.paymentgateway.repository.ChargeRepository;
@@ -100,7 +100,7 @@ public class ChargeService {
                     .findByEscrowAccountIdAndVaNumberAndStatus(escrow.getId(), allocated.vaNumber(),
                             VirtualAccountStatus.ACTIVE)
                     .ifPresent(held -> {
-                        throw new DuplicateException(conflictMessage(consumer, escrow, allocated, held));
+                        throw busy(consumer, escrow, allocated, held);
                     });
             VirtualAccount va = new VirtualAccount();
             va.setCharge(savedCharge);
@@ -128,15 +128,13 @@ public class ChargeService {
      * because one consumer's bill ids are not another's to read; a conflict across consumers on a
      * shared escrow is an operator's problem, and the escrow and number are enough to report it.
      */
-    private static String conflictMessage(Consumer consumer, EscrowAccount escrow,
-                                          VaNumberAllocator.AllocatedNumber allocated, VirtualAccount held) {
-        String message = "vaNumber already active for escrow " + escrow.getCode() + ": " + allocated.vaNumber();
+    private static VaNumberBusyException busy(Consumer consumer, EscrowAccount escrow,
+                                              VaNumberAllocator.AllocatedNumber allocated, VirtualAccount held) {
         Charge holder = held.getCharge();
-        if (holder != null && holder.getConsumer() != null
-                && holder.getConsumer().getId().equals(consumer.getId())) {
-            return message + " (held by charge " + holder.getConsumerReference() + ")";
-        }
-        return message;
+        boolean sameConsumer = holder != null && holder.getConsumer() != null
+                && holder.getConsumer().getId().equals(consumer.getId());
+        return new VaNumberBusyException(escrow.getCode(), allocated.vaNumber(),
+                sameConsumer ? holder.getConsumerReference() : null);
     }
 
     @Transactional(readOnly = true)

@@ -156,10 +156,12 @@ the rest null) therefore cannot be enabled until an operator records the layout 
 issuing under; the layout is frozen *once set* and VAs exist, which is deliberately not the same as
 frozen whenever VAs exist.
 
-**The 409 on a number conflict carries the allocated number and, for the same consumer, the
-`consumerReference` of the charge holding it.** Once a consumer no longer computes the number, that
-refusal is the only way it can find the bill it needs to supersede. Another consumer's reference is
-withheld; a cross-consumer clash on a shared escrow is an operator's problem.
+**The 409 on a number conflict is structured, not prose:** a ProblemDetail with
+`code: VA_NUMBER_BUSY`, `escrowCode`, `vaNumber`, and — only when the holding charge is the same
+consumer's — `heldByConsumerReference`. Once a consumer no longer computes the number, that refusal
+is the only way it can find the bill it needs to supersede, and reading it out of a sentence would
+make the wording part of the contract. Another consumer's reference is withheld; a cross-consumer
+clash on a shared escrow is an operator's problem.
 
 **VA numbers are reusable.** A number may back several `VirtualAccount`s over time (one per successive charge), but at most **one ACTIVE** per escrow+number (enforced by `uq_va_escrow_number_active`); the rest are retired (PAID/CANCELLED/EXPIRED). Every lookup is therefore **generation-aware**: inquiry resolves the ACTIVE generation; payment/reversal/reconciliation prefer the ACTIVE generation and check idempotency across all generations of the number. Never assume a `(escrow, vaNumber)` maps to a single VA row.
 
