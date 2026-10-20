@@ -3,7 +3,9 @@ package com.artivisi.paymentgateway.service;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
+import com.artivisi.paymentgateway.exception.EscrowLayoutIncompleteException;
 import com.artivisi.paymentgateway.exception.InvalidRequestException;
+import com.artivisi.paymentgateway.exception.KeyUnencodableException;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,6 +43,41 @@ class VaNumberAllocatorTest {
 
         assertThat(allocated.vaNumber()).isEqualTo("9200126990000010");
         assertThat(allocated.vaNumber()).hasSize(16);
+    }
+
+    @Test
+    void anEmptyPrefix_isALayout_notAGap() {
+        // A bank whose numbers carry no prefix of their own: two digits of slot, ten of payer, and
+        // nothing in front. Treating the empty prefix as unconfigured refused every charge through
+        // such an escrow.
+        EscrowAccount e = escrow("", 12, 2, PayerPadding.RIGHT, "");
+
+        var allocated = allocator.allocate(e, "20261001", "7");
+
+        assertThat(allocated.vaNumber()).isEqualTo("072026100100");
+        assertThat(allocated.vaNumber()).hasSize(12);
+    }
+
+    /**
+     * Carried over from the consumer-side composer this replaced, where it was a real regression: a
+     * short payer key fills the leading positions of its segment, so debtor {@code 18200417} is
+     * {@code 16 1820041700} — the number the bank already carried — and left-filling minted
+     * {@code 16 0018200417}, a VA nobody had ever seen, against which a real payment could not match.
+     */
+    @Test
+    void aShortPayerKey_fillsTheLeadingPositions_underRightPadding() {
+        EscrowAccount e = escrow("", 12, 2, PayerPadding.RIGHT, "");
+
+        assertThat(allocator.allocate(e, "18200417", "16").vaNumber()).isEqualTo("161820041700");
+    }
+
+    @Test
+    void aNullPrefix_isStillRefused() {
+        EscrowAccount e = escrow(null, 12, 2, PayerPadding.RIGHT, "");
+
+        assertThatThrownBy(() -> allocator.allocate(e, "20261001", "7"))
+                .isInstanceOf(EscrowLayoutIncompleteException.class)
+                .hasMessageContaining("vaPrefix is not configured");
     }
 
     @Test
@@ -92,7 +129,8 @@ class VaNumberAllocatorTest {
         // Truncation would compose a valid-looking number that belongs to a different payer: the
         // bank would accept the payment, settle it, and credit the wrong student.
         assertThatThrownBy(() -> allocator.allocate(e, "1234567", "0"))
-                .isInstanceOf(InvalidRequestException.class)
+                .isInstanceOfSatisfying(KeyUnencodableException.class,
+                        k -> assertThat(k.getField()).isEqualTo("payerKey"))
                 .hasMessageContaining("7 digits")
                 .hasMessageContaining("leaves 6");
     }
@@ -102,7 +140,8 @@ class VaNumberAllocatorTest {
         EscrowAccount e = escrow("900", 10, 1, PayerPadding.RIGHT, "");
 
         assertThatThrownBy(() -> allocator.allocate(e, "000123", "12"))
-                .isInstanceOf(InvalidRequestException.class)
+                .isInstanceOfSatisfying(KeyUnencodableException.class,
+                        k -> assertThat(k.getField()).isEqualTo("slotKey"))
                 .hasMessageContaining("slotKey");
     }
 
@@ -111,10 +150,10 @@ class VaNumberAllocatorTest {
         EscrowAccount e = escrow("900", 10, 1, PayerPadding.RIGHT, "");
 
         assertThatThrownBy(() -> allocator.allocate(e, "00A123", "0"))
-                .isInstanceOf(InvalidRequestException.class)
+                .isInstanceOf(KeyUnencodableException.class)
                 .hasMessageContaining("payerKey must be numeric");
         assertThatThrownBy(() -> allocator.allocate(e, "000123", "x"))
-                .isInstanceOf(InvalidRequestException.class)
+                .isInstanceOf(KeyUnencodableException.class)
                 .hasMessageContaining("slotKey must be numeric");
     }
 
@@ -136,7 +175,7 @@ class VaNumberAllocatorTest {
         e.setPayerPadding(null);
 
         assertThatThrownBy(() -> allocator.allocate(e, "000123", "0"))
-                .isInstanceOf(InvalidRequestException.class)
+                .isInstanceOf(EscrowLayoutIncompleteException.class)
                 .hasMessageContaining("test-escrow")
                 .hasMessageContaining("payerPadding is not configured");
     }
@@ -146,7 +185,7 @@ class VaNumberAllocatorTest {
         EscrowAccount e = escrow("900", 10, 1, PayerPadding.RIGHT, null);
 
         assertThatThrownBy(() -> allocator.allocate(e, "000123", "0"))
-                .isInstanceOf(InvalidRequestException.class)
+                .isInstanceOf(EscrowLayoutIncompleteException.class)
                 .hasMessageContaining("interbankPrefix is not configured");
     }
 
@@ -155,7 +194,7 @@ class VaNumberAllocatorTest {
         EscrowAccount e = escrow("900", 10, 7, PayerPadding.RIGHT, "");
 
         assertThatThrownBy(() -> allocator.allocate(e, "1", "0"))
-                .isInstanceOf(InvalidRequestException.class)
+                .isInstanceOf(EscrowLayoutIncompleteException.class)
                 .hasMessageContaining("no room for a payer key");
     }
 }

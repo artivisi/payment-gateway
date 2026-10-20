@@ -1,8 +1,10 @@
 package com.artivisi.paymentgateway.web;
 
 import com.artivisi.paymentgateway.exception.DuplicateException;
+import com.artivisi.paymentgateway.exception.EscrowLayoutIncompleteException;
 import com.artivisi.paymentgateway.exception.InvalidPaymentException;
 import com.artivisi.paymentgateway.exception.InvalidRequestException;
+import com.artivisi.paymentgateway.exception.KeyUnencodableException;
 import com.artivisi.paymentgateway.exception.NotFoundException;
 import com.artivisi.paymentgateway.exception.UnauthorizedException;
 import com.artivisi.paymentgateway.exception.VaNumberBusyException;
@@ -45,6 +47,31 @@ public class ApiExceptionHandler {
         if (e.getHeldByConsumerReference() != null) {
             problem.setProperty("heldByConsumerReference", e.getHeldByConsumerReference());
         }
+        return problem;
+    }
+
+    /**
+     * A consumer key the escrow's layout cannot hold. Its own code, because it is the one allocation
+     * refusal a consumer passes back to whoever asked it for the bill; see
+     * {@link KeyUnencodableException}.
+     */
+    @ExceptionHandler(KeyUnencodableException.class)
+    public ProblemDetail handleKeyUnencodable(KeyUnencodableException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problem.setTitle("Key unencodable");
+        problem.setProperty("code", "KEY_UNENCODABLE");
+        problem.setProperty("field", e.getField());
+        problem.setProperty("escrowCode", e.getEscrowCode());
+        return problem;
+    }
+
+    /** An escrow that cannot allocate: the operator's to fix, never the consumer's sender's. */
+    @ExceptionHandler(EscrowLayoutIncompleteException.class)
+    public ProblemDetail handleEscrowLayoutIncomplete(EscrowLayoutIncompleteException e) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+        problem.setTitle("Escrow layout incomplete");
+        problem.setProperty("code", "ESCROW_LAYOUT_INCOMPLETE");
+        problem.setProperty("escrowCode", e.getEscrowCode());
         return problem;
     }
 

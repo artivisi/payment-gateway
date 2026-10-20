@@ -35,7 +35,8 @@ public record EscrowAccountRequest(
         @NotBlank String settlementAccountNumber,
         @NotBlank String settlementAccountName,
         @NotBlank String companyId,
-        @NotBlank String vaPrefix,
+        // Not @NotBlank: a bank whose numbers carry no prefix has an empty one.
+        @NotNull String vaPrefix,
         @NotNull Integer vaDigitLength,
         String merchantTag,
         String institutionTag,

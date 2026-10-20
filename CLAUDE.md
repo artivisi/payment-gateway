@@ -163,6 +163,13 @@ is the only way it can find the bill it needs to supersede, and reading it out o
 make the wording part of the contract. Another consumer's reference is withheld; a cross-consumer
 clash on a shared escrow is an operator's problem.
 
+**The 400s from allocation are coded the same way, by whose problem they are.** `KEY_UNENCODABLE`
+(with `field` and `escrowCode`) is a payer or slot key the layout cannot hold — a fact about the
+request, which the consumer passes back to its own sender. `ESCROW_LAYOUT_INCOMPLETE` is an escrow
+that cannot allocate at all — the operator's to fix, never reported upstream as a bad request. An
+**empty `vaPrefix` is a layout, not a gap**: a bank whose numbers carry no prefix has an empty one,
+and treating it as unconfigured refused every charge through such an escrow.
+
 **VA numbers are reusable.** A number may back several `VirtualAccount`s over time (one per successive charge), but at most **one ACTIVE** per escrow+number (enforced by `uq_va_escrow_number_active`); the rest are retired (PAID/CANCELLED/EXPIRED). Every lookup is therefore **generation-aware**: inquiry resolves the ACTIVE generation; payment/reversal/reconciliation prefer the ACTIVE generation and check idempotency across all generations of the number. Never assume a `(escrow, vaNumber)` maps to a single VA row.
 
 ## Reconciliation

@@ -96,6 +96,32 @@ class EscrowEditIntegrationTest extends AbstractIntegrationTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    /**
+     * The layout of a bank whose numbers carry no prefix, end to end: saved, enabled, and allocating.
+     * An empty prefix used to count as "not configured" in both the enable check and the allocator,
+     * which would have refused every charge through such an escrow the moment this was deployed.
+     */
+    @Test
+    void anEscrowWithNoPrefix_canBeEnabledAndAllocates() {
+        int n = SEQ.incrementAndGet();
+        EscrowAccount e = escrowService.create(new EscrowAccountRequest("ee-noprefix-" + n, "demo",
+                HostingModel.SELF_HOSTED, TransportProtocol.REST_JSON, AuthScheme.PROPRIETARY,
+                EscrowEnvironment.SANDBOX, "cid", "s", null, null, null, null, null, null,
+                "900900111", "Operator Settlement", "90099", "", 12, null, null, null,
+                VaAllocationStrategy.PAYER_ENCODED, 2, PayerPadding.RIGHT, ""));
+        escrowService.setEnabled(e.getId(), false);
+        escrowService.setEnabled(e.getId(), true);
+        Consumer consumer = consumerService.create(new ConsumerRequest(
+                "ee-con-" + n, "C", "ee-cid-" + n, "sec", "https://h/x", ConsumerStatus.ACTIVE));
+
+        var charge = chargeService.create(consumer, new CreateChargeRequest("ee-ref-" + n, "Payer", null, null,
+                ChargeType.CLOSED, new BigDecimal("1000000"), null,
+                List.of(new ChargeAccountRequest(e.getCode())), null, null, "20261001", "7"));
+
+        assertThat(charge.response().accounts()).singleElement()
+                .satisfies(a -> assertThat(a.vaNumber()).isEqualTo("072026100100"));
+    }
+
     @Test
     void disabledEscrow_rejectsNewCharges() {
         int n = SEQ.incrementAndGet();

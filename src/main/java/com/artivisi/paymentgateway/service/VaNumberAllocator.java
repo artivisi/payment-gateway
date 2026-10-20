@@ -3,7 +3,9 @@ package com.artivisi.paymentgateway.service;
 import com.artivisi.paymentgateway.entity.EscrowAccount;
 import com.artivisi.paymentgateway.entity.PayerPadding;
 import com.artivisi.paymentgateway.entity.VaAllocationStrategy;
+import com.artivisi.paymentgateway.exception.EscrowLayoutIncompleteException;
 import com.artivisi.paymentgateway.exception.InvalidRequestException;
+import com.artivisi.paymentgateway.exception.KeyUnencodableException;
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,9 +28,11 @@ import org.springframework.stereotype.Component;
  *       what a slot means, which is exactly why it can allocate for any consumer.
  * </ul>
  *
- * <p>Every refusal is a 400 naming the escrow, the segment and the value. A key that overflows its
- * segment is never truncated: a truncated key composes a well-formed number that belongs to a
- * different payer, so the payment arrives, settles, and is credited to someone else.
+ * <p>Every refusal is a 400 naming the escrow, the segment and the value, and it says whose problem
+ * it is: {@link KeyUnencodableException} when the consumer's key cannot be placed, and
+ * {@link EscrowLayoutIncompleteException} when the escrow cannot allocate at all. A key that
+ * overflows its segment is never truncated: a truncated key composes a well-formed number that
+ * belongs to a different payer, so the payment arrives, settles, and is credited to someone else.
  */
 @Component
 public class VaNumberAllocator {
@@ -56,12 +60,13 @@ public class VaNumberAllocator {
         requireNumeric(escrow, "payerKey", payerKey);
         requireNumeric(escrow, "slotKey", slotKey);
         if (payerKey.length() > payerDigits) {
-            throw new InvalidRequestException("payerKey '" + payerKey + "' is " + payerKey.length()
-                    + " digits; escrow " + escrow.getCode() + " leaves " + payerDigits + " for it");
+            throw new KeyUnencodableException("payerKey", escrow.getCode(), "payerKey '" + payerKey + "' is "
+                    + payerKey.length() + " digits; escrow " + escrow.getCode() + " leaves " + payerDigits + " for it");
         }
         if (slotKey.length() > escrow.getSlotDigits()) {
-            throw new InvalidRequestException("slotKey '" + slotKey + "' is " + slotKey.length()
-                    + " digits; escrow " + escrow.getCode() + " leaves " + escrow.getSlotDigits() + " for it");
+            throw new KeyUnencodableException("slotKey", escrow.getCode(), "slotKey '" + slotKey + "' is "
+                    + slotKey.length() + " digits; escrow " + escrow.getCode() + " leaves "
+                    + escrow.getSlotDigits() + " for it");
         }
         return escrow.getVaPrefix()
                 + leftPad(slotKey, escrow.getSlotDigits())
@@ -79,7 +84,8 @@ public class VaNumberAllocator {
     private static void requireLayout(EscrowAccount escrow) {
         VaAllocationStrategy strategy = escrow.getAllocationStrategy();
         require(escrow, "allocationStrategy", strategy);
-        require(escrow, "vaPrefix", blankToNull(escrow.getVaPrefix()));
+        // Empty is a layout, not a gap: a bank whose numbers carry no prefix of their own has none.
+        require(escrow, "vaPrefix", escrow.getVaPrefix());
         require(escrow, "vaDigitLength", escrow.getVaDigitLength());
         require(escrow, "slotDigits", escrow.getSlotDigits());
         require(escrow, "payerPadding", escrow.getPayerPadding());
@@ -87,7 +93,8 @@ public class VaNumberAllocator {
         // says so with an empty string.
         require(escrow, "interbankPrefix", escrow.getInterbankPrefix());
         if (escrow.payerDigits() < 1) {
-            throw new InvalidRequestException("escrow " + escrow.getCode() + " has no room for a payer key: "
+            throw new EscrowLayoutIncompleteException(escrow.getCode(), "escrow " + escrow.getCode()
+                    + " has no room for a payer key: "
                     + "prefix " + escrow.getVaPrefix().length() + " + slot " + escrow.getSlotDigits()
                     + " digits fill all " + escrow.getVaDigitLength());
         }
@@ -95,19 +102,15 @@ public class VaNumberAllocator {
 
     private static void require(EscrowAccount escrow, String field, Object value) {
         if (value == null) {
-            throw new InvalidRequestException("escrow " + escrow.getCode() + " cannot allocate a VA number: "
-                    + field + " is not configured");
+            throw new EscrowLayoutIncompleteException(escrow.getCode(), "escrow " + escrow.getCode()
+                    + " cannot allocate a VA number: " + field + " is not configured");
         }
-    }
-
-    private static String blankToNull(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 
     private static void requireNumeric(EscrowAccount escrow, String field, String value) {
         if (!value.chars().allMatch(Character::isDigit)) {
-            throw new InvalidRequestException(field + " must be numeric for escrow " + escrow.getCode()
-                    + "; got '" + value + "'");
+            throw new KeyUnencodableException(field, escrow.getCode(), field + " must be numeric for escrow "
+                    + escrow.getCode() + "; got '" + value + "'");
         }
     }
 

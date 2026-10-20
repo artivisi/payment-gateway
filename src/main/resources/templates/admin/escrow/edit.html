@@ -83,7 +83,8 @@
                 <div>
                     <label class="label" for="vaPrefix">VA prefix</label>
                     <input class="input" th:classappend="${structuralLocked} ? 'bg-slate-50' : ''" id="vaPrefix"
-                           name="vaPrefix" th:value="${escrow.vaPrefix}" th:readonly="${structuralLocked}" required/>
+                           name="vaPrefix" th:value="${escrow.vaPrefix}" th:readonly="${structuralLocked}"/>
+                    <p class="mt-1 text-xs text-slate-400">Empty when the bank's numbers carry no prefix.</p>
                 </div>
                 <div>
                     <label class="label" for="vaDigitLength">VA digit length</label>

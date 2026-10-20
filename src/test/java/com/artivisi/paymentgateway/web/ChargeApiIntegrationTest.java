@@ -130,7 +130,12 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
         // belonging to a different payer, so it is refused instead.
         given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
                 .contentType("application/json").body(chargeBody("ref-long", "0000012", slotKey))
-                .when().post("/api/charges").then().statusCode(400);
+                .when().post("/api/charges").then().statusCode(400)
+                // Coded, because this is the refusal a consumer passes back to its own sender, and it
+                // has to tell it apart from an escrow that cannot allocate at all.
+                .body("code", equalTo("KEY_UNENCODABLE"))
+                .body("field", equalTo("payerKey"))
+                .body("escrowCode", notNullValue());
     }
 
     /**
@@ -157,7 +162,9 @@ class ChargeApiIntegrationTest extends AbstractIntegrationTest {
     void createCharge_withANonNumericPayerKey_is400() {
         given().header("X-Client-Id", clientId).header("X-Client-Secret", clientSecret)
                 .contentType("application/json").body(chargeBody("ref-alpha", "00A001", slotKey))
-                .when().post("/api/charges").then().statusCode(400);
+                .when().post("/api/charges").then().statusCode(400)
+                .body("code", equalTo("KEY_UNENCODABLE"))
+                .body("field", equalTo("payerKey"));
     }
 
     @Test

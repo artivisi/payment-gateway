@@ -165,9 +165,13 @@ public class EscrowAccountService {
                 || !java.util.Objects.equals(e.getInterbankPrefix(), r.interbankPrefix());
     }
 
-    /** Whether every field the allocator needs is set. Incomplete layouts stay editable. */
+    /**
+     * Whether every field the allocator needs is set. Incomplete layouts stay editable.
+     *
+     * <p>An empty {@code vaPrefix} is set: it is the layout of a bank whose numbers carry no prefix.
+     */
     public static boolean layoutComplete(EscrowAccount e) {
-        return e.getVaPrefix() != null && !e.getVaPrefix().isBlank()
+        return e.getVaPrefix() != null
                 && e.getVaDigitLength() != null
                 && e.getAllocationStrategy() != null
                 && e.getSlotDigits() != null
@@ -175,15 +179,12 @@ public class EscrowAccountService {
                 && e.getInterbankPrefix() != null;
     }
 
-    /**
-     * Refuse a number layout that leaves no room for a payer key.
-     *
-     * <p>Caught here rather than at the first charge because the arithmetic is knowable the moment
-     * the escrow is saved, and an escrow that cannot allocate is not a configuration someone meant
-     * to save. The allocator checks it again: an escrow may also arrive from a migration or a
-     * direct database edit, and it must refuse there too rather than compose a number from a
-     * negative segment width.
-     */
+    @Transactional(readOnly = true)
+    public boolean hasFrozenLayout(String id) {
+        EscrowAccount e = get(id);
+        return virtualAccountRepository.countByEscrowAccountId(id) > 0 && layoutComplete(e);
+    }
+
     /**
      * Every layout field an escrow needs before it can collect, named one at a time.
      *
@@ -192,14 +193,8 @@ public class EscrowAccountService {
      * and the padding rule null because nothing in the database implies them. Enabling such an
      * escrow is refused here, naming the field, rather than at the first payment.
      */
-    @Transactional(readOnly = true)
-    public boolean hasFrozenLayout(String id) {
-        EscrowAccount e = get(id);
-        return virtualAccountRepository.countByEscrowAccountId(id) > 0 && layoutComplete(e);
-    }
-
     private static void requireCompleteLayout(EscrowAccount e) {
-        requireSet(e, "vaPrefix", e.getVaPrefix() == null || e.getVaPrefix().isBlank() ? null : e.getVaPrefix());
+        requireSet(e, "vaPrefix", e.getVaPrefix());
         requireSet(e, "vaDigitLength", e.getVaDigitLength());
         requireSet(e, "allocationStrategy", e.getAllocationStrategy());
         requireSet(e, "slotDigits", e.getSlotDigits());
@@ -215,6 +210,15 @@ public class EscrowAccountService {
         }
     }
 
+    /**
+     * Refuse a number layout that leaves no room for a payer key.
+     *
+     * <p>Caught here rather than at the first charge because the arithmetic is knowable the moment
+     * the escrow is enabled, and an escrow that cannot allocate is not a configuration someone meant
+     * to collect through. The allocator checks it again: an escrow may also arrive from a migration
+     * or a direct database edit, and it must refuse there too rather than compose a number from a
+     * negative segment width.
+     */
     private static void requireUsableLayout(EscrowAccount e) {
         int taken = e.getVaPrefix().length() + e.getSlotDigits();
         if (taken >= e.getVaDigitLength()) {
